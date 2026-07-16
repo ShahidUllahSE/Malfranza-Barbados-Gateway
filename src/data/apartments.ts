@@ -1,0 +1,84 @@
+import stayGarden from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_00 PM.png";
+import stay1br from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_34 PM.png";
+import stayKitchen from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_20 PM.png";
+import stayTropical from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_27 PM.png";
+import stay2br from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_43 PM.png";
+import stayBathroom from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_13 PM.png";
+
+export type Apartment = {
+  id: string;
+  name: string;
+  subtitle: string;
+  description: string;
+  type: "one-bedroom" | "two-bedroom";
+  guests: number;
+  beds: number;
+  baths: number;
+  sizeSqM: number;
+  pricePerNight: number;
+  images: string[];
+  amenities: string[];
+};
+
+export const APARTMENTS: Apartment[] = [
+  {
+    id: "garden-view",
+    name: "One-Bedroom Apartment",
+    subtitle: "Garden View",
+    description: "Peaceful ground floor apartment with lush garden views and a private patio.",
+    type: "one-bedroom",
+    guests: 2, beds: 1, baths: 1, sizeSqM: 56,
+    pricePerNight: 110,
+
+    images: [stayGarden, stayKitchen, stayBathroom, stay1br],
+    amenities: ["Wi-Fi", "Air Conditioning", "Kitchen", "Smart TV", "Parking", "Workspace"],
+  },
+  {
+    id: "city-view",
+    name: "One-Bedroom Apartment",
+    subtitle: "City View",
+    description: "Bright and airy apartment with city views and a cozy modern feel.",
+    type: "one-bedroom",
+    guests: 2, beds: 1, baths: 1, sizeSqM: 54,
+    pricePerNight: 110,
+    images: [stay1br, stayKitchen, stayBathroom, stay2br],
+    amenities: ["Wi-Fi", "Air Conditioning", "Kitchen", "Smart TV", "Workspace"],
+  },
+  {
+    id: "modern-comfort",
+    name: "One-Bedroom Apartment",
+    subtitle: "Modern Comfort",
+    description: "Stylish apartment with modern finishes and a fully equipped kitchen.",
+    type: "one-bedroom",
+    guests: 2, beds: 1, baths: 1, sizeSqM: 58,
+    pricePerNight: 110,
+    images: [stayKitchen, stay1br, stayBathroom, stayTropical],
+    amenities: ["Wi-Fi", "Air Conditioning", "Kitchen", "Smart TV", "Parking"],
+  },
+  {
+    id: "tropical-escape",
+    name: "One-Bedroom Apartment",
+    subtitle: "Tropical Escape",
+    description: "Tranquil retreat with tropical décor and plenty of natural light.",
+    type: "one-bedroom",
+    guests: 2, beds: 1, baths: 1, sizeSqM: 55,
+    pricePerNight: 110,
+    images: [stayTropical, stayKitchen, stayBathroom, stayGarden],
+    amenities: ["Wi-Fi", "Air Conditioning", "Kitchen", "Smart TV"],
+  },
+  {
+    id: "family-stay",
+    name: "Two-Bedroom Apartment",
+    subtitle: "Family Stay",
+    description: "Spacious two-bedroom apartment ideal for families or small groups.",
+    type: "two-bedroom",
+    guests: 4, beds: 2, baths: 1, sizeSqM: 82,
+    pricePerNight: 150,
+    images: [stay2br, stayKitchen, stayBathroom, stayGarden],
+    amenities: ["Wi-Fi", "Air Conditioning", "Kitchen", "Smart TV", "Parking", "Workspace"],
+  },
+];
+
+export function getApartment(id: string) {
+  return APARTMENTS.find((a) => a.id === id);
+}

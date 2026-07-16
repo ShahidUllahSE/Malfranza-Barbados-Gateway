@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1800" height="520" viewBox="0 0 1800 520" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Malfranza Apartments &amp; Taxi Logo</title>
+  <desc id="desc">Clean horizontal logo with tropical location pin, palm tree, house icon, green wordmark, sage descriptor text and orange accent.</desc>
+
+  <defs>
+    <style>
+      .brand { fill:#004D3B; }
+      .sage { fill:#8FAF9D; }
+      .orange { fill:#F15A2B; }
+      .wordmark {
+        font-family: "Plus Jakarta Sans", "Inter", "Montserrat", "Aptos", Arial, sans-serif;
+        font-weight: 800;
+        letter-spacing: -0.035em;
+      }
+      .descriptor {
+        font-family: "Plus Jakarta Sans", "Inter", "Montserrat", "Aptos", Arial, sans-serif;
+        font-weight: 700;
+        letter-spacing: 0.23em;
+      }
+    </style>
+  </defs>
+
+  <!-- Icon group -->
+  <g transform="translate(70 50)">
+    <!-- Orange sun arc -->
+    <path d="M104 48C159 9 241 19 293 75C329 113 346 166 337 217"
+          stroke="#F15A2B" stroke-width="18" stroke-linecap="round"/>
+
+    <!-- Location pin outline -->
+    <path class="brand" d="M164 404C124 354 58 264 58 178C58 80 137 0 235 0C333 0 412 80 412 178C412 264 346 354 306 404C266 453 204 453 164 404ZM235 30C154 30 88 96 88 178C88 253 149 337 187 384C212 415 258 415 283 384C321 337 382 253 382 178C382 96 316 30 235 30Z"/>
+
+    <!-- Palm trunk -->
+    <path class="brand" d="M137 83C153 91 162 106 166 128C173 166 158 220 137 284C126 317 117 350 112 380H78C85 341 98 298 112 258C135 190 148 137 137 83Z"/>
+
+    <!-- Palm leaves -->
+    <path class="brand" d="M154 82C107 54 66 54 34 81C78 78 111 88 154 126C139 97 113 77 78 66C108 65 133 70 154 82Z"/>
+    <path class="brand" d="M161 80C160 35 188 10 244 4C215 26 195 50 184 83C211 49 245 35 285 42C239 58 205 78 177 111C182 92 176 83 161 80Z"/>
+    <path class="brand" d="M166 92C213 88 251 111 281 160C232 134 199 124 169 129C199 142 225 167 247 204C208 179 180 158 164 137C156 126 157 107 166 92Z"/>
+    <path class="brand" d="M147 102C108 108 75 134 48 180C89 154 122 142 148 144C118 162 94 189 77 224C115 197 141 170 154 143C160 128 157 114 147 102Z"/>
+
+    <!-- House -->
+    <g transform="translate(168 191)">
+      <path class="brand" d="M0 62L78 0L159 62L143 82L78 31L16 82L0 62Z"/>
+      <path class="brand" d="M29 79H128V168H29V79Z"/>
+      <path fill="#FFFFFF" d="M48 101H72V125H48V101ZM84 101H108V125H84V101ZM48 137H72V160H48V137ZM84 137H108V160H84V137Z"/>
+    </g>
+
+    <!-- Sage hill inside pin -->
+    <path class="sage" d="M111 335C146 305 188 290 235 290C282 290 324 305 359 335C335 375 295 397 235 397C175 397 135 375 111 335Z"/>
+  </g>
+
+  <!-- Wordmark -->
+  <g transform="translate(500 142)">
+    <text class="brand wordmark" x="0" y="142" font-size="178">Malfranza</text>
+    <text class="sage descriptor" x="8" y="265" font-size="63">APARTMENTS</text>
+    <text class="orange descriptor" x="726" y="265" font-size="63">&amp;</text>
+    <text class="sage descriptor" x="828" y="265" font-size="63">TAXI</text>
+  </g>
+</svg>
