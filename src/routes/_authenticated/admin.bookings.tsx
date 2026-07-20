@@ -8,7 +8,7 @@ import {
   updateApartmentBookingStatus,
   type AptBookingStatus,
 } from "@/lib/admin";
-import { StatusPill } from "@/components/admin/AdminBits";
+import { StatusPill, AdminTableShell, AdminTh, AdminTd } from "@/components/admin/AdminBits";
 
 export const Route = createFileRoute("/_authenticated/admin/bookings")({
   component: BookingsPage,
@@ -109,60 +109,114 @@ function BookingsPage() {
       </div>
 
       <div className="rounded-2xl bg-white shadow-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left">
-              <tr>
-                <Th>Reference</Th>
-                <Th>Guest</Th>
-                <Th>Apartment</Th>
-                <Th>Dates</Th>
-                <Th>Nights</Th>
-                <Th>Taxi</Th>
-                <Th>Total</Th>
-                <Th>Payment</Th>
-                <Th>Status</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((b) => {
-                const anyB = b as any;
-                return (
-                  <tr
-                    key={b.id}
-                    onClick={() => setOpenId(b.id)}
-                    className="border-t border-slate-100 hover:bg-slate-50 cursor-pointer"
-                  >
-                    <Td className="font-mono text-xs">{b.booking_reference}</Td>
-                    <Td>{b.guest_name}</Td>
-                    <Td>{anyB.apartments?.name ?? "—"}</Td>
-                    <Td>{b.check_in} → {b.check_out}</Td>
-                    <Td>{b.nights}</Td>
-                    <Td>
-                      {anyB.taxi_addon ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-brand-cream text-brand-green px-2 py-0.5 text-xs font-medium">
-                          ${Number(anyB.taxi_fare ?? 0).toFixed(0)}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">—</span>
-                      )}
-                    </Td>
-                    <Td className="font-semibold">${Number(b.total_amount).toFixed(2)}</Td>
-                    <Td><StatusPill status={b.payment_status} /></Td>
-                    <Td><StatusPill status={b.status} /></Td>
-                  </tr>
-                );
-              })}
-              {rows.length === 0 && (
-                <tr>
-                  <td colSpan={10} className="text-center py-8 text-muted-foreground">
-                    {q.isLoading ? "Loading…" : "No bookings match."}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        {/* Mobile cards */}
+        <div className="divide-y divide-slate-100 lg:hidden">
+          {rows.map((b) => {
+            const anyB = b as any;
+            return (
+              <button
+                key={b.id}
+                type="button"
+                onClick={() => setOpenId(b.id)}
+                className="flex w-full flex-col gap-2 p-4 text-left hover:bg-slate-50"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-brand-charcoal truncate">{b.guest_name}</p>
+                    <p className="font-mono text-xs text-muted-foreground">{b.booking_reference}</p>
+                  </div>
+                  <StatusPill status={b.status} />
+                </div>
+                <p className="text-sm text-muted-foreground truncate">{anyB.apartments?.name ?? "—"}</p>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <span>{b.check_in} → {b.check_out}</span>
+                  <span>{b.nights} nights</span>
+                  <span className="font-semibold text-brand-green">${Number(b.total_amount).toFixed(2)}</span>
+                </div>
+              </button>
+            );
+          })}
+          {rows.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground text-sm">
+              {q.isLoading ? "Loading…" : "No bookings match."}
+            </div>
+          )}
         </div>
+
+        {/* Desktop table */}
+        <AdminTableShell minWidth="72rem">
+          <thead className="bg-slate-50">
+            <tr>
+              <AdminTh>Reference</AdminTh>
+              <AdminTh>Guest</AdminTh>
+              <AdminTh>Account</AdminTh>
+              <AdminTh>Apartment</AdminTh>
+              <AdminTh>Dates</AdminTh>
+              <AdminTh>Nights</AdminTh>
+              <AdminTh>Taxi</AdminTh>
+              <AdminTh>Total</AdminTh>
+              <AdminTh>Payment</AdminTh>
+              <AdminTh className="sticky right-0 bg-slate-50 shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.12)]">Status</AdminTh>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((b) => {
+              const anyB = b as any;
+              return (
+                <tr
+                  key={b.id}
+                  onClick={() => setOpenId(b.id)}
+                  className="group border-t border-slate-100 hover:bg-slate-50 cursor-pointer"
+                >
+                  <AdminTd nowrap className="font-mono text-xs text-muted-foreground">
+                    {b.booking_reference}
+                  </AdminTd>
+                  <AdminTd nowrap className="font-medium">{b.guest_name}</AdminTd>
+                  <AdminTd className="text-xs max-w-[10rem]">
+                    {(b as any).user_account ? (
+                      <span className="text-brand-green font-medium break-all">
+                        {(b as any).user_account.email}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">Guest checkout</span>
+                    )}
+                  </AdminTd>
+                  <AdminTd className="max-w-[14rem]">
+                    <span className="line-clamp-2 leading-snug">{anyB.apartments?.name ?? "—"}</span>
+                  </AdminTd>
+                  <AdminTd nowrap className="text-xs text-muted-foreground">
+                    {b.check_in} → {b.check_out}
+                  </AdminTd>
+                  <AdminTd nowrap className="text-center">{b.nights}</AdminTd>
+                  <AdminTd nowrap>
+                    {anyB.taxi_addon ? (
+                      <span className="inline-flex items-center rounded-full bg-brand-cream px-2 py-0.5 text-xs font-medium text-brand-green">
+                        ${Number(anyB.taxi_fare ?? 0).toFixed(0)}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </AdminTd>
+                  <AdminTd nowrap className="font-semibold">${Number(b.total_amount).toFixed(2)}</AdminTd>
+                  <AdminTd nowrap><StatusPill status={b.payment_status} /></AdminTd>
+                  <AdminTd
+                    nowrap
+                    className="sticky right-0 bg-white group-hover:bg-slate-50 shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.12)]"
+                  >
+                    <StatusPill status={b.status} />
+                  </AdminTd>
+                </tr>
+              );
+            })}
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={10} className="px-3 py-8 text-center text-muted-foreground">
+                  {q.isLoading ? "Loading…" : "No bookings match."}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </AdminTableShell>
       </div>
 
 
@@ -179,6 +233,11 @@ function BookingsPage() {
             <Field label="Guest">{openBooking.guest_name}</Field>
             <Field label="Email">{openBooking.guest_email}</Field>
             <Field label="Phone">{openBooking.guest_phone}</Field>
+            {(openBooking as any).user_account && (
+              <Field label="Registered account">
+                {(openBooking as any).user_account.name} · {(openBooking as any).user_account.email}
+              </Field>
+            )}
             <Field label="Guests">{openBooking.guests}</Field>
             <Field label="Check-in / out">
               {openBooking.check_in} → {openBooking.check_out} ({openBooking.nights} nights)
@@ -223,22 +282,30 @@ function BookingsPage() {
             )}
           </div>
 
-          <div className="mt-6 grid grid-cols-2 gap-2">
-            <ActionBtn onClick={() => mut.mutate({ id: openBooking.id, s: "confirmed" })}>
-              Confirm
-            </ActionBtn>
-            <ActionBtn onClick={() => mut.mutate({ id: openBooking.id, s: "checked_in" })}>
-              Check In
-            </ActionBtn>
-            <ActionBtn onClick={() => mut.mutate({ id: openBooking.id, s: "checked_out" })}>
-              Check Out
-            </ActionBtn>
-            <ActionBtn
-              danger
-              onClick={() => mut.mutate({ id: openBooking.id, s: "cancelled" })}
-            >
-              Cancel
-            </ActionBtn>
+          <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {openBooking.status === "pending" && (
+              <ActionBtn onClick={() => mut.mutate({ id: openBooking.id, s: "confirmed" })}>
+                Confirm
+              </ActionBtn>
+            )}
+            {openBooking.status === "confirmed" && (
+              <ActionBtn onClick={() => mut.mutate({ id: openBooking.id, s: "checked_in" })}>
+                Check In
+              </ActionBtn>
+            )}
+            {openBooking.status === "checked_in" && (
+              <ActionBtn onClick={() => mut.mutate({ id: openBooking.id, s: "checked_out" })}>
+                Check Out
+              </ActionBtn>
+            )}
+            {(openBooking.status === "pending" || openBooking.status === "confirmed") && (
+              <ActionBtn
+                danger
+                onClick={() => mut.mutate({ id: openBooking.id, s: "cancelled" })}
+              >
+                Cancel
+              </ActionBtn>
+            )}
           </div>
         </Drawer>
       )}
@@ -246,12 +313,6 @@ function BookingsPage() {
   );
 }
 
-function Th({ children }: { children: React.ReactNode }) {
-  return <th className="px-3 py-2.5 font-semibold text-brand-charcoal whitespace-nowrap">{children}</th>;
-}
-function Td({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <td className={`px-3 py-2.5 whitespace-nowrap ${className}`}>{children}</td>;
-}
 function RowLine({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between text-xs text-muted-foreground">

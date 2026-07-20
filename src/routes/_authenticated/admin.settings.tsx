@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getCurrentAdmin } from "@/lib/api";
 
 export const Route = createFileRoute("/_authenticated/admin/settings")({
   component: SettingsPage,
@@ -10,7 +10,9 @@ function SettingsPage() {
   const [email, setEmail] = useState("");
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
+    getCurrentAdmin()
+      .then((admin) => setEmail(admin.email))
+      .catch(() => setEmail(""));
   }, []);
 
   return (

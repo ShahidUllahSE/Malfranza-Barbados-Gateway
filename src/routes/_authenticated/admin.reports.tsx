@@ -22,7 +22,7 @@ function ReportsPage() {
         <h1 className="text-2xl sm:text-3xl font-display font-bold text-brand-charcoal">Reports</h1>
         <p className="text-sm text-muted-foreground">All-time performance snapshot.</p>
       </div>
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <Metric label="Total bookings" value={active.length} />
         <Metric label="Total nights" value={nights} />
         <Metric label="Gross revenue" value={`$${revenue.toFixed(2)}`} />

@@ -51,13 +51,13 @@ function AmenitiesPage() {
   return (
     <div className="bg-white">
       {/* HERO */}
-      <section className="mx-auto max-w-7xl px-6 pt-10 md:pt-16">
+      <section className="mx-auto max-w-7xl px-4 pt-10 sm:px-6 md:pt-16 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] gap-10 items-center">
           <div>
             <span className="inline-flex items-center rounded-full bg-brand-cream px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-green">
               Amenities
             </span>
-            <h1 className="mt-4 text-4xl md:text-5xl font-bold leading-[1.05]">
+            <h1 className="mt-4 text-3xl sm:text-4xl md:text-5xl font-bold leading-[1.05]">
               Everything you need for a comfortable stay.
             </h1>
             <p className="mt-4 text-lg text-muted-foreground max-w-xl">
@@ -76,8 +76,8 @@ function AmenitiesPage() {
       </section>
 
       {/* AMENITY GRID */}
-      <section className="mx-auto max-w-7xl px-6 mt-16">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
+      <section className="mx-auto max-w-7xl px-4 mt-16 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {AMENITIES.map(({ icon: Icon, title, body }) => (
             <article key={title} className="rounded-2xl border border-border bg-white p-6 shadow-card hover:shadow-[var(--shadow-card-hover)] transition">
               <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-brand-sage/25">
@@ -89,9 +89,9 @@ function AmenitiesPage() {
           ))}
         </div>
 
-        <div className="mt-8 rounded-full bg-brand-green px-6 py-4 text-center text-white">
-          <span className="inline-flex items-center gap-2 font-medium">
-            <CheckCircle2 className="h-5 w-5 text-brand-orange" />
+        <div className="mt-8 rounded-2xl bg-brand-green px-4 py-4 text-center text-white lg:rounded-full lg:px-6">
+          <span className="inline-flex flex-wrap items-center justify-center gap-2 text-sm font-medium sm:text-base">
+            <CheckCircle2 className="h-5 w-5 shrink-0 text-brand-orange" />
             Safe, clean, and well-maintained spaces with everything you need to feel at home.
           </span>
         </div>
@@ -99,8 +99,8 @@ function AmenitiesPage() {
 
       {/* THREE-VALUE STRIP */}
       <section className="mt-20">
-        <div className="bg-brand-cream py-16">
-          <div className="mx-auto max-w-7xl px-6 grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="bg-brand-cream py-12 sm:py-16">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-3 gap-8">
             {VALUES.map(({ icon: Icon, title, body }) => (
               <div key={title}>
                 <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-brand-green">
@@ -115,8 +115,8 @@ function AmenitiesPage() {
       </section>
 
       {/* PHOTO STRIP */}
-      <section className="mx-auto max-w-7xl px-6 my-20">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <section className="mx-auto max-w-7xl px-4 my-16 sm:px-6 sm:my-20 lg:px-8">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
           {STRIP.map((img) => (
             <div key={img.alt} className="rounded-2xl overflow-hidden aspect-square shadow-card">
               <img src={img.src} alt={img.alt} className="w-full h-full object-cover" />

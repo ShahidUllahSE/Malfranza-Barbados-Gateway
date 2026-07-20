@@ -12,8 +12,9 @@ import {
   LogOut,
   Menu,
   X,
+  Users,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { clearAllTokens, getCurrentAdmin } from "@/lib/api";
 import { Logo } from "@/components/Logo";
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -33,6 +34,7 @@ const NAV: NavItem[] = [
   { to: "/admin/apartments", label: "Apartments", icon: BedDouble },
   { to: "/admin/calendar", label: "Calendar", icon: CalendarDays },
   { to: "/admin/taxi", label: "Taxi Trips", icon: Car },
+  { to: "/admin/drivers", label: "Drivers", icon: Users },
   { to: "/admin/enquiries", label: "Enquiries", icon: MessageSquare },
   { to: "/admin/reports", label: "Reports", icon: BarChart3 },
   { to: "/admin/settings", label: "Settings", icon: SettingsIcon },
@@ -41,25 +43,24 @@ const NAV: NavItem[] = [
 function AdminLayout() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  // TEMPORARY: Admin authorization disabled while previewing the admin UI.
-  const [status] = useState<"checking" | "ok" | "denied">("ok");
-  const email = "Preview mode";
+  const [status, setStatus] = useState<"checking" | "ok" | "denied">("checking");
+  const [email, setEmail] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // useEffect(() => {
-  //   (async () => {
-  //     const { data } = await supabase.auth.getUser();
-  //     setEmail(data.user?.email ?? "");
-  //     const ok = await checkIsAdmin();
-  //     setStatus(ok ? "ok" : "denied");
-  //   })();
-  // }, []);
+  useEffect(() => {
+    getCurrentAdmin()
+      .then((admin) => {
+        setEmail(admin.email);
+        setStatus("ok");
+      })
+      .catch(() => setStatus("denied"));
+  }, []);
 
   useEffect(() => setMobileOpen(false), [pathname]);
 
-  async function signOut() {
-    await supabase.auth.signOut();
-    navigate({ to: "/auth" });
+  function signOut() {
+    clearAllTokens();
+    navigate({ to: "/", search: { auth: "signin" } });
   }
 
   if (status === "checking") {

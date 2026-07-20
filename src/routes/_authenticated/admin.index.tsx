@@ -51,7 +51,7 @@ function AdminDashboard() {
         <p className="text-sm text-muted-foreground">Overview of bookings and activity.</p>
       </div>
 
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard icon={CalendarCheck} label="Today's Bookings" value={todaysBookings} />
         <StatCard icon={Home} label="Upcoming Stays" value={upcoming} />
         <StatCard icon={Percent} label="Occupancy Rate" value={`${occupancy}%`} />

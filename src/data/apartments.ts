@@ -4,9 +4,11 @@ import stayKitchen from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_20 PM.png";
 import stayTropical from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_27 PM.png";
 import stay2br from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_43 PM.png";
 import stayBathroom from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_13 PM.png";
+import { apiRequest } from "@/lib/api";
 
 export type Apartment = {
   id: string;
+  mongoId: string;
   name: string;
   subtitle: string;
   description: string;
@@ -23,6 +25,7 @@ export type Apartment = {
 export const APARTMENTS: Apartment[] = [
   {
     id: "garden-view",
+    mongoId: "",
     name: "One-Bedroom Apartment",
     subtitle: "Garden View",
     description: "Peaceful ground floor apartment with lush garden views and a private patio.",
@@ -35,6 +38,7 @@ export const APARTMENTS: Apartment[] = [
   },
   {
     id: "city-view",
+    mongoId: "",
     name: "One-Bedroom Apartment",
     subtitle: "City View",
     description: "Bright and airy apartment with city views and a cozy modern feel.",
@@ -46,6 +50,7 @@ export const APARTMENTS: Apartment[] = [
   },
   {
     id: "modern-comfort",
+    mongoId: "",
     name: "One-Bedroom Apartment",
     subtitle: "Modern Comfort",
     description: "Stylish apartment with modern finishes and a fully equipped kitchen.",
@@ -57,6 +62,7 @@ export const APARTMENTS: Apartment[] = [
   },
   {
     id: "tropical-escape",
+    mongoId: "",
     name: "One-Bedroom Apartment",
     subtitle: "Tropical Escape",
     description: "Tranquil retreat with tropical décor and plenty of natural light.",
@@ -68,6 +74,7 @@ export const APARTMENTS: Apartment[] = [
   },
   {
     id: "family-stay",
+    mongoId: "",
     name: "Two-Bedroom Apartment",
     subtitle: "Family Stay",
     description: "Spacious two-bedroom apartment ideal for families or small groups.",
@@ -81,4 +88,44 @@ export const APARTMENTS: Apartment[] = [
 
 export function getApartment(id: string) {
   return APARTMENTS.find((a) => a.id === id);
+}
+
+export async function fetchApartments(): Promise<Apartment[]> {
+  try {
+    const records = await apiRequest<any[]>("/apartments?sort=price-asc");
+    return records.map(mapApiApartment);
+  } catch {
+    return APARTMENTS;
+  }
+}
+
+export async function fetchApartment(slug: string): Promise<Apartment | undefined> {
+  try {
+    const record = await apiRequest<any>(`/apartments/${encodeURIComponent(slug)}`);
+    return mapApiApartment(record);
+  } catch {
+    return undefined;
+  }
+}
+
+function mapApiApartment(record: any): Apartment {
+  const fallback = getApartment(record.slug);
+  const photos: string[] = Array.isArray(record.photos)
+    ? record.photos.filter((p: unknown) => typeof p === "string" && p.length > 0)
+    : [];
+  return {
+    id: record.slug,
+    mongoId: String(record._id ?? ""),
+    name: record.name,
+    subtitle: record.subtitle ?? "",
+    description: record.description ?? "",
+    type: record.type,
+    guests: record.maxGuests,
+    beds: record.bedrooms,
+    baths: record.bathrooms,
+    sizeSqM: record.sizeSqM ?? fallback?.sizeSqM ?? 0,
+    pricePerNight: record.pricePerNight,
+    images: photos.length > 0 ? photos : (fallback?.images ?? ["/placeholder.svg"]),
+    amenities: Array.isArray(record.amenities) ? record.amenities : [],
+  };
 }

@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
   Calendar,
@@ -7,10 +7,9 @@ import {
   CheckCircle2,
   Loader2,
   Plus,
-  Trash2,
-  Search,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { listMyBookings, listMyTaxiBookings } from "@/lib/user";
+import { useUserAuth } from "@/context/UserAuthContext";
 
 export const Route = createFileRoute("/my-bookings")({
   head: () => ({
@@ -49,25 +48,27 @@ type PublicBooking = {
   created_at: string;
 };
 
-const STORAGE_KEY = "mfz.myBookings";
-
-function readRefs(): string[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const list = JSON.parse(raw);
-    return Array.isArray(list) ? list.filter((v) => typeof v === "string") : [];
-  } catch {
-    return [];
-  }
+function mapAccountBooking(booking: any): PublicBooking {
+  return {
+    booking_reference: booking.bookingReference,
+    apartment_name: booking.apartmentName ?? null,
+    check_in: toDateOnly(booking.checkIn),
+    check_out: toDateOnly(booking.checkOut),
+    nights: booking.nights,
+    guests: booking.guests,
+    total_amount: booking.totalAmount,
+    status: booking.status,
+    taxi_addon: !!booking.taxi,
+    taxi_date: booking.taxi?.date ? toDateOnly(booking.taxi.date) : null,
+    taxi_time: booking.taxi?.time ?? null,
+    taxi_pickup: booking.taxi?.pickup ?? null,
+    taxi_dropoff: booking.taxi?.dropoff ?? null,
+    created_at: booking.createdAt,
+  };
 }
 
-function writeRefs(refs: string[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(refs));
-  } catch {
-    /* ignore */
-  }
+function toDateOnly(value: string | Date): string {
+  return String(value).slice(0, 10);
 }
 
 function fmtDate(iso: string) {
@@ -83,74 +84,57 @@ function fmtDate(iso: string) {
 }
 
 function MyBookingsPage() {
-  const [refs, setRefs] = useState<string[]>([]);
+  const navigate = useNavigate();
+  const { user, openAuthModal } = useUserAuth();
   const [bookings, setBookings] = useState<PublicBooking[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [addRef, setAddRef] = useState("");
-  const [adding, setAdding] = useState(false);
+  const [taxiTrips, setTaxiTrips] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setRefs(readRefs());
-  }, []);
+    if (user) return;
+    openAuthModal({
+      mode: "signin",
+      reason: "Sign in to see your stays and taxi bookings.",
+      redirectTo: "/my-bookings",
+    });
+    navigate({ to: "/" });
+  }, [user, openAuthModal, navigate]);
 
   useEffect(() => {
+    if (!user) return;
+
     let cancelled = false;
     (async () => {
       setLoading(true);
-      if (refs.length === 0) {
+      setError(null);
+      try {
+        const [stayItems, taxiItems] = await Promise.all([
+          listMyBookings(),
+          listMyTaxiBookings(),
+        ]);
         if (!cancelled) {
-          setBookings([]);
-          setLoading(false);
+          setBookings(stayItems.map(mapAccountBooking));
+          setTaxiTrips(taxiItems);
         }
-        return;
-      }
-      const results = await Promise.all(
-        refs.map(async (r) => {
-          const { data } = await supabase.rpc("get_public_booking", {
-            _reference: r,
-          });
-          return (Array.isArray(data) ? data[0] : null) as PublicBooking | null;
-        }),
-      );
-      if (!cancelled) {
-        setBookings(results.filter((b): b is PublicBooking => !!b));
-        setLoading(false);
+      } catch {
+        if (!cancelled) {
+          setError("Couldn't load your bookings. Please try again.");
+          setBookings([]);
+          setTaxiTrips([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
+
     return () => {
       cancelled = true;
     };
-  }, [refs]);
+  }, [user]);
 
-  async function handleAdd(e: React.FormEvent) {
-    e.preventDefault();
-    const value = addRef.trim().toUpperCase();
-    if (!value) return;
-    setAdding(true);
-    setError(null);
-    const { data } = await supabase.rpc("get_public_booking", {
-      _reference: value,
-    });
-    const row = Array.isArray(data) ? data[0] : null;
-    if (!row) {
-      setError("We couldn't find a booking with that reference.");
-      setAdding(false);
-      return;
-    }
-    if (!refs.includes(value)) {
-      const next = [value, ...refs];
-      writeRefs(next);
-      setRefs(next);
-    }
-    setAddRef("");
-    setAdding(false);
-  }
-
-  function handleRemove(reference: string) {
-    const next = refs.filter((r) => r !== reference);
-    writeRefs(next);
-    setRefs(next);
+  if (!user) {
+    return null;
   }
 
   return (
@@ -158,12 +142,11 @@ function MyBookingsPage() {
       <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-brand-green sm:text-4xl">
+            <h1 className="text-2xl font-bold text-brand-green sm:text-3xl lg:text-4xl">
               My Bookings
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Every booking you complete on this device is saved here for quick
-              reference.
+              Stays and taxi trips linked to {user.email}
             </p>
           </div>
           <Link
@@ -174,40 +157,8 @@ function MyBookingsPage() {
           </Link>
         </div>
 
-        {/* Add existing booking */}
-        <form
-          onSubmit={handleAdd}
-          className="mt-6 flex flex-col gap-2 rounded-2xl border border-border bg-white p-4 shadow-card sm:flex-row sm:items-center"
-        >
-          <label
-            htmlFor="mfz-ref"
-            className="text-sm font-medium text-brand-charcoal sm:min-w-[180px]"
-          >
-            Have a reference?
-          </label>
-          <div className="flex flex-1 items-center gap-2 rounded-xl border border-border bg-white px-3 py-2">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <input
-              id="mfz-ref"
-              value={addRef}
-              onChange={(e) => setAddRef(e.target.value)}
-              placeholder="MFZ-2026-0001"
-              className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={adding || !addRef.trim()}
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-brand-green px-5 py-2.5 text-sm font-semibold text-brand-green transition hover:bg-brand-cream disabled:opacity-50"
-          >
-            {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : "Look up"}
-          </button>
-        </form>
-        {error && (
-          <p className="mt-2 text-sm text-red-600">{error}</p>
-        )}
+        {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
 
-        {/* List */}
         <div className="mt-8">
           {loading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -215,11 +166,9 @@ function MyBookingsPage() {
             </div>
           ) : bookings.length === 0 ? (
             <div className="rounded-2xl border-2 border-dashed border-brand-green/30 bg-white p-10 text-center">
-              <p className="text-base font-semibold text-brand-green">
-                No bookings yet
-              </p>
+              <p className="text-base font-semibold text-brand-green">No stays yet</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Once you finish a booking, its MFZ reference will show up here.
+                Once you finish a booking while signed in, it will show up here.
               </p>
               <Link
                 to="/book"
@@ -231,10 +180,12 @@ function MyBookingsPage() {
           ) : (
             <ul className="grid gap-4">
               {bookings.map((b) => (
-                <li
-                  key={b.booking_reference}
-                  className="rounded-2xl border border-border bg-white p-5 shadow-card sm:p-6"
-                >
+                <li key={b.booking_reference}>
+                  <Link
+                    to="/my-bookings/$reference"
+                    params={{ reference: b.booking_reference }}
+                    className="block rounded-2xl border border-border bg-white p-5 shadow-card transition hover:border-brand-green/40 hover:shadow-card-hover sm:p-6"
+                  >
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <div className="flex items-center gap-2">
@@ -260,6 +211,7 @@ function MyBookingsPage() {
                       <div className="text-xl font-bold text-brand-green">
                         ${Number(b.total_amount).toFixed(0)}
                       </div>
+                      <p className="mt-1 text-xs font-semibold text-brand-orange">View details →</p>
                     </div>
                   </div>
 
@@ -281,14 +233,12 @@ function MyBookingsPage() {
                     />
                   </div>
 
-                  <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="mt-4">
                     {b.taxi_addon ? (
                       <div className="flex items-start gap-2 rounded-xl bg-brand-cream/60 px-3 py-2 text-sm text-brand-charcoal">
                         <Car className="mt-0.5 h-4 w-4 shrink-0 text-brand-orange" />
                         <div>
-                          <div className="font-semibold text-brand-green">
-                            Taxi transfer added
-                          </div>
+                          <div className="font-semibold text-brand-green">Taxi transfer added</div>
                           <div className="text-xs text-muted-foreground">
                             {b.taxi_pickup ?? "Airport pickup"}
                             {b.taxi_date ? ` · ${fmtDate(b.taxi_date)}` : ""}
@@ -299,32 +249,70 @@ function MyBookingsPage() {
                     ) : (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Car className="h-4 w-4" />
-                        No taxi added ·{" "}
-                        <Link
-                          to="/taxi"
-                          className="font-semibold text-brand-green underline-offset-2 hover:underline"
-                        >
-                          Book a ride
-                        </Link>
+                        No taxi added
                       </div>
                     )}
-                    <button
-                      onClick={() => handleRemove(b.booking_reference)}
-                      className="inline-flex items-center gap-1.5 self-start rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-red-300 hover:text-red-600"
-                      aria-label={`Remove ${b.booking_reference} from this device`}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" /> Remove from this device
-                    </button>
                   </div>
+                  </Link>
                 </li>
               ))}
             </ul>
           )}
         </div>
 
+        {taxiTrips.length > 0 && (
+          <div className="mt-10">
+            <h2 className="text-xl font-bold text-brand-green">Taxi trips</h2>
+            <ul className="mt-4 grid gap-4">
+              {taxiTrips.map((trip) => {
+                const driver =
+                  trip.driverId && typeof trip.driverId === "object" ? trip.driverId : null;
+                const eta = trip.durationMinutes ?? 25;
+                return (
+                  <li key={trip.bookingReference} className="rounded-2xl border border-border bg-white p-5 shadow-card">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-xs font-mono text-muted-foreground">{trip.bookingReference}</p>
+                        <h3 className="text-lg font-semibold text-brand-charcoal">{trip.serviceType}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {String(trip.pickupDate).slice(0, 10)} at {trip.pickupTime}
+                        </p>
+                        <p className="mt-1 break-words text-sm">
+                          {trip.pickupLocation} → {trip.dropoffLocation}
+                        </p>
+                        <p className="mt-2 text-xs capitalize text-muted-foreground">
+                          Status: {String(trip.status).replaceAll("_", " ")}
+                        </p>
+                        {driver ? (
+                          <div className="mt-3 rounded-xl bg-brand-cream/60 px-3 py-2 text-sm">
+                            <p className="font-semibold text-brand-green">
+                              Driver: {driver.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {driver.vehicleLabel || "Malfranza taxi"}
+                              {driver.phone ? ` · ${driver.phone}` : ""}
+                              {" · "}~{eta} min trip
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="mt-3 text-sm text-muted-foreground">
+                            Driver matching in progress…
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-sm font-semibold text-brand-green">
+                        ${Number(trip.estimatedFare).toFixed(0)}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+
         <p className="mt-8 text-xs text-muted-foreground">
-          Bookings are stored securely in our database. This page uses your
-          browser to remember which references belong to you.
+          Bookings are linked to your Malfranza account email.
         </p>
       </div>
     </div>

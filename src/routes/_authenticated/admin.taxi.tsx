@@ -1,33 +1,29 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
 import { Search } from "lucide-react";
-import { listTaxiBookings, updateTaxiBookingStatus, type TaxiStatus } from "@/lib/admin";
-import { StatusPill } from "@/components/admin/AdminBits";
-import { Drawer, ActionBtn } from "./admin.bookings";
+import { listTaxiBookings, type TaxiStatus } from "@/lib/admin";
+import { StatusPill, AdminTableShell, AdminTh, AdminTd } from "@/components/admin/AdminBits";
 
 export const Route = createFileRoute("/_authenticated/admin/taxi")({
   component: TaxiPage,
 });
 
-const STATUSES: (TaxiStatus | "all")[] = ["all", "pending", "confirmed", "completed", "cancelled"];
+const STATUSES: (TaxiStatus | "all")[] = [
+  "all",
+  "pending",
+  "confirmed",
+  "assigned",
+  "en_route",
+  "completed",
+  "cancelled",
+];
 
 function TaxiPage() {
-  const qc = useQueryClient();
+  const navigate = useNavigate();
   const q = useQuery({ queryKey: ["admin", "taxi-bookings"], queryFn: listTaxiBookings });
   const [status, setStatus] = useState<string>("all");
   const [search, setSearch] = useState("");
-  const [openId, setOpenId] = useState<string | null>(null);
-
-  const mut = useMutation({
-    mutationFn: ({ id, s }: { id: string; s: TaxiStatus }) => updateTaxiBookingStatus(id, s),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin", "taxi-bookings"] });
-      toast.success("Trip updated");
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Update failed"),
-  });
 
   const rows = useMemo(() => {
     let items = q.data ?? [];
@@ -37,19 +33,24 @@ function TaxiPage() {
       items = items.filter(
         (b) =>
           b.customer_name.toLowerCase().includes(s) ||
-          b.booking_reference.toLowerCase().includes(s),
+          b.booking_reference.toLowerCase().includes(s) ||
+          (b.driver?.name ?? "").toLowerCase().includes(s),
       );
     }
     return items;
   }, [q.data, status, search]);
 
-  const open = rows.find((r) => r.id === openId) ?? null;
+  function openTrip(id: string) {
+    navigate({ to: "/admin/taxi/$id", params: { id } });
+  }
 
   return (
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl sm:text-3xl font-display font-bold text-brand-charcoal">Taxi Trips</h1>
-        <p className="text-sm text-muted-foreground">Manage taxi bookings.</p>
+        <p className="text-sm text-muted-foreground">
+          Open a trip for full details and that driver&apos;s progress. Free drivers are auto-assigned.
+        </p>
       </div>
 
       <div className="rounded-2xl bg-white shadow-card p-4 space-y-3">
@@ -58,7 +59,7 @@ function TaxiPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search customer name or reference"
+            placeholder="Search customer, driver, or reference"
             className="w-full rounded-lg border border-input bg-white pl-9 pr-3 py-2 text-sm"
           />
         </div>
@@ -73,87 +74,112 @@ function TaxiPage() {
                   : "bg-white text-brand-charcoal border-slate-200 hover:bg-slate-50"
               }`}
             >
-              {s}
+              {s.replace("_", " ")}
             </button>
           ))}
         </div>
       </div>
 
       <div className="rounded-2xl bg-white shadow-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left">
-              <tr>
-                <th className="px-3 py-2.5 font-semibold whitespace-nowrap">Reference</th>
-                <th className="px-3 py-2.5 font-semibold whitespace-nowrap">Customer</th>
-                <th className="px-3 py-2.5 font-semibold whitespace-nowrap">Service</th>
-                <th className="px-3 py-2.5 font-semibold whitespace-nowrap">Pickup</th>
-                <th className="px-3 py-2.5 font-semibold whitespace-nowrap">Route</th>
-                <th className="px-3 py-2.5 font-semibold whitespace-nowrap">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((b) => (
-                <tr
-                  key={b.id}
-                  onClick={() => setOpenId(b.id)}
-                  className="border-t border-slate-100 hover:bg-slate-50 cursor-pointer"
-                >
-                  <td className="px-3 py-2.5 font-mono text-xs">{b.booking_reference}</td>
-                  <td className="px-3 py-2.5">{b.customer_name}</td>
-                  <td className="px-3 py-2.5">{b.service_type}</td>
-                  <td className="px-3 py-2.5 whitespace-nowrap">
-                    {b.pickup_date} {b.pickup_time}
-                  </td>
-                  <td className="px-3 py-2.5 max-w-[280px] truncate">
-                    {b.pickup_location} → {b.dropoff_location}
-                  </td>
-                  <td className="px-3 py-2.5"><StatusPill status={b.status} /></td>
-                </tr>
-              ))}
-              {rows.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="text-center py-8 text-muted-foreground">
-                    {q.isLoading ? "Loading…" : "No trips match."}
-                  </td>
-                </tr>
+        <div className="divide-y divide-slate-100 lg:hidden">
+          {rows.map((b) => (
+            <button
+              key={b.id}
+              type="button"
+              onClick={() => openTrip(b.id)}
+              className="flex w-full flex-col gap-2 p-4 text-left hover:bg-slate-50"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-semibold text-brand-charcoal truncate">{b.customer_name}</p>
+                  <p className="font-mono text-xs text-muted-foreground">{b.booking_reference}</p>
+                </div>
+                <StatusPill status={b.status} />
+              </div>
+              <p className="text-sm text-brand-charcoal">{b.service_type}</p>
+              {b.driver ? (
+                <p className="text-xs text-brand-green">Driver: {b.driver.name}</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">Unassigned</p>
               )}
-            </tbody>
-          </table>
+              <p className="text-xs text-muted-foreground">
+                {b.pickup_date} · {b.pickup_time}
+              </p>
+            </button>
+          ))}
+          {rows.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground text-sm">
+              {q.isLoading ? "Loading…" : "No trips match."}
+            </div>
+          )}
         </div>
+
+        <AdminTableShell minWidth="64rem">
+          <thead className="bg-slate-50">
+            <tr>
+              <AdminTh>Reference</AdminTh>
+              <AdminTh>Customer</AdminTh>
+              <AdminTh>Driver</AdminTh>
+              <AdminTh>Service</AdminTh>
+              <AdminTh>Pickup</AdminTh>
+              <AdminTh>Route</AdminTh>
+              <AdminTh className="sticky right-0 bg-slate-50 shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.12)]">
+                Status
+              </AdminTh>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((b) => (
+              <tr
+                key={b.id}
+                onClick={() => openTrip(b.id)}
+                className="group cursor-pointer border-t border-slate-100 hover:bg-slate-50"
+              >
+                <AdminTd nowrap className="font-mono text-xs text-muted-foreground">
+                  {b.booking_reference}
+                </AdminTd>
+                <AdminTd nowrap className="font-medium">{b.customer_name}</AdminTd>
+                <AdminTd nowrap className="text-xs">
+                  {b.driver ? (
+                    <Link
+                      to="/admin/drivers/$id"
+                      params={{ id: b.driver.id }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="font-medium text-brand-green hover:underline"
+                    >
+                      {b.driver.name}
+                    </Link>
+                  ) : (
+                    <span className="text-muted-foreground">Unassigned</span>
+                  )}
+                </AdminTd>
+                <AdminTd nowrap>{b.service_type}</AdminTd>
+                <AdminTd nowrap className="text-xs text-muted-foreground">
+                  {b.pickup_date} {b.pickup_time}
+                </AdminTd>
+                <AdminTd className="max-w-[16rem]">
+                  <span className="line-clamp-2 leading-snug">
+                    {b.pickup_location} → {b.dropoff_location}
+                  </span>
+                </AdminTd>
+                <AdminTd
+                  nowrap
+                  className="sticky right-0 bg-white shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.12)] group-hover:bg-slate-50"
+                >
+                  <StatusPill status={b.status} />
+                </AdminTd>
+              </tr>
+            ))}
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">
+                  {q.isLoading ? "Loading…" : "No trips match."}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </AdminTableShell>
       </div>
-
-      {open && (
-        <Drawer onClose={() => setOpenId(null)}>
-          <h2 className="text-xl font-display font-bold text-brand-charcoal">{open.booking_reference}</h2>
-          <p className="text-sm text-muted-foreground mb-4">{open.service_type}</p>
-          <div className="space-y-3 text-sm">
-            <F label="Customer">{open.customer_name}</F>
-            <F label="Email">{open.customer_email}</F>
-            <F label="Phone">{open.customer_phone}</F>
-            <F label="Passengers">{open.passengers}</F>
-            <F label="Pickup">{open.pickup_date} at {open.pickup_time}</F>
-            <F label="From">{open.pickup_location}</F>
-            <F label="To">{open.dropoff_location}</F>
-            <F label="Status"><StatusPill status={open.status} /></F>
-            {open.notes && <F label="Notes">{open.notes}</F>}
-          </div>
-          <div className="mt-6 grid grid-cols-2 gap-2">
-            <ActionBtn onClick={() => mut.mutate({ id: open.id, s: "confirmed" })}>Confirm</ActionBtn>
-            <ActionBtn onClick={() => mut.mutate({ id: open.id, s: "completed" })}>Complete</ActionBtn>
-            <ActionBtn danger onClick={() => mut.mutate({ id: open.id, s: "cancelled" })}>Cancel</ActionBtn>
-          </div>
-        </Drawer>
-      )}
-    </div>
-  );
-}
-
-function F({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="text-sm text-brand-charcoal">{children}</div>
     </div>
   );
 }

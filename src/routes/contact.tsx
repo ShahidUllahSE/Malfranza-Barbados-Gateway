@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import {
@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import stayGarden from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_00 PM.png";
 import { createEnquiry } from "@/lib/bookings";
+import { getCurrentUser } from "@/lib/user";
 import { LocationMap } from "@/components/maps/LocationMap";
 import { OISTINS_CENTER } from "@/lib/googleMaps";
 
@@ -61,6 +62,19 @@ function ContactPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    getCurrentUser()
+      .then((user) => {
+        setForm((current) => ({
+          ...current,
+          fullName: user.name,
+          email: user.email,
+          phone: user.phone ?? current.phone,
+        }));
+      })
+      .catch(() => undefined);
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const result = contactSchema.safeParse(form);
@@ -96,13 +110,13 @@ function ContactPage() {
   return (
     <div className="bg-white">
       {/* HERO */}
-      <section className="mx-auto max-w-7xl px-6 pt-10 md:pt-16">
+      <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-10 md:pt-16">
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] gap-10 items-center">
           <div>
             <span className="inline-flex items-center rounded-full bg-brand-cream px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-green">
               Contact
             </span>
-            <h1 className="mt-4 text-4xl md:text-5xl font-bold leading-[1.05]">
+            <h1 className="mt-4 text-3xl sm:text-4xl md:text-5xl font-bold leading-[1.05]">
               We're here to help you book with confidence.
             </h1>
             <p className="mt-4 text-lg text-muted-foreground max-w-xl">
@@ -116,8 +130,8 @@ function ContactPage() {
       </section>
 
       {/* CONTACT METHOD CARDS */}
-      <section className="mx-auto max-w-7xl px-6 mt-14">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-14">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
           <MethodCard icon={Phone} title="Call Us" primary={PHONE} note="Mon – Sun, 7am – 9pm" href={`tel:${PHONE_TEL}`} />
           <MethodCard icon={MessageCircle} title="WhatsApp" primary={PHONE} note="Quick replies" href={WHATSAPP_URL} external />
           <MethodCard icon={Mail} title="Email Us" primary={EMAIL} note="We reply within hours" href={`mailto:${EMAIL}`} />
@@ -132,7 +146,7 @@ function ContactPage() {
       </section>
 
       {/* TWO-COLUMN */}
-      <section className="mx-auto max-w-7xl px-6 mt-16">
+      <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-16">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Form */}
           <form onSubmit={handleSubmit} className="rounded-2xl border border-border bg-white p-6 md:p-8 shadow-card">
@@ -195,28 +209,24 @@ function ContactPage() {
           </form>
 
           {/* Map */}
-          <div className="rounded-2xl overflow-hidden border border-border bg-white shadow-card relative min-h-[420px]">
+          <div className="relative flex flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-card min-h-[320px] sm:min-h-[420px]">
             <LocationMap center={OISTINS_CENTER} zoom={15} className="absolute inset-0 h-full w-full" />
-
-            {/* Overlay card */}
-            <div className="absolute left-4 right-4 bottom-4 pointer-events-none">
-              <div className="rounded-2xl bg-white p-5 shadow-card pointer-events-auto">
-                <div className="flex items-start gap-3">
-                  <div className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-brand-cream shrink-0">
-                    <MapPin className="h-5 w-5 text-brand-green" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-bold text-brand-green">Malfranza Apartments</p>
-                    <p className="text-sm text-muted-foreground mt-0.5">{ADDRESS}</p>
-                    <a
-                      href={DIRECTIONS_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-brand-orange hover:underline"
-                    >
-                      Get Directions <ArrowRight className="h-3.5 w-3.5" />
-                    </a>
-                  </div>
+            <div className="relative mt-auto border-t border-border bg-white p-4 sm:absolute sm:inset-auto sm:left-4 sm:bottom-4 sm:max-w-sm sm:rounded-2xl sm:border sm:bg-white/95 sm:p-5 sm:shadow-card sm:backdrop-blur">
+              <div className="flex items-start gap-3">
+                <div className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-cream">
+                  <MapPin className="h-5 w-5 text-brand-green" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-bold text-brand-green">Malfranza Apartments</p>
+                  <p className="mt-0.5 break-words text-sm text-muted-foreground">{ADDRESS}</p>
+                  <a
+                    href={DIRECTIONS_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-brand-orange hover:underline"
+                  >
+                    Get Directions <ArrowRight className="h-3.5 w-3.5" />
+                  </a>
                 </div>
               </div>
             </div>
@@ -225,10 +235,10 @@ function ContactPage() {
       </section>
 
       {/* FAQ */}
-      <section className="mx-auto max-w-7xl px-6 my-20">
+      <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 my-20">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h2 className="text-3xl md:text-4xl font-bold">Before you arrive</h2>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold">Before you arrive</h2>
             <p className="mt-2 text-muted-foreground">Quick answers to common questions from our guests.</p>
           </div>
           <a href="#faqs" className="inline-flex items-center gap-1 text-brand-green font-semibold hover:underline">

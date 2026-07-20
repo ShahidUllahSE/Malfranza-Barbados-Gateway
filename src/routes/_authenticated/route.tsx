@@ -1,14 +1,17 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { getCurrentAdmin } from "@/lib/api";
 
 export const Route = createFileRoute("/_authenticated")({
-  ssr: false,
-  // TEMPORARY: Auth guard disabled while previewing the admin UI.
-  // beforeLoad: async () => {
-  //   const { data, error } = await supabase.auth.getUser();
-  //   if (error || !data.user) {
-  //     throw redirect({ to: "/auth" });
-  //   }
-  //   return { user: data.user };
-  // },
+  beforeLoad: async () => {
+    try {
+      const admin = await getCurrentAdmin();
+      return { admin };
+    } catch {
+      throw redirect({
+        to: "/",
+        search: { auth: "signin", redirect: "/admin" },
+      });
+    }
+  },
   component: () => <Outlet />,
 });

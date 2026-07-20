@@ -6,14 +6,14 @@ import {
   useRouter,
   useRouterState,
   HeadContent,
-  Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect } from "react";
 
-import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { SiteHeader } from "../components/SiteHeader";
 import { SiteFooter } from "../components/SiteFooter";
+import { UserAuthProvider } from "../context/UserAuthContext";
+import { Toaster } from "../components/ui/sonner";
 
 function NotFoundComponent() {
   return (
@@ -78,61 +78,24 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
     meta: [
-      { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Malfranza Apartments & Taxi — Stay comfortably. Move easily." },
       {
         name: "description",
         content:
           "Affordable one- and two-bedroom apartment stays and reliable taxi service in Barbados. Airport transfers, daily rides, and comfortable stays you can trust.",
       },
-      { name: "author", content: "Malfranza Apartments & Taxi" },
-      { property: "og:title", content: "Malfranza Apartments & Taxi" },
-      {
-        property: "og:description",
-        content:
-          "Comfortable apartments and dependable taxi service in Barbados. Stay comfortably. Move easily.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-    links: [
-      { rel: "stylesheet", href: appCss },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap",
-      },
     ],
   }),
-  shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
   errorComponent: ErrorComponent,
 });
 
-function RootShell({ children }: { children: ReactNode }) {
-  return (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  );
-}
-
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const chromeless = pathname.startsWith("/admin") || pathname.startsWith("/auth");
+  const chromeless = pathname.startsWith("/admin") || pathname.startsWith("/driver");
 
-  // Site-wide gentle scroll-reveal for <section> elements.
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -154,29 +117,31 @@ function RootComponent() {
       });
     };
     attach();
-    // Reattach on route change / dynamic content.
     const mo = new MutationObserver(() => attach());
     mo.observe(document.body, { childList: true, subtree: true });
-    return () => { io.disconnect(); mo.disconnect(); };
+    return () => {
+      io.disconnect();
+      mo.disconnect();
+    };
   }, [pathname]);
-
-  if (chromeless) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <Outlet />
-      </QueryClientProvider>
-    );
-  }
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="flex min-h-screen flex-col bg-background text-foreground">
-        <SiteHeader />
-        <main className="flex-1">
+      <UserAuthProvider>
+        <HeadContent />
+        <Toaster position="top-center" richColors closeButton />
+        {chromeless ? (
           <Outlet />
-        </main>
-        <SiteFooter />
-      </div>
+        ) : (
+          <div className="flex min-h-screen flex-col bg-background text-foreground">
+            <SiteHeader />
+            <main className="flex-1">
+              <Outlet />
+            </main>
+            <SiteFooter />
+          </div>
+        )}
+      </UserAuthProvider>
     </QueryClientProvider>
   );
 }

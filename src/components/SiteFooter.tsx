@@ -4,8 +4,8 @@ import { Logo } from "./Logo";
 
 export function SiteFooter() {
   return (
-    <footer className="mt-24 bg-brand-green text-white/90">
-      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-4 lg:px-8">
+    <footer className="mt-16 bg-brand-green text-white/90 sm:mt-20 lg:mt-24">
+      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-4 lg:px-8">
         <div className="lg:col-span-1">
           <div className="inline-flex rounded-xl bg-white p-3">
             <Logo className="h-14 w-auto" />
@@ -27,7 +27,7 @@ export function SiteFooter() {
             </li>
             <li className="flex items-start gap-3">
               <Mail className="mt-0.5 h-4 w-4 shrink-0 text-brand-sage" />
-              <a href="mailto:info@malfranzaapartments.com" className="hover:text-white">
+              <a href="mailto:info@malfranzaapartments.com" className="break-all hover:text-white">
                 info@malfranzaapartments.com
               </a>
             </li>

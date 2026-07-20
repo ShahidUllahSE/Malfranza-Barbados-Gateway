@@ -33,17 +33,72 @@ export function StatusPill({ status }: { status: AnyStatus }) {
     checked_in: "bg-emerald-100 text-emerald-800",
     completed: "bg-emerald-100 text-emerald-800",
     responded: "bg-emerald-100 text-emerald-800",
+    assigned: "bg-blue-100 text-blue-800",
+    en_route: "bg-indigo-100 text-indigo-800",
+    paid: "bg-emerald-100 text-emerald-800",
     pending: "bg-amber-100 text-amber-800",
     new: "bg-amber-100 text-amber-800",
+    unpaid: "bg-slate-200 text-slate-700",
     checked_out: "bg-slate-200 text-slate-700",
     cancelled: "bg-slate-200 text-slate-700",
     closed: "bg-slate-200 text-slate-700",
   };
   const cls = map[status] ?? "bg-slate-100 text-slate-700";
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${cls}`}>
-      {status.replace("_", " ")}
+    <span
+      className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${cls}`}
+    >
+      {String(status).replaceAll("_", " ")}
     </span>
+  );
+}
+
+/** Scrollable desktop admin table — keeps status pills fully visible. */
+export function AdminTableShell({
+  children,
+  minWidth = "64rem",
+}: {
+  children: React.ReactNode;
+  minWidth?: string;
+}) {
+  return (
+    <div className="hidden lg:block overflow-x-auto">
+      <table className="w-full border-collapse text-sm" style={{ minWidth }}>
+        {children}
+      </table>
+    </div>
+  );
+}
+
+export function AdminTh({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <th
+      className={`px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-brand-charcoal/80 whitespace-nowrap ${className}`}
+    >
+      {children}
+    </th>
+  );
+}
+
+export function AdminTd({
+  children,
+  className = "",
+  nowrap = false,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  nowrap?: boolean;
+}) {
+  return (
+    <td className={`px-3 py-3 align-middle text-brand-charcoal ${nowrap ? "whitespace-nowrap" : ""} ${className}`}>
+      {children}
+    </td>
   );
 }
 
@@ -75,9 +130,10 @@ export function BookingsCalendar({
 
   function statusFor(aptId: string, day: number): { cls: string; label: string } | null {
     const d = new Date(year, month, day).toISOString().slice(0, 10);
+    const blocking = new Set(["pending", "confirmed", "checked_in"]);
     for (const b of bookings) {
       if (b.apartment_id !== aptId) continue;
-      if (b.status === "cancelled") continue;
+      if (!blocking.has(b.status)) continue;
       if (b.check_in === d) return { cls: "bg-blue-500", label: "Check-in" };
       if (b.check_out === d) return { cls: "bg-purple-500", label: "Check-out" };
       if (d > b.check_in && d < b.check_out) return { cls: "bg-emerald-500", label: "Booked" };
@@ -87,19 +143,18 @@ export function BookingsCalendar({
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3">
         <div className="font-semibold text-brand-charcoal">{monthLabel}</div>
         <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
           <Legend cls="bg-slate-200" label="Available" />
           <Legend cls="bg-emerald-500" label="Booked" />
           <Legend cls="bg-blue-500" label="Check-in" />
           <Legend cls="bg-purple-500" label="Check-out" />
-          <Legend cls="bg-orange-500" label="Maintenance" />
         </div>
       </div>
-      <div className="overflow-x-auto">
-        <div className="min-w-[720px]">
-          <div className="grid" style={{ gridTemplateColumns: `160px repeat(${daysInMonth}, minmax(20px, 1fr))` }}>
+      <div className="overflow-x-auto -mx-1 px-1 pb-1 lg:overflow-visible">
+        <div className="min-w-[480px] sm:min-w-[640px]">
+          <div className="grid" style={{ gridTemplateColumns: `minmax(100px,140px) repeat(${daysInMonth}, minmax(16px, 1fr))` }}>
             <div />
             {days.map((d) => (
               <div key={d} className="text-[10px] text-center text-muted-foreground py-1">

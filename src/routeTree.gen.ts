@@ -12,22 +12,27 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TaxiRouteImport } from './routes/taxi'
 import { Route as StaysRouteImport } from './routes/stays'
 import { Route as MyBookingsRouteImport } from './routes/my-bookings'
+import { Route as DriverRouteImport } from './routes/driver'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as BookRouteImport } from './routes/book'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AmenitiesRouteImport } from './routes/amenities'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as StaysIdRouteImport } from './routes/stays.$id'
+import { Route as StaysIdRouteImport } from './routes/stays_.$id'
+import { Route as MyBookingsReferenceRouteImport } from './routes/my-bookings_.$reference'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as AuthenticatedAdminTaxiRouteImport } from './routes/_authenticated/admin.taxi'
 import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin.settings'
 import { Route as AuthenticatedAdminReportsRouteImport } from './routes/_authenticated/admin.reports'
 import { Route as AuthenticatedAdminEnquiriesRouteImport } from './routes/_authenticated/admin.enquiries'
+import { Route as AuthenticatedAdminDriversRouteImport } from './routes/_authenticated/admin.drivers'
 import { Route as AuthenticatedAdminCalendarRouteImport } from './routes/_authenticated/admin.calendar'
 import { Route as AuthenticatedAdminBookingsRouteImport } from './routes/_authenticated/admin.bookings'
 import { Route as AuthenticatedAdminApartmentsRouteImport } from './routes/_authenticated/admin.apartments'
+import { Route as AuthenticatedAdminTaxiIdRouteImport } from './routes/_authenticated/admin.taxi_.$id'
+import { Route as AuthenticatedAdminDriversIdRouteImport } from './routes/_authenticated/admin.drivers_.$id'
 
 const TaxiRoute = TaxiRouteImport.update({
   id: '/taxi',
@@ -42,6 +47,11 @@ const StaysRoute = StaysRouteImport.update({
 const MyBookingsRoute = MyBookingsRouteImport.update({
   id: '/my-bookings',
   path: '/my-bookings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DriverRoute = DriverRouteImport.update({
+  id: '/driver',
+  path: '/driver',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContactRoute = ContactRouteImport.update({
@@ -74,9 +84,14 @@ const IndexRoute = IndexRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const StaysIdRoute = StaysIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => StaysRoute,
+  id: '/stays_/$id',
+  path: '/stays/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MyBookingsReferenceRoute = MyBookingsReferenceRouteImport.update({
+  id: '/my-bookings_/$reference',
+  path: '/my-bookings/$reference',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
@@ -111,6 +126,12 @@ const AuthenticatedAdminEnquiriesRoute =
     path: '/enquiries',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminDriversRoute =
+  AuthenticatedAdminDriversRouteImport.update({
+    id: '/drivers',
+    path: '/drivers',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminCalendarRoute =
   AuthenticatedAdminCalendarRouteImport.update({
     id: '/calendar',
@@ -129,6 +150,18 @@ const AuthenticatedAdminApartmentsRoute =
     path: '/apartments',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminTaxiIdRoute =
+  AuthenticatedAdminTaxiIdRouteImport.update({
+    id: '/taxi_/$id',
+    path: '/taxi/$id',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminDriversIdRoute =
+  AuthenticatedAdminDriversIdRouteImport.update({
+    id: '/drivers_/$id',
+    path: '/drivers/$id',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -136,19 +169,24 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
   '/contact': typeof ContactRoute
+  '/driver': typeof DriverRoute
   '/my-bookings': typeof MyBookingsRoute
-  '/stays': typeof StaysRouteWithChildren
+  '/stays': typeof StaysRoute
   '/taxi': typeof TaxiRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/my-bookings/$reference': typeof MyBookingsReferenceRoute
   '/stays/$id': typeof StaysIdRoute
   '/admin/apartments': typeof AuthenticatedAdminApartmentsRoute
   '/admin/bookings': typeof AuthenticatedAdminBookingsRoute
   '/admin/calendar': typeof AuthenticatedAdminCalendarRoute
+  '/admin/drivers': typeof AuthenticatedAdminDriversRoute
   '/admin/enquiries': typeof AuthenticatedAdminEnquiriesRoute
   '/admin/reports': typeof AuthenticatedAdminReportsRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/taxi': typeof AuthenticatedAdminTaxiRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/admin/drivers/$id': typeof AuthenticatedAdminDriversIdRoute
+  '/admin/taxi/$id': typeof AuthenticatedAdminTaxiIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -156,18 +194,23 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
   '/contact': typeof ContactRoute
+  '/driver': typeof DriverRoute
   '/my-bookings': typeof MyBookingsRoute
-  '/stays': typeof StaysRouteWithChildren
+  '/stays': typeof StaysRoute
   '/taxi': typeof TaxiRoute
+  '/my-bookings/$reference': typeof MyBookingsReferenceRoute
   '/stays/$id': typeof StaysIdRoute
   '/admin/apartments': typeof AuthenticatedAdminApartmentsRoute
   '/admin/bookings': typeof AuthenticatedAdminBookingsRoute
   '/admin/calendar': typeof AuthenticatedAdminCalendarRoute
+  '/admin/drivers': typeof AuthenticatedAdminDriversRoute
   '/admin/enquiries': typeof AuthenticatedAdminEnquiriesRoute
   '/admin/reports': typeof AuthenticatedAdminReportsRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/taxi': typeof AuthenticatedAdminTaxiRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
+  '/admin/drivers/$id': typeof AuthenticatedAdminDriversIdRoute
+  '/admin/taxi/$id': typeof AuthenticatedAdminTaxiIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -177,19 +220,24 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
   '/contact': typeof ContactRoute
+  '/driver': typeof DriverRoute
   '/my-bookings': typeof MyBookingsRoute
-  '/stays': typeof StaysRouteWithChildren
+  '/stays': typeof StaysRoute
   '/taxi': typeof TaxiRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
-  '/stays/$id': typeof StaysIdRoute
+  '/my-bookings_/$reference': typeof MyBookingsReferenceRoute
+  '/stays_/$id': typeof StaysIdRoute
   '/_authenticated/admin/apartments': typeof AuthenticatedAdminApartmentsRoute
   '/_authenticated/admin/bookings': typeof AuthenticatedAdminBookingsRoute
   '/_authenticated/admin/calendar': typeof AuthenticatedAdminCalendarRoute
+  '/_authenticated/admin/drivers': typeof AuthenticatedAdminDriversRoute
   '/_authenticated/admin/enquiries': typeof AuthenticatedAdminEnquiriesRoute
   '/_authenticated/admin/reports': typeof AuthenticatedAdminReportsRoute
   '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/_authenticated/admin/taxi': typeof AuthenticatedAdminTaxiRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/_authenticated/admin/drivers_/$id': typeof AuthenticatedAdminDriversIdRoute
+  '/_authenticated/admin/taxi_/$id': typeof AuthenticatedAdminTaxiIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -199,19 +247,24 @@ export interface FileRouteTypes {
     | '/auth'
     | '/book'
     | '/contact'
+    | '/driver'
     | '/my-bookings'
     | '/stays'
     | '/taxi'
     | '/admin'
+    | '/my-bookings/$reference'
     | '/stays/$id'
     | '/admin/apartments'
     | '/admin/bookings'
     | '/admin/calendar'
+    | '/admin/drivers'
     | '/admin/enquiries'
     | '/admin/reports'
     | '/admin/settings'
     | '/admin/taxi'
     | '/admin/'
+    | '/admin/drivers/$id'
+    | '/admin/taxi/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -219,18 +272,23 @@ export interface FileRouteTypes {
     | '/auth'
     | '/book'
     | '/contact'
+    | '/driver'
     | '/my-bookings'
     | '/stays'
     | '/taxi'
+    | '/my-bookings/$reference'
     | '/stays/$id'
     | '/admin/apartments'
     | '/admin/bookings'
     | '/admin/calendar'
+    | '/admin/drivers'
     | '/admin/enquiries'
     | '/admin/reports'
     | '/admin/settings'
     | '/admin/taxi'
     | '/admin'
+    | '/admin/drivers/$id'
+    | '/admin/taxi/$id'
   id:
     | '__root__'
     | '/'
@@ -239,19 +297,24 @@ export interface FileRouteTypes {
     | '/auth'
     | '/book'
     | '/contact'
+    | '/driver'
     | '/my-bookings'
     | '/stays'
     | '/taxi'
     | '/_authenticated/admin'
-    | '/stays/$id'
+    | '/my-bookings_/$reference'
+    | '/stays_/$id'
     | '/_authenticated/admin/apartments'
     | '/_authenticated/admin/bookings'
     | '/_authenticated/admin/calendar'
+    | '/_authenticated/admin/drivers'
     | '/_authenticated/admin/enquiries'
     | '/_authenticated/admin/reports'
     | '/_authenticated/admin/settings'
     | '/_authenticated/admin/taxi'
     | '/_authenticated/admin/'
+    | '/_authenticated/admin/drivers_/$id'
+    | '/_authenticated/admin/taxi_/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -261,9 +324,12 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   BookRoute: typeof BookRoute
   ContactRoute: typeof ContactRoute
+  DriverRoute: typeof DriverRoute
   MyBookingsRoute: typeof MyBookingsRoute
-  StaysRoute: typeof StaysRouteWithChildren
+  StaysRoute: typeof StaysRoute
   TaxiRoute: typeof TaxiRoute
+  MyBookingsReferenceRoute: typeof MyBookingsReferenceRoute
+  StaysIdRoute: typeof StaysIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -287,6 +353,13 @@ declare module '@tanstack/react-router' {
       path: '/my-bookings'
       fullPath: '/my-bookings'
       preLoaderRoute: typeof MyBookingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/driver': {
+      id: '/driver'
+      path: '/driver'
+      fullPath: '/driver'
+      preLoaderRoute: typeof DriverRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contact': {
@@ -331,12 +404,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/stays/$id': {
-      id: '/stays/$id'
-      path: '/$id'
+    '/stays_/$id': {
+      id: '/stays_/$id'
+      path: '/stays/$id'
       fullPath: '/stays/$id'
       preLoaderRoute: typeof StaysIdRouteImport
-      parentRoute: typeof StaysRoute
+      parentRoute: typeof rootRouteImport
+    }
+    '/my-bookings_/$reference': {
+      id: '/my-bookings_/$reference'
+      path: '/my-bookings/$reference'
+      fullPath: '/my-bookings/$reference'
+      preLoaderRoute: typeof MyBookingsReferenceRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin': {
       id: '/_authenticated/admin'
@@ -380,6 +460,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminEnquiriesRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/drivers': {
+      id: '/_authenticated/admin/drivers'
+      path: '/drivers'
+      fullPath: '/admin/drivers'
+      preLoaderRoute: typeof AuthenticatedAdminDriversRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/calendar': {
       id: '/_authenticated/admin/calendar'
       path: '/calendar'
@@ -401,6 +488,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminApartmentsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/taxi_/$id': {
+      id: '/_authenticated/admin/taxi_/$id'
+      path: '/taxi/$id'
+      fullPath: '/admin/taxi/$id'
+      preLoaderRoute: typeof AuthenticatedAdminTaxiIdRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/drivers_/$id': {
+      id: '/_authenticated/admin/drivers_/$id'
+      path: '/drivers/$id'
+      fullPath: '/admin/drivers/$id'
+      preLoaderRoute: typeof AuthenticatedAdminDriversIdRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
   }
 }
 
@@ -408,22 +509,28 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminApartmentsRoute: typeof AuthenticatedAdminApartmentsRoute
   AuthenticatedAdminBookingsRoute: typeof AuthenticatedAdminBookingsRoute
   AuthenticatedAdminCalendarRoute: typeof AuthenticatedAdminCalendarRoute
+  AuthenticatedAdminDriversRoute: typeof AuthenticatedAdminDriversRoute
   AuthenticatedAdminEnquiriesRoute: typeof AuthenticatedAdminEnquiriesRoute
   AuthenticatedAdminReportsRoute: typeof AuthenticatedAdminReportsRoute
   AuthenticatedAdminSettingsRoute: typeof AuthenticatedAdminSettingsRoute
   AuthenticatedAdminTaxiRoute: typeof AuthenticatedAdminTaxiRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+  AuthenticatedAdminDriversIdRoute: typeof AuthenticatedAdminDriversIdRoute
+  AuthenticatedAdminTaxiIdRoute: typeof AuthenticatedAdminTaxiIdRoute
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminApartmentsRoute: AuthenticatedAdminApartmentsRoute,
   AuthenticatedAdminBookingsRoute: AuthenticatedAdminBookingsRoute,
   AuthenticatedAdminCalendarRoute: AuthenticatedAdminCalendarRoute,
+  AuthenticatedAdminDriversRoute: AuthenticatedAdminDriversRoute,
   AuthenticatedAdminEnquiriesRoute: AuthenticatedAdminEnquiriesRoute,
   AuthenticatedAdminReportsRoute: AuthenticatedAdminReportsRoute,
   AuthenticatedAdminSettingsRoute: AuthenticatedAdminSettingsRoute,
   AuthenticatedAdminTaxiRoute: AuthenticatedAdminTaxiRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+  AuthenticatedAdminDriversIdRoute: AuthenticatedAdminDriversIdRoute,
+  AuthenticatedAdminTaxiIdRoute: AuthenticatedAdminTaxiIdRoute,
 }
 
 const AuthenticatedAdminRouteWithChildren =
@@ -440,16 +547,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
-interface StaysRouteChildren {
-  StaysIdRoute: typeof StaysIdRoute
-}
-
-const StaysRouteChildren: StaysRouteChildren = {
-  StaysIdRoute: StaysIdRoute,
-}
-
-const StaysRouteWithChildren = StaysRoute._addFileChildren(StaysRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
@@ -457,20 +554,13 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   BookRoute: BookRoute,
   ContactRoute: ContactRoute,
+  DriverRoute: DriverRoute,
   MyBookingsRoute: MyBookingsRoute,
-  StaysRoute: StaysRouteWithChildren,
+  StaysRoute: StaysRoute,
   TaxiRoute: TaxiRoute,
+  MyBookingsReferenceRoute: MyBookingsReferenceRoute,
+  StaysIdRoute: StaysIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

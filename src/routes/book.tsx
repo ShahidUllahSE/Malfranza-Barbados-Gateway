@@ -19,8 +19,13 @@ import {
   X,
   Lock,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { createApartmentBooking } from "@/lib/bookings";
+import { apiRequest } from "@/lib/api";
+import { useUserAuth } from "@/context/UserAuthContext";
+import {
+  checkApartmentAvailability,
+  createApartmentBooking,
+  createTaxiBooking,
+} from "@/lib/bookings";
 import { APARTMENTS as SEEDED_APTS } from "@/data/apartments";
 
 function aptImage(slug: string, photos: string[] | undefined) {
@@ -103,7 +108,7 @@ const STEPS = [
 
 function BookWizard() {
   const search = Route.useSearch();
-  
+  const { user, openAuthModal } = useUserAuth();
 
   // Data
   const [apartments, setApartments] = useState<Apartment[]>([]);
@@ -132,11 +137,26 @@ function BookWizard() {
   const [phone, setPhone] = useState("");
   const [requests, setRequests] = useState("");
 
+  useEffect(() => {
+    if (!user) {
+      setFullName("");
+      setEmail("");
+      setPhone("");
+      return;
+    }
+    setFullName(user.name);
+    setEmail(user.email);
+    if (user.phone) setPhone(user.phone);
+  }, [user]);
+
   // Payment / confirmation
   const [paying, setPaying] = useState(false);
   const [confirmation, setConfirmation] = useState<{
     ref: string;
     taxiRef?: string;
+    taxiDriverName?: string;
+    taxiVehicle?: string | null;
+    taxiEtaMins?: number | null;
   } | null>(null);
 
   const nights = nightsBetween(checkIn, checkOut);
@@ -151,47 +171,52 @@ function BookWizard() {
   useEffect(() => {
     (async () => {
       setLoadingApts(true);
-      const { data, error } = await supabase
-        .from("apartments")
-        .select("id, slug, name, subtitle, description, price_per_night, max_guests, bedrooms, photos")
-        .eq("is_active", true)
-        .order("price_per_night", { ascending: true });
-      if (error) {
-        toast.error("Couldn't load apartments. Try again.");
-      } else if (data) {
-        const list = data as Apartment[];
+      try {
+        const data = await apiRequest<any[]>("/apartments?sort=price-asc");
+        const list: Apartment[] = data.map((apartment) => ({
+          id: apartment._id,
+          slug: apartment.slug,
+          name: apartment.name,
+          subtitle: apartment.subtitle ?? null,
+          description: apartment.description ?? null,
+          price_per_night: apartment.pricePerNight,
+          max_guests: apartment.maxGuests,
+          bedrooms: apartment.bedrooms,
+          photos: apartment.photos ?? [],
+        }));
         setApartments(list);
-        // Pre-select via ?apartment=<slug>
         if (search.apartment) {
           const match = list.find((a) => a.slug === search.apartment);
           if (match) setApartmentId(match.id);
         }
+      } catch {
+        toast.error("Couldn't load apartments. Try again.");
       }
       setLoadingApts(false);
     })();
   }, [search.apartment]);
 
-  // Check availability whenever we enter step 2 (or dates change on step 2+)
+  // Check availability whenever dates are set (needed for locked-room path too)
   useEffect(() => {
-    if (step < 1 || apartments.length === 0 || nights === 0) return;
+    if (apartments.length === 0 || nights === 0) return;
+    if (step < 1 && !roomLocked) return;
     let cancelled = false;
     (async () => {
       setCheckingAvail(true);
       const results: Availability = {};
       await Promise.all(
         apartments.map(async (a) => {
-          const { data } = await supabase.rpc("check_apartment_availability", {
-            _apartment_id: a.id,
-            _check_in: checkIn,
-            _check_out: checkOut,
-          });
-          results[a.id] = !!data;
+          try {
+            results[a.id] = await checkApartmentAvailability(a.id, checkIn, checkOut);
+          } catch {
+            results[a.id] = false;
+          }
         }),
       );
       if (!cancelled) {
         setAvailability(results);
-        // If pre-selected room becomes unavailable, drop it
-        if (apartmentId && results[apartmentId] === false) setApartmentId(null);
+        // If pre-selected room becomes unavailable, clear it (unless room is locked — keep selection and block continue)
+        if (!roomLocked && apartmentId && results[apartmentId] === false) setApartmentId(null);
       }
       setCheckingAvail(false);
     })();
@@ -199,7 +224,7 @@ function BookWizard() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, apartments.length, checkIn, checkOut]);
+  }, [step, apartments.length, checkIn, checkOut, roomLocked]);
 
   // Default taxi date to check-in when taxi enabled
   useEffect(() => {
@@ -207,9 +232,21 @@ function BookWizard() {
   }, [taxiOn, taxiDate, checkIn]);
 
   /* ---- Step validation ---- */
+  const lockedUnavailable = roomLocked && !!apartmentId && availability[apartmentId] === false;
+
   const canContinue = useMemo(() => {
-    if (step === 0) return nights > 0 && guests >= 1;
+    if (step === 0) {
+      if (!(nights > 0 && guests >= 1)) return false;
+      if (roomLocked && apartmentId) {
+        if (checkingAvail) return false;
+        if (availability[apartmentId] === false) return false;
+      }
+      return true;
+    }
     if (step === 1) return !!apartmentId && availability[apartmentId] !== false;
+    if (step >= 2) {
+      if (!apartmentId || availability[apartmentId] === false) return false;
+    }
     if (step === 2) return !taxiOn || (!!taxiDate && !!taxiTime && taxiPassengers >= 1);
     if (step === 3) {
       return (
@@ -220,14 +257,21 @@ function BookWizard() {
     }
     return true;
   }, [
-    step, nights, guests, apartmentId, availability, taxiOn, taxiDate, taxiTime,
-    taxiPassengers, fullName, email, phone,
+    step, nights, guests, apartmentId, availability, checkingAvail, roomLocked,
+    taxiOn, taxiDate, taxiTime, taxiPassengers, fullName, email, phone,
   ]);
 
   const goNext = () => {
     if (!canContinue) return;
-    // Skip step 1 (Room) when room is locked and pre-selected
-    setStep((s) => Math.min(STEPS.length - 1, s + (roomLocked && s === 0 ? 2 : 1)));
+    if (roomLocked && step === 0) {
+      if (!apartmentId || availability[apartmentId] === false) {
+        toast.error("This apartment is already booked for those dates. Pick different dates.");
+        return;
+      }
+      setStep(2);
+      return;
+    }
+    setStep((s) => Math.min(STEPS.length - 1, s + 1));
   };
   const goBack = () => {
     setStep((s) => Math.max(0, s - (roomLocked && s === 2 ? 2 : 1)));
@@ -236,6 +280,19 @@ function BookWizard() {
   /* ---- Dummy payment submit ---- */
   async function handleDummyPay() {
     if (!selectedApt) return;
+    if (!user) {
+      openAuthModal({
+        mode: "signin",
+        reason: "Sign in to complete your booking. This links the stay to your account so you can find it under My Bookings.",
+      });
+      toast.error("Sign in required to book");
+      return;
+    }
+    if (availability[selectedApt.id] === false) {
+      toast.error("This apartment is already booked for those dates. Choose different dates.");
+      setStep(0);
+      return;
+    }
     setPaying(true);
     try {
       // Simulate payment latency
@@ -250,11 +307,9 @@ function BookWizard() {
         checkIn,
         checkOut,
         guests,
-        nights,
-        staySubtotal: roomTotal,
-        serviceFee: 0,
-        totalAmount: total,
         specialRequests: requests.trim() || undefined,
+        paymentStatus: "paid",
+        paymentReference: txnId,
         taxi: taxiOn
           ? {
               pickup: "Grantley Adams Intl. Airport (BGI)",
@@ -271,27 +326,31 @@ function BookWizard() {
 
       // Also record a taxi_bookings entry so it appears in Taxi Trips admin
       let taxiRef: string | undefined;
+      let taxiDriverName: string | undefined;
+      let taxiVehicle: string | null | undefined;
+      let taxiEtaMins: number | null | undefined;
       if (taxiOn) {
-        const { data: taxiRefData } = await supabase.rpc("create_public_taxi_booking", {
-          payload: {
-            service_type: "Airport Pickup",
-            pickup_location: "Grantley Adams Intl. Airport (BGI)",
-            dropoff_location: `${selectedApt.name} — Oistins`,
-            pickup_date: taxiDate,
-            pickup_time: taxiTime,
-            passengers: String(taxiPassengers),
-            customer_name: fullName.trim(),
-            customer_email: email.trim(),
-            customer_phone: phone.trim(),
+        try {
+          const taxi = await createTaxiBooking({
+            serviceType: "Airport Pickup",
+            pickupLocation: "Grantley Adams Intl. Airport (BGI)",
+            dropoffLocation: `${selectedApt.name} — Oistins`,
+            pickupDate: taxiDate,
+            pickupTime: taxiTime,
+            passengers: taxiPassengers,
+            customerName: fullName.trim(),
+            customerEmail: email.trim(),
+            customerPhone: phone.trim(),
             notes: `Bundled with stay ${ref}${taxiFlight ? ` · Flight ${taxiFlight}` : ""}`,
-            estimated_fare: pickupFee,
-          },
-        });
-        taxiRef = (taxiRefData as string | null) ?? undefined;
+          });
+          taxiRef = taxi.bookingReference;
+          taxiDriverName = taxi.driver?.name;
+          taxiVehicle = taxi.driver?.vehicleLabel ?? null;
+          taxiEtaMins = taxi.durationMinutes;
+        } catch {
+          toast.warning("Your stay was booked, but the taxi request needs manual confirmation.");
+        }
       }
-
-      // Silence unused txnId warning by referencing it in notes (already stored via createApartmentBooking's taxi.notes if applicable)
-      void txnId;
 
       // Persist reference locally so /my-bookings can show it
       try {
@@ -300,15 +359,28 @@ function BookWizard() {
         const list: string[] = raw ? JSON.parse(raw) : [];
         if (!list.includes(ref)) list.unshift(ref);
         localStorage.setItem(key, JSON.stringify(list.slice(0, 50)));
+        const emailKey = "mfz.bookingEmails";
+        const emailMap = JSON.parse(localStorage.getItem(emailKey) || "{}") as Record<string, string>;
+        emailMap[ref] = email.trim().toLowerCase();
+        localStorage.setItem(emailKey, JSON.stringify(emailMap));
       } catch {
         /* ignore storage errors */
       }
 
-      setConfirmation({ ref, taxiRef });
+      setConfirmation({
+        ref,
+        taxiRef,
+        taxiDriverName,
+        taxiVehicle,
+        taxiEtaMins,
+      });
       setStep(STEPS.length - 1);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Payment failed. Please try again.";
       toast.error(msg);
+      if (/unavailable|already booked|409/i.test(msg)) {
+        setStep(0);
+      }
     } finally {
       setPaying(false);
     }
@@ -320,6 +392,9 @@ function BookWizard() {
       <ConfirmationScreen
         ref_={confirmation.ref}
         taxiRef={confirmation.taxiRef}
+        taxiDriverName={confirmation.taxiDriverName}
+        taxiVehicle={confirmation.taxiVehicle}
+        taxiEtaMins={confirmation.taxiEtaMins}
         apt={selectedApt}
         checkIn={checkIn}
         checkOut={checkOut}
@@ -331,11 +406,15 @@ function BookWizard() {
     );
   }
 
+  if (!user) {
+    return <BookSignInGate search={search} />;
+  }
+
   return (
     <div className="bg-brand-cream/40 min-h-screen">
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-brand-green">
             <ArrowLeft className="h-4 w-4" /> Back to home
           </Link>
@@ -347,9 +426,29 @@ function BookWizard() {
         {/* Progress */}
         <ProgressBar step={step} />
 
-        <div className="mt-6 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-6">
+        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6">
+          {/* Summary — shown first on mobile */}
+          <BookingSummary
+            apt={selectedApt}
+            checkIn={checkIn}
+            checkOut={checkOut}
+            nights={nights}
+            guests={guests}
+            roomTotal={roomTotal}
+            taxiOn={taxiOn}
+            pickupFee={pickupFee}
+            bundleDiscount={bundleDiscount}
+            total={total}
+            className="order-first lg:order-last"
+          />
+
           {/* Main step card */}
-          <div className="rounded-2xl border border-border bg-white p-5 shadow-card sm:p-7">
+          <div className="order-last rounded-2xl border border-border bg-white p-5 shadow-card sm:p-7 lg:order-first">
+            {lockedUnavailable && (
+              <div className="mb-5 rounded-xl border border-brand-orange/30 bg-brand-orange/10 px-4 py-3 text-sm text-brand-charcoal">
+                This apartment is already booked for these dates. Change check-in / check-out to continue, or choose another stay.
+              </div>
+            )}
             {step === 0 && (
               <StepDates
                 checkIn={checkIn}
@@ -359,6 +458,7 @@ function BookWizard() {
                 setCheckIn={setCheckIn}
                 setCheckOut={setCheckOut}
                 setGuests={setGuests}
+                checkingAvail={roomLocked && checkingAvail}
               />
             )}
             {step === 1 && (
@@ -396,6 +496,7 @@ function BookWizard() {
                 setPhone={setPhone}
                 requests={requests}
                 setRequests={setRequests}
+                emailLocked
               />
             )}
             {step === 4 && (
@@ -412,11 +513,11 @@ function BookWizard() {
             )}
 
             {/* Nav buttons */}
-            <div className="mt-8 flex items-center justify-between gap-3 border-t border-border pt-5">
+            <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">
               <button
                 onClick={goBack}
                 disabled={step === 0}
-                className="inline-flex items-center gap-2 rounded-full border border-brand-green px-5 py-2.5 text-sm font-semibold text-brand-green disabled:opacity-40 hover:bg-brand-cream transition"
+                className="inline-flex items-center gap-2 rounded-full border border-brand-green px-4 py-2.5 text-sm font-semibold text-brand-green disabled:opacity-40 hover:bg-brand-cream transition sm:px-5"
               >
                 <ArrowLeft className="h-4 w-4" /> Back
               </button>
@@ -425,29 +526,28 @@ function BookWizard() {
                 <button
                   onClick={goNext}
                   disabled={!canContinue}
-                  className="inline-flex items-center gap-2 rounded-full bg-brand-orange px-6 py-3 text-sm font-semibold text-white shadow-sm disabled:opacity-40 hover:brightness-105 transition"
+                  className="inline-flex items-center gap-2 rounded-full bg-brand-orange px-5 py-3 text-sm font-semibold text-white shadow-sm disabled:opacity-40 hover:brightness-105 transition sm:px-6"
                 >
                   Continue <ArrowRight className="h-4 w-4" />
                 </button>
               )}
             </div>
           </div>
-
-          {/* Summary sidebar */}
-          <BookingSummary
-            apt={selectedApt}
-            checkIn={checkIn}
-            checkOut={checkOut}
-            nights={nights}
-            guests={guests}
-            roomTotal={roomTotal}
-            taxiOn={taxiOn}
-            pickupFee={pickupFee}
-            bundleDiscount={bundleDiscount}
-            total={total}
-          />
         </div>
-        <div className="pb-16" />
+
+        {/* Mobile total bar */}
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
+          <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground">Total</p>
+              <p className="text-lg font-bold text-brand-green">{money(total)}</p>
+            </div>
+            <p className="truncate text-xs text-muted-foreground">
+              Step {Math.min(step + 1, STEPS.length)} of {STEPS.length}
+            </p>
+          </div>
+        </div>
+        <div className="pb-20 lg:pb-0" />
       </div>
     </div>
   );
@@ -457,15 +557,19 @@ function BookWizard() {
 
 function ProgressBar({ step }: { step: number }) {
   return (
-    <div className="mt-6 flex items-center gap-2 sm:gap-3">
+    <div className="mt-6">
+      <p className="text-sm font-semibold text-brand-green lg:hidden">
+        Step {step + 1} of {STEPS.length}: {STEPS[step].label}
+      </p>
+      <div className="mt-2 flex items-center gap-1 sm:gap-2 lg:mt-0 lg:gap-3">
       {STEPS.map((s, i) => {
         const active = i === step;
         const done = i < step;
         const Icon = s.icon;
         return (
-          <div key={s.key} className="flex flex-1 items-center gap-2 sm:gap-3">
+          <div key={s.key} className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2 lg:gap-3">
             <div
-              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold transition ${
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold transition sm:h-9 sm:w-9 ${
                 done
                   ? "bg-brand-green border-brand-green text-white"
                   : active
@@ -473,17 +577,18 @@ function ProgressBar({ step }: { step: number }) {
                   : "bg-white border-border text-muted-foreground"
               }`}
             >
-              {done ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+              {done ? <Check className="h-4 w-4" /> : <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
             </div>
-            <span className={`hidden sm:block text-xs font-semibold ${active ? "text-brand-orange" : done ? "text-brand-green" : "text-muted-foreground"}`}>
+            <span className={`hidden lg:block min-w-0 truncate text-xs font-semibold ${active ? "text-brand-orange" : done ? "text-brand-green" : "text-muted-foreground"}`}>
               {s.label}
             </span>
             {i < STEPS.length - 1 && (
-              <div className={`h-0.5 flex-1 rounded-full ${done ? "bg-brand-green" : "bg-border"}`} />
+              <div className={`h-0.5 min-w-[8px] flex-1 rounded-full ${done ? "bg-brand-green" : "bg-border"}`} />
             )}
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
@@ -494,12 +599,18 @@ function StepDates(props: {
   checkIn: string; checkOut: string; guests: number; nights: number;
   setCheckIn: (v: string) => void; setCheckIn2?: never;
   setCheckOut: (v: string) => void; setGuests: (n: number) => void;
+  checkingAvail?: boolean;
 }) {
-  const { checkIn, checkOut, guests, nights, setCheckIn, setCheckOut, setGuests } = props;
+  const { checkIn, checkOut, guests, nights, setCheckIn, setCheckOut, setGuests, checkingAvail } = props;
   return (
     <div>
       <h2 className="text-xl font-bold text-brand-green">When are you visiting?</h2>
       <p className="mt-1 text-sm text-muted-foreground">Choose your check-in and check-out dates.</p>
+      {checkingAvail && (
+        <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking if this apartment is free…
+        </p>
+      )}
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <Field label="Check-in">
@@ -692,14 +803,14 @@ function StepTaxi(props: {
       <h2 className="text-xl font-bold text-brand-green">Add airport pickup?</h2>
       <p className="mt-1 text-sm text-muted-foreground">Skip the taxi line — we'll meet you at arrivals.</p>
 
-      <div className={`mt-5 rounded-2xl border-2 p-5 transition ${taxiOn ? "border-brand-orange bg-brand-orange/5" : "border-border bg-white"}`}>
-        <div className="flex items-start gap-4">
+      <div className={`mt-5 rounded-2xl border-2 p-4 transition sm:p-5 ${taxiOn ? "border-brand-orange bg-brand-orange/5" : "border-border bg-white"}`}>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
           <div className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-orange/10 text-brand-orange">
             <Plane className="h-6 w-6" />
           </div>
-          <div className="flex-1">
-            <div className="flex items-start justify-between gap-3">
-              <div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
                 <p className="font-bold text-brand-green">Add airport pickup and save 5% on your stay</p>
                 <p className="mt-0.5 text-sm text-muted-foreground">$30 flat fee · reliable driver, on-time meet & greet</p>
               </div>
@@ -757,20 +868,31 @@ function StepDetails(props: {
   email: string; setEmail: (v: string) => void;
   phone: string; setPhone: (v: string) => void;
   requests: string; setRequests: (v: string) => void;
+  emailLocked?: boolean;
 }) {
-  const { fullName, setFullName, email, setEmail, phone, setPhone, requests, setRequests } = props;
+  const { fullName, setFullName, email, setEmail, phone, setPhone, requests, setRequests, emailLocked } = props;
   return (
     <div>
       <h2 className="text-xl font-bold text-brand-green">Your details</h2>
-      <p className="mt-1 text-sm text-muted-foreground">We'll send the confirmation to your email.</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {emailLocked
+          ? "Confirmation goes to your account email. You can update your name or phone if needed."
+          : "We'll send the confirmation to your email."}
+      </p>
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <Field label="Full name">
           <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Jane Doe"
             className="mt-1 w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-green" />
         </Field>
         <Field label="Email">
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com"
-            className="mt-1 w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-green" />
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            readOnly={emailLocked}
+            placeholder="you@email.com"
+            className={`mt-1 w-full rounded-xl border border-border px-3 py-2.5 text-sm outline-none focus:border-brand-green ${emailLocked ? "bg-brand-cream/50 text-muted-foreground" : "bg-white"}`}
+          />
         </Field>
         <Field label="Phone">
           <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 246 000 0000"
@@ -805,17 +927,17 @@ function StepPayment(props: {
           <Lock className="h-4 w-4" />
           Demo mode · click below to complete a test payment
         </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <FakeCardField label="Card number" value="4242 4242 4242 4242" />
           <FakeCardField label="Expiry" value="12 / 30" />
           <FakeCardField label="CVC" value="123" />
         </div>
-        <div className="mt-6 flex items-center justify-between gap-3">
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <span className="text-lg font-bold text-brand-green">Total {money(total)}</span>
           <button
             onClick={onPay}
             disabled={paying}
-            className="inline-flex items-center gap-2 rounded-full bg-brand-orange px-7 py-3.5 text-sm font-semibold text-white shadow-sm disabled:opacity-60 hover:brightness-105 transition"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-brand-orange px-7 py-3.5 text-sm font-semibold text-white shadow-sm disabled:opacity-60 hover:brightness-105 transition sm:w-auto"
           >
             {paying ? <><Loader2 className="h-4 w-4 animate-spin" /> Processing…</> : <>Pay {money(total)} (Demo)</>}
           </button>
@@ -843,10 +965,11 @@ function FakeCardField({ label, value }: { label: string; value: string }) {
 function BookingSummary(props: {
   apt: Apartment | null; checkIn: string; checkOut: string; nights: number; guests: number;
   roomTotal: number; taxiOn: boolean; pickupFee: number; bundleDiscount: number; total: number;
+  className?: string;
 }) {
-  const { apt, checkIn, checkOut, nights, guests, roomTotal, taxiOn, pickupFee, bundleDiscount, total } = props;
+  const { apt, checkIn, checkOut, nights, guests, roomTotal, taxiOn, pickupFee, bundleDiscount, total, className } = props;
   return (
-    <aside className="h-fit rounded-2xl border border-border bg-white p-5 shadow-card lg:sticky lg:top-6">
+    <aside className={`h-fit rounded-2xl border border-border bg-white p-5 shadow-card lg:sticky lg:top-6 ${className ?? ""}`}>
       <h3 className="text-base font-bold text-brand-green">Booking summary</h3>
 
       {apt ? (
@@ -910,11 +1033,34 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 /* ---------------- Confirmation ---------------- */
 
 function ConfirmationScreen(props: {
-  ref_: string; taxiRef?: string; apt: Apartment | null;
-  checkIn: string; checkOut: string; nights: number; guests: number; total: number;
+  ref_: string;
+  taxiRef?: string;
+  taxiDriverName?: string;
+  taxiVehicle?: string | null;
+  taxiEtaMins?: number | null;
+  apt: Apartment | null;
+  checkIn: string;
+  checkOut: string;
+  nights: number;
+  guests: number;
+  total: number;
   taxi: { date: string; time: string; passengers: number; flight: string } | null;
 }) {
-  const { ref_, taxiRef, apt, checkIn, checkOut, nights, guests, total, taxi } = props;
+  const {
+    ref_,
+    taxiRef,
+    taxiDriverName,
+    taxiVehicle,
+    taxiEtaMins,
+    apt,
+    checkIn,
+    checkOut,
+    nights,
+    guests,
+    total,
+    taxi,
+  } = props;
+  const eta = taxiEtaMins ?? 25;
   return (
     <div className="min-h-screen bg-brand-cream/40 py-14">
       <div className="mx-auto max-w-2xl px-4">
@@ -958,23 +1104,91 @@ function ConfirmationScreen(props: {
                   <SummaryRow label="Passengers">{taxi.passengers}</SummaryRow>
                   {taxi.flight && <SummaryRow label="Flight">{taxi.flight}</SummaryRow>}
                   {taxiRef && <SummaryRow label="Taxi ref">{taxiRef}</SummaryRow>}
+                  {taxiDriverName ? (
+                    <>
+                      <SummaryRow label="Driver">{taxiDriverName}</SummaryRow>
+                      <SummaryRow label="Vehicle">{taxiVehicle || "Malfranza taxi"}</SummaryRow>
+                      <SummaryRow label="Approx. trip time">~{eta} min</SummaryRow>
+                    </>
+                  ) : (
+                    <SummaryRow label="Driver">Matching a free driver…</SummaryRow>
+                  )}
                 </div>
               </div>
             )}
           </div>
 
           <div className="mt-6 flex flex-wrap justify-center gap-3">
-            <Link to="/" className="inline-flex items-center gap-2 rounded-full border border-brand-green px-5 py-2.5 text-sm font-semibold text-brand-green hover:bg-brand-cream transition">
-              Back to home
+            <Link
+              to="/my-bookings/$reference"
+              params={{ reference: ref_ }}
+              className="inline-flex items-center gap-2 rounded-full bg-brand-orange px-6 py-2.5 text-sm font-semibold text-white hover:brightness-105 transition"
+            >
+              View booking details
             </Link>
-            <Link to="/stays" className="inline-flex items-center gap-2 rounded-full bg-brand-orange px-6 py-2.5 text-sm font-semibold text-white hover:brightness-105 transition">
-              Browse more stays
+            <Link to="/my-bookings" className="inline-flex items-center gap-2 rounded-full border border-brand-green px-5 py-2.5 text-sm font-semibold text-brand-green hover:bg-brand-cream transition">
+              My Bookings
+            </Link>
+            <Link to="/" className="inline-flex items-center gap-2 rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-brand-charcoal hover:bg-brand-cream transition">
+              Back to home
             </Link>
           </div>
         </div>
       </div>
       {/* silence unused import warning */}
       <X className="hidden" />
+    </div>
+  );
+}
+
+function BookSignInGate({
+  search,
+}: {
+  search: { apartment?: string; checkIn?: string; checkOut?: string; guests?: number };
+}) {
+  const { openAuthModal } = useUserAuth();
+
+  const redirectTo = useMemo(() => {
+    const params = new URLSearchParams();
+    if (search.apartment) params.set("apartment", search.apartment);
+    if (search.checkIn) params.set("checkIn", search.checkIn);
+    if (search.checkOut) params.set("checkOut", search.checkOut);
+    if (search.guests != null) params.set("guests", String(search.guests));
+    const qs = params.toString();
+    return qs ? `/book?${qs}` : "/book";
+  }, [search.apartment, search.checkIn, search.checkOut, search.guests]);
+
+  useEffect(() => {
+    openAuthModal({
+      mode: "signin",
+      reason: "Sign in to continue booking your stay.",
+      redirectTo,
+    });
+  }, [openAuthModal, redirectTo]);
+
+  return (
+    <div className="min-h-[50vh] bg-brand-cream/40">
+      <div className="mx-auto max-w-lg px-4 py-16 text-center sm:px-6">
+        <p className="text-sm text-muted-foreground">Opening sign in…</p>
+        <button
+          type="button"
+          onClick={() =>
+            openAuthModal({
+              mode: "signin",
+              reason: "Sign in to continue booking your stay.",
+              redirectTo,
+            })
+          }
+          className="mt-4 inline-flex items-center justify-center rounded-full bg-brand-orange px-6 py-3 text-sm font-semibold text-white shadow-sm hover:brightness-105"
+        >
+          Sign in
+        </button>
+        <div className="mt-4">
+          <Link to="/stays" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-brand-green">
+            <ArrowLeft className="h-4 w-4" /> Browse stays
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

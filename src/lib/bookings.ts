@@ -1,14 +1,12 @@
-import { supabase } from "@/integrations/supabase/client";
+import { apiRequest, getUserToken } from "@/lib/api";
 
 export async function getApartmentIdBySlug(slug: string): Promise<string | null> {
-  const { data, error } = await supabase
-    .from("apartments")
-    .select("id")
-    .eq("slug", slug)
-    .eq("is_active", true)
-    .maybeSingle();
-  if (error || !data) return null;
-  return data.id;
+  try {
+    const apartment = await apiRequest<{ _id: string }>(`/apartments/${encodeURIComponent(slug)}`);
+    return apartment._id;
+  } catch {
+    return null;
+  }
 }
 
 export async function checkApartmentAvailability(
@@ -16,13 +14,43 @@ export async function checkApartmentAvailability(
   checkIn: string,
   checkOut: string,
 ): Promise<boolean> {
-  const { data, error } = await supabase.rpc("check_apartment_availability", {
-    _apartment_id: apartmentId,
-    _check_in: checkIn,
-    _check_out: checkOut,
-  });
-  if (error) throw error;
-  return !!data;
+  const params = new URLSearchParams({ apartmentId, checkIn, checkOut });
+  const result = await apiRequest<{ available: boolean }>(`/bookings/availability?${params}`);
+  return result.available;
+}
+
+export type ApartmentOccupancy = {
+  apartmentId: string;
+  slug: string;
+  name: string;
+  subtitle: string | null;
+  available: boolean;
+  occupiedNow: boolean;
+  currentBooking: {
+    checkIn: string;
+    checkOut: string;
+    status: string;
+  } | null;
+  nextBooking: {
+    checkIn: string;
+    checkOut: string;
+    status: string;
+  } | null;
+  blockedRanges: Array<{ checkIn: string; checkOut: string; status: string }>;
+};
+
+export async function fetchApartmentOccupancy(opts?: {
+  checkIn?: string;
+  checkOut?: string;
+}): Promise<ApartmentOccupancy[]> {
+  const params = new URLSearchParams();
+  if (opts?.checkIn) params.set("checkIn", opts.checkIn);
+  if (opts?.checkOut) params.set("checkOut", opts.checkOut);
+  const qs = params.toString();
+  const result = await apiRequest<{ items: ApartmentOccupancy[] }>(
+    `/bookings/occupancy${qs ? `?${qs}` : ""}`,
+  );
+  return result.items;
 }
 
 export type ApartmentBookingInput = {
@@ -33,11 +61,9 @@ export type ApartmentBookingInput = {
   checkIn: string;
   checkOut: string;
   guests: number;
-  nights: number;
-  staySubtotal: number;
-  serviceFee: number;
-  totalAmount: number;
   specialRequests?: string;
+  paymentStatus?: "unpaid" | "paid";
+  paymentReference?: string;
   taxi?: {
     pickup: string;
     dropoff: string;
@@ -51,33 +77,21 @@ export type ApartmentBookingInput = {
 };
 
 export async function createApartmentBooking(input: ApartmentBookingInput) {
-  const { data, error } = await supabase.rpc("create_public_apartment_booking", {
-    payload: {
-      apartment_id: input.apartmentId,
-      guest_name: input.guestName,
-      guest_email: input.guestEmail,
-      guest_phone: input.guestPhone,
-      check_in: input.checkIn,
-      check_out: input.checkOut,
-      guests: input.guests,
-      nights: input.nights,
-      stay_subtotal: input.staySubtotal,
-      service_fee: input.serviceFee,
-      total_amount: input.totalAmount,
-      special_requests: input.specialRequests ?? null,
-      taxi_addon: !!input.taxi,
-      taxi_pickup: input.taxi?.pickup ?? null,
-      taxi_dropoff: input.taxi?.dropoff ?? null,
-      taxi_date: input.taxi?.date ?? "",
-      taxi_time: input.taxi?.time ?? "",
-      taxi_passengers: input.taxi ? String(input.taxi.passengers) : "",
-      taxi_distance_km: input.taxi ? String(input.taxi.distanceKm) : "",
-      taxi_fare: input.taxi?.fare ?? 0,
-      taxi_notes: input.taxi?.notes ?? null,
-    },
+  if (!getUserToken()) {
+    throw new Error("Sign in required to book a stay");
+  }
+  const result = await apiRequest<{ bookingReference: string }>("/bookings", {
+    method: "POST",
+    body: JSON.stringify(input),
+    userAuth: true,
   });
-  if (error) throw error;
-  return data as string;
+  return result.bookingReference;
+}
+
+export async function getPublicBooking(reference: string, email: string) {
+  return apiRequest<any>(
+    `/bookings/${encodeURIComponent(reference)}?email=${encodeURIComponent(email)}`,
+  );
 }
 
 export type TaxiBookingInput = {
@@ -93,24 +107,55 @@ export type TaxiBookingInput = {
   notes?: string;
 };
 
-export async function createTaxiBooking(input: TaxiBookingInput) {
-  const { data, error } = await supabase.rpc("create_public_taxi_booking", {
-    payload: {
-      service_type: input.serviceType,
-      pickup_location: input.pickupLocation,
-      dropoff_location: input.dropoffLocation,
-      pickup_date: input.pickupDate,
-      pickup_time: input.pickupTime,
-      passengers: String(input.passengers),
-      customer_name: input.customerName,
-      customer_email: input.customerEmail,
-      customer_phone: input.customerPhone,
-      notes: input.notes ?? null,
-      estimated_fare: 0,
-    },
+export type TaxiBookingResult = {
+  bookingReference: string;
+  status: string;
+  distanceKm: number;
+  durationMinutes: number | null;
+  estimatedFare: number;
+  currency: string;
+  pickupDate?: string;
+  pickupTime?: string;
+  pickupLocation?: string;
+  dropoffLocation?: string;
+  serviceType?: string;
+  driver: {
+    id: string;
+    name: string;
+    phone: string;
+    vehicleLabel: string | null;
+  } | null;
+};
+
+export async function createTaxiBooking(input: TaxiBookingInput): Promise<TaxiBookingResult> {
+  if (!getUserToken()) {
+    throw new Error("Sign in required to book a ride");
+  }
+  return apiRequest<TaxiBookingResult>("/taxi/bookings", {
+    method: "POST",
+    body: JSON.stringify(input),
+    userAuth: true,
   });
-  if (error) throw error;
-  return data as string;
+}
+
+export type TaxiFareEstimate = {
+  distanceKm: number;
+  durationMinutes: number | null;
+  estimatedFare: number;
+  currency?: string;
+  estimated?: boolean;
+};
+
+/** Client-side fare estimate (replaces former TanStack Start server function). */
+export async function estimateTaxiFare(input: {
+  pickupLocation: string;
+  dropoffLocation: string;
+  passengers: number;
+}): Promise<TaxiFareEstimate> {
+  return apiRequest<TaxiFareEstimate>("/taxi/fare-estimate", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
 
 export type EnquiryInput = {
@@ -123,18 +168,17 @@ export type EnquiryInput = {
 };
 
 export async function createEnquiry(input: EnquiryInput) {
-  const { data, error } = await supabase
-    .from("enquiries")
-    .insert({
+  const result = await apiRequest<{ reference: string }>("/enquiries", {
+    method: "POST",
+    body: JSON.stringify({
       name: input.name,
       email: input.email,
-      phone: input.phone || null,
-      interested_in: input.interestedIn,
-      preferred_dates: input.preferredDates || null,
+      phone: input.phone,
+      interestedIn: input.interestedIn,
+      preferredDate: input.preferredDates,
       message: input.message,
-    })
-    .select("reference")
-    .single();
-  if (error) throw error;
-  return data.reference;
+    }),
+    userAuth: !!getUserToken(),
+  });
+  return result.reference;
 }

@@ -57,14 +57,14 @@ function EnquiriesPage() {
                   <StatusPill status={e.status} />
                   <span className="text-xs text-muted-foreground font-mono">{e.reference}</span>
                 </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {e.email}{e.phone ? ` · ${e.phone}` : ""} · Interested in: {e.interested_in}
+                <div className="text-xs text-muted-foreground mt-1 break-words">
+                  <span className="break-all">{e.email}</span>{e.phone ? ` · ${e.phone}` : ""} · Interested in: {e.interested_in}
                   {e.preferred_dates ? ` · Dates: ${e.preferred_dates}` : ""}
                 </div>
                 <p className="mt-3 text-sm text-brand-charcoal whitespace-pre-wrap">{e.message}</p>
               </div>
-              <div className="flex gap-2">
-                {e.status !== "responded" && (
+              <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+                {e.status === "new" && (
                   <button
                     onClick={() => mut.mutate({ id: e.id, s: "responded" })}
                     className="rounded-lg bg-brand-green text-white px-3 py-1.5 text-xs font-semibold hover:opacity-90"
@@ -72,7 +72,7 @@ function EnquiriesPage() {
                     Mark as responded
                   </button>
                 )}
-                {e.status !== "closed" && (
+                {(e.status === "new" || e.status === "responded") && (
                   <button
                     onClick={() => mut.mutate({ id: e.id, s: "closed" })}
                     className="rounded-lg bg-slate-100 text-slate-700 px-3 py-1.5 text-xs font-semibold hover:bg-slate-200"

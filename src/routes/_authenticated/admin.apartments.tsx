@@ -1,23 +1,88 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { listAllApartments, updateApartment } from "@/lib/admin";
+import { Plus } from "lucide-react";
+import {
+  createApartment,
+  listAllApartments,
+  listApartmentBookings,
+  updateApartment,
+  uploadApartmentImage,
+} from "@/lib/admin";
+import { Drawer } from "./admin.bookings";
 
 export const Route = createFileRoute("/_authenticated/admin/apartments")({
   component: ApartmentsPage,
 });
 
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 120);
+}
+
 function ApartmentsPage() {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["admin", "apartments-all"], queryFn: listAllApartments });
+  const bookingsQ = useQuery({ queryKey: ["admin", "bookings"], queryFn: listApartmentBookings });
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+
+  const occupancyByApt = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const blocking = new Set(["pending", "confirmed", "checked_in"]);
+    const map: Record<string, { label: string; until?: string; guest?: string }> = {};
+    for (const b of bookingsQ.data ?? []) {
+      if (!blocking.has(b.status)) continue;
+      const aptId = String(b.apartment_id);
+      if (b.check_in <= today && b.check_out > today) {
+        map[aptId] = {
+          label: "Booked now",
+          until: b.check_out,
+          guest: b.guest_name,
+        };
+        continue;
+      }
+      if (b.check_in > today && (!map[aptId] || map[aptId].label !== "Booked now")) {
+        const existing = map[aptId];
+        if (!existing || (existing.until && b.check_in < existing.until)) {
+          map[aptId] = {
+            label: "Upcoming booking",
+            until: b.check_in,
+            guest: b.guest_name,
+          };
+        }
+      }
+    }
+    return map;
+  }, [bookingsQ.data]);
+
+  function refresh() {
+    qc.invalidateQueries({ queryKey: ["admin", "apartments-all"] });
+    qc.invalidateQueries({ queryKey: ["admin", "bookings"] });
+  }
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-display font-bold text-brand-charcoal">Apartments</h1>
-        <p className="text-sm text-muted-foreground">Manage your rental units.</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-display font-bold text-brand-charcoal">Apartments</h1>
+          <p className="text-sm text-muted-foreground">
+            Manage your rental units. Booked dates cannot be double-booked.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setCreating(true)}
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-green px-4 text-sm font-semibold text-white hover:opacity-90"
+        >
+          <Plus className="h-4 w-4" />
+          Add apartment
+        </button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -25,28 +90,298 @@ function ApartmentsPage() {
           <ApartmentCard
             key={a.id}
             apt={a}
+            occupancy={occupancyByApt[a.id]}
             editing={editingId === a.id}
             onEdit={() => setEditingId(a.id)}
             onCancel={() => setEditingId(null)}
             onSaved={() => {
               setEditingId(null);
-              qc.invalidateQueries({ queryKey: ["admin", "apartments-all"] });
+              refresh();
             }}
           />
         ))}
+        {!q.isLoading && (q.data ?? []).length === 0 && (
+          <div className="md:col-span-2 rounded-2xl bg-white p-8 text-center shadow-card">
+            <p className="text-sm text-muted-foreground">No apartments yet. Add your first unit.</p>
+            <button
+              type="button"
+              onClick={() => setCreating(true)}
+              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-brand-green px-4 py-2 text-sm font-semibold text-white"
+            >
+              <Plus className="h-4 w-4" />
+              Add apartment
+            </button>
+          </div>
+        )}
       </div>
+
+      {creating && (
+        <Drawer onClose={() => setCreating(false)}>
+          <h2 className="text-xl font-display font-bold text-brand-charcoal">Add apartment</h2>
+          <p className="mb-4 text-sm text-muted-foreground">Create a new stay listing for the public site.</p>
+          <CreateApartmentForm
+            onCancel={() => setCreating(false)}
+            onCreated={() => {
+              setCreating(false);
+              refresh();
+            }}
+          />
+        </Drawer>
+      )}
     </div>
+  );
+}
+
+function CreateApartmentForm({
+  onCancel,
+  onCreated,
+}: {
+  onCancel: () => void;
+  onCreated: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [slug, setSlug] = useState("");
+  const [slugTouched, setSlugTouched] = useState(false);
+  const [subtitle, setSubtitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [type, setType] = useState<"one-bedroom" | "two-bedroom">("one-bedroom");
+  const [price, setPrice] = useState("110");
+  const [maxGuests, setMaxGuests] = useState("2");
+  const [bedrooms, setBedrooms] = useState("1");
+  const [bathrooms, setBathrooms] = useState("1");
+  const [sizeSqM, setSizeSqM] = useState("");
+  const [amenities, setAmenities] = useState("Wi‑Fi, Air conditioning, Kitchen");
+  const [photos, setPhotos] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!slugTouched) setSlug(slugify(name));
+  }, [name, slugTouched]);
+
+  useEffect(() => {
+    if (type === "one-bedroom") {
+      setBedrooms("1");
+      setMaxGuests((g) => (Number(g) < 2 ? "2" : g));
+    } else {
+      setBedrooms("2");
+      setMaxGuests((g) => (Number(g) < 4 ? "4" : g));
+    }
+  }, [type]);
+
+  const upload = useMutation({
+    mutationFn: uploadApartmentImage,
+    onSuccess: (image) => {
+      setPhotos((current) => [...current, image.url]);
+      toast.success("Image uploaded");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Upload failed"),
+  });
+
+  const create = useMutation({
+    mutationFn: () =>
+      createApartment({
+        name: name.trim(),
+        slug: slugify(slug || name),
+        subtitle: subtitle.trim() || undefined,
+        description: description.trim(),
+        type,
+        price_per_night: Number(price),
+        max_guests: Number(maxGuests),
+        bedrooms: Number(bedrooms),
+        bathrooms: Number(bathrooms),
+        size_sqm: sizeSqM ? Number(sizeSqM) : undefined,
+        amenities: amenities.split(",").map((s) => s.trim()).filter(Boolean),
+        photos,
+        is_active: true,
+      }),
+    onSuccess: () => {
+      toast.success("Apartment created");
+      onCreated();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Create failed"),
+  });
+
+  return (
+    <form
+      className="space-y-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (description.trim().length < 10) {
+          toast.error("Description must be at least 10 characters");
+          return;
+        }
+        create.mutate();
+      }}
+    >
+      <FormField label="Name">
+        <input
+          required
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm"
+          placeholder="Tropical Escape"
+        />
+      </FormField>
+      <FormField label="URL slug">
+        <input
+          required
+          value={slug}
+          onChange={(e) => {
+            setSlugTouched(true);
+            setSlug(e.target.value);
+          }}
+          className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm font-mono"
+          placeholder="tropical-escape"
+        />
+      </FormField>
+      <FormField label="Subtitle (optional)">
+        <input
+          value={subtitle}
+          onChange={(e) => setSubtitle(e.target.value)}
+          className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm"
+          placeholder="Quiet garden-view stay"
+        />
+      </FormField>
+      <FormField label="Description">
+        <textarea
+          required
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={4}
+          className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm"
+          placeholder="Describe the apartment for guests…"
+        />
+      </FormField>
+      <FormField label="Type">
+        <select
+          value={type}
+          onChange={(e) => setType(e.target.value as "one-bedroom" | "two-bedroom")}
+          className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm"
+        >
+          <option value="one-bedroom">One-bedroom</option>
+          <option value="two-bedroom">Two-bedroom</option>
+        </select>
+      </FormField>
+      <div className="grid grid-cols-2 gap-3">
+        <FormField label="Price / night">
+          <input
+            required
+            type="number"
+            min={0}
+            step="1"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm"
+          />
+        </FormField>
+        <FormField label="Max guests">
+          <input
+            required
+            type="number"
+            min={1}
+            max={20}
+            value={maxGuests}
+            onChange={(e) => setMaxGuests(e.target.value)}
+            className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm"
+          />
+        </FormField>
+        <FormField label="Bedrooms">
+          <input
+            required
+            type="number"
+            min={1}
+            max={10}
+            value={bedrooms}
+            onChange={(e) => setBedrooms(e.target.value)}
+            className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm"
+          />
+        </FormField>
+        <FormField label="Bathrooms">
+          <input
+            required
+            type="number"
+            min={1}
+            max={10}
+            value={bathrooms}
+            onChange={(e) => setBathrooms(e.target.value)}
+            className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm"
+          />
+        </FormField>
+      </div>
+      <FormField label="Size m² (optional)">
+        <input
+          type="number"
+          min={1}
+          value={sizeSqM}
+          onChange={(e) => setSizeSqM(e.target.value)}
+          className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm"
+        />
+      </FormField>
+      <FormField label="Amenities (comma-separated)">
+        <input
+          value={amenities}
+          onChange={(e) => setAmenities(e.target.value)}
+          className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm"
+        />
+      </FormField>
+      <FormField label="Photos">
+        <div className="space-y-2">
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/avif"
+            disabled={upload.isPending}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) upload.mutate(file);
+              event.currentTarget.value = "";
+            }}
+            className="block w-full text-sm"
+          />
+          <div className="grid grid-cols-2 gap-2">
+            {photos.map((photo) => (
+              <div key={photo} className="relative overflow-hidden rounded-lg border">
+                <img src={photo} alt="" className="aspect-video w-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setPhotos((current) => current.filter((item) => item !== photo))}
+                  className="absolute right-1 top-1 rounded bg-black/70 px-1.5 py-0.5 text-xs text-white"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </FormField>
+      <div className="flex gap-2 pt-2">
+        <button
+          type="submit"
+          disabled={create.isPending}
+          className="flex-1 rounded-lg bg-brand-green px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
+        >
+          {create.isPending ? "Creating…" : "Create apartment"}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 }
 
 function ApartmentCard({
   apt,
+  occupancy,
   editing,
   onEdit,
   onCancel,
   onSaved,
 }: {
   apt: any;
+  occupancy?: { label: string; until?: string; guest?: string };
   editing: boolean;
   onEdit: () => void;
   onCancel: () => void;
@@ -57,6 +392,7 @@ function ApartmentCard({
   const [price, setPrice] = useState(String(apt.price_per_night));
   const [maxGuests, setMaxGuests] = useState(String(apt.max_guests));
   const [amenities, setAmenities] = useState((apt.amenities ?? []).join(", "));
+  const [photos, setPhotos] = useState<string[]>(apt.photos ?? []);
 
   const toggle = useMutation({
     mutationFn: () => updateApartment(apt.id, { is_active: !apt.is_active }),
@@ -74,6 +410,7 @@ function ApartmentCard({
         price_per_night: Number(price),
         max_guests: Number(maxGuests),
         amenities: amenities.split(",").map((s: string) => s.trim()).filter(Boolean),
+        photos,
       }),
     onSuccess: () => {
       toast.success("Apartment updated");
@@ -82,12 +419,21 @@ function ApartmentCard({
     onError: (e) => toast.error(e instanceof Error ? e.message : "Update failed"),
   });
 
+  const upload = useMutation({
+    mutationFn: uploadApartmentImage,
+    onSuccess: (image) => {
+      setPhotos((current) => [...current, image.url]);
+      toast.success("Image uploaded");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Upload failed"),
+  });
+
   return (
-    <div className="rounded-2xl bg-white shadow-card p-5 space-y-3">
+    <div className="space-y-3 rounded-2xl bg-white p-5 shadow-card">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-display font-bold text-brand-charcoal truncate">{apt.name}</h3>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="truncate font-display font-bold text-brand-charcoal">{apt.name}</h3>
             <span
               className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
                 apt.is_active ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-700"
@@ -95,14 +441,28 @@ function ApartmentCard({
             >
               {apt.is_active ? "Active" : "Inactive"}
             </span>
+            {occupancy && (
+              <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-900">
+                {occupancy.label}
+                {occupancy.until ? ` · ${occupancy.until}` : ""}
+              </span>
+            )}
+            {!occupancy && apt.is_active && (
+              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-800">
+                Available
+              </span>
+            )}
           </div>
           <div className="text-xs text-muted-foreground">
             ${apt.price_per_night}/night · {apt.max_guests} guests · {apt.bedrooms} bed
           </div>
+          {occupancy?.guest && (
+            <div className="mt-1 text-xs text-muted-foreground">Guest: {occupancy.guest}</div>
+          )}
         </div>
         <button
           onClick={() => toggle.mutate()}
-          className="text-xs font-semibold text-brand-green hover:underline shrink-0"
+          className="shrink-0 text-xs font-semibold text-brand-green hover:underline"
         >
           {apt.is_active ? "Deactivate" : "Activate"}
         </button>
@@ -110,10 +470,10 @@ function ApartmentCard({
 
       {!editing ? (
         <>
-          <p className="text-sm text-muted-foreground line-clamp-3">{apt.description}</p>
+          <p className="line-clamp-3 text-sm text-muted-foreground">{apt.description}</p>
           <button
             onClick={onEdit}
-            className="w-full rounded-lg bg-brand-green text-white px-3 py-2 text-sm font-semibold hover:opacity-90"
+            className="w-full rounded-lg bg-brand-green px-3 py-2 text-sm font-semibold text-white hover:opacity-90"
           >
             Edit
           </button>
@@ -135,7 +495,7 @@ function ApartmentCard({
               className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm"
             />
           </FormField>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <FormField label="Price / night">
               <input
                 type="number"
@@ -160,17 +520,46 @@ function ApartmentCard({
               className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm"
             />
           </FormField>
+          <FormField label="Apartment photos">
+            <div className="space-y-2">
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/avif"
+                disabled={upload.isPending}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) upload.mutate(file);
+                  event.currentTarget.value = "";
+                }}
+                className="block w-full text-sm"
+              />
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {photos.map((photo) => (
+                  <div key={photo} className="relative overflow-hidden rounded-lg border">
+                    <img src={photo} alt="" className="aspect-video w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setPhotos((current) => current.filter((item) => item !== photo))}
+                      className="absolute right-1 top-1 rounded bg-black/70 px-1.5 py-0.5 text-xs text-white"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </FormField>
           <div className="flex gap-2">
             <button
               onClick={() => save.mutate()}
               disabled={save.isPending}
-              className="flex-1 rounded-lg bg-brand-green text-white px-3 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-60"
+              className="flex-1 rounded-lg bg-brand-green px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
             >
               {save.isPending ? "Saving…" : "Save"}
             </button>
             <button
               onClick={onCancel}
-              className="rounded-lg bg-slate-100 text-slate-700 px-3 py-2 text-sm font-semibold hover:bg-slate-200"
+              className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200"
             >
               Cancel
             </button>
@@ -184,7 +573,7 @@ function ApartmentCard({
 function FormField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <div className="text-xs font-medium text-brand-charcoal mb-1">{label}</div>
+      <div className="mb-1 text-xs font-medium text-brand-charcoal">{label}</div>
       {children}
     </label>
   );

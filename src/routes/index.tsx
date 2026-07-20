@@ -1,11 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { z } from "zod";
 import {
   Home, BedDouble, Plane, Users, Calendar, MapPin, Car,
   CheckCircle2, ShieldCheck, Sparkles, ArrowRight,
 } from "lucide-react";
-import { PlacesAutocompleteInput } from "@/components/maps/PlacesAutocompleteInput";
-import { APARTMENTS } from "@/data/apartments";
+import { fetchApartments } from "@/data/apartments";
 import heroImg from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_43 PM.png";
 import stayKitchen from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_20 PM.png";
 import stay2br from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_43 PM.png";
@@ -16,7 +16,14 @@ import stay1br from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_34 PM.png";
 import taxiVan from "@/assets/ChatGPT Image Jul 2, 2026, 10_48_48 PM.png";
 import locationBanner from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_00 PM.png";
 
+const homeSearchSchema = z.object({
+  auth: z.enum(["signin", "signup", "setup"]).optional(),
+  redirect: z.string().optional(),
+});
+
 export const Route = createFileRoute("/")({
+  validateSearch: (search) => homeSearchSchema.parse(search),
+  loader: () => fetchApartments(),
   head: () => ({
     meta: [
       { title: "Malfranza Apartments & Taxi | Comfortable Stays & Reliable Rides in Barbados" },
@@ -31,23 +38,11 @@ export const Route = createFileRoute("/")({
 });
 
 const categories = [
-  { icon: Home, label: "One-Bedroom" },
-  { icon: BedDouble, label: "Two-Bedroom" },
-  { icon: Plane, label: "Airport Transfers" },
-  { icon: Users, label: "Group & Custom Trips" },
+  { icon: Home, label: "One-Bedroom", to: "/stays" as const, search: { type: "one-bedroom" as const } },
+  { icon: BedDouble, label: "Two-Bedroom", to: "/stays" as const, search: { type: "two-bedroom" as const } },
+  { icon: Plane, label: "Airport Transfers", to: "/taxi" as const, search: { serviceType: "Airport Pickup" as const } },
+  { icon: Users, label: "Group & Custom Trips", to: "/taxi" as const, search: { serviceType: "Hourly / Custom" as const } },
 ];
-
-// Featured a curated slice of real apartments so each card links to its unique room
-const featuredStays = APARTMENTS.slice(0, 4).map((a) => ({
-  id: a.id,
-  img: a.images[0],
-  name: a.subtitle,
-  type: a.name,
-  desc: a.description,
-  guests: a.guests,
-  beds: a.beds,
-  price: a.pricePerNight,
-}));
 
 const galleryImages = [
   stayGarden, stayKitchen, stay2br,
@@ -103,8 +98,21 @@ function todayISO(offsetDays = 0) {
 
 function HomePage() {
   const navigate = useNavigate();
-  const [ridePickup, setRidePickup] = useState("Grantley Adams Intl. Airport (BGI)");
-  const [rideDropoff, setRideDropoff] = useState("");
+  const apartments = Route.useLoaderData();
+  const featuredStays = apartments.slice(0, 4).map((a) => ({
+    id: a.id,
+    img: a.images[0],
+    name: a.subtitle,
+    type: a.name,
+    desc: a.description,
+    guests: a.guests,
+    beds: a.beds,
+    price: a.pricePerNight,
+  }));
+  const liveGallery = [
+    ...apartments.flatMap((a) => a.images.slice(0, 2)),
+    ...galleryImages,
+  ].filter((src, i, arr) => arr.indexOf(src) === i).slice(0, 6);
 
   // Hero search state
   const [checkIn, setCheckIn] = useState(todayISO(7));
@@ -113,17 +121,47 @@ function HomePage() {
   const [searchType, setSearchType] = useState<"any" | "one-bedroom" | "two-bedroom">("any");
   const [taxiPickup, setTaxiPickup] = useState("");
 
+  // Homepage taxi quick-book
+  const [rideService, setRideService] = useState("Airport Pickup");
+  const [ridePickup, setRidePickup] = useState("Grantley Adams Intl. Airport (BGI)");
+  const [rideDropoff, setRideDropoff] = useState("");
+  const [rideDate, setRideDate] = useState(todayISO(1));
+  const [rideTime, setRideTime] = useState("10:30");
+  const [ridePassengers, setRidePassengers] = useState(2);
+  const [rideError, setRideError] = useState<string | null>(null);
+
   const handleSearch = () => {
     navigate({
-      to: "/book",
+      to: "/stays",
       search: {
-        checkIn, checkOut,
+        checkIn,
+        checkOut,
         guests: searchGuests,
+        type: searchType,
+        taxiPickup: taxiPickup || undefined,
       },
     });
   };
-  // suppress unused (kept for hero taxi pickup field)
-  void searchType; void taxiPickup;
+
+  const handleBookRide = () => {
+    if (!ridePickup.trim() || !rideDropoff.trim()) {
+      setRideError("Add pickup and drop-off locations to continue.");
+      return;
+    }
+    setRideError(null);
+    navigate({
+      to: "/taxi",
+      search: {
+        serviceType: rideService as "Airport Pickup" | "Airport Drop-off" | "Point to Point" | "Hourly / Custom",
+        pickup: ridePickup.trim(),
+        dropoff: rideDropoff.trim(),
+        date: rideDate,
+        time: rideTime,
+        passengers: ridePassengers,
+      },
+    });
+  };
+
   return (
     <div>
       {/* HERO — full-bleed photo */}
@@ -146,7 +184,7 @@ function HomePage() {
                 Oistins · Barbados
               </span>
             </div>
-            <h1 className="mt-4 text-4xl leading-[1.05] text-white sm:text-5xl lg:text-6xl">
+            <h1 className="mt-4 text-3xl leading-[1.05] text-white sm:text-5xl lg:text-6xl">
               Stay comfortably.<br />Move easily.
             </h1>
             <p className="mt-5 max-w-xl text-base leading-relaxed text-white/90 sm:text-lg">
@@ -172,17 +210,17 @@ function HomePage() {
           {/* Search bar — floats over hero, overlaps next section */}
           <div className="relative mt-8 lg:-mb-14 lg:mt-12">
             <div className="rounded-2xl border border-white/40 bg-white/95 p-3 shadow-card backdrop-blur-md sm:p-5">
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6 lg:items-end">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-6 lg:items-end">
                 <SearchInput icon={Calendar} label="Check-in" type="date" value={checkIn} min={todayISO(0)} onChange={setCheckIn} />
                 <SearchInput icon={Calendar} label="Check-out" type="date" value={checkOut} min={checkIn} onChange={setCheckOut} />
-                <SearchInput icon={Users} label="Guests" type="number" value={String(searchGuests)} min="1" max="8" onChange={(v) => setSearchGuests(Math.max(1, parseInt(v || "1", 10)))} />
+                <SearchInput icon={Users} label="Guests" type="number" value={String(searchGuests)} min="1" max="6" onChange={(v) => setSearchGuests(Math.max(1, Math.min(6, parseInt(v || "1", 10))))} />
                 <SearchSelect icon={Home} label="Type" value={searchType} onChange={(v) => setSearchType(v as typeof searchType)} options={[
                   { value: "any", label: "Any" },
                   { value: "one-bedroom", label: "One-Bedroom" },
                   { value: "two-bedroom", label: "Two-Bedroom" },
                 ]} />
-                <SearchAutocomplete icon={MapPin} label="Taxi Pickup" value={taxiPickup} onChange={setTaxiPickup} placeholder="Add pickup" />
-                <button onClick={handleSearch} className="inline-flex h-[52px] items-center justify-center rounded-xl bg-brand-green px-6 text-sm font-semibold text-white shadow-sm transition-all hover:brightness-110">
+                <SearchText icon={MapPin} label="Taxi Pickup" value={taxiPickup} onChange={setTaxiPickup} placeholder="Type pickup location" />
+                <button type="button" onClick={handleSearch} className="inline-flex h-[52px] items-center justify-center rounded-xl bg-brand-green px-6 text-sm font-semibold text-white shadow-sm transition-all hover:brightness-110">
                   Search
                 </button>
               </div>
@@ -194,9 +232,11 @@ function HomePage() {
       {/* Category strip — 2x2 mobile, 4-across desktop */}
       <section className="relative mx-auto max-w-7xl px-4 pt-10 sm:px-6 lg:px-8 lg:pt-20">
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-          {categories.map(({ icon: Icon, label }) => (
-            <div
+          {categories.map(({ icon: Icon, label, to, search }) => (
+            <Link
               key={label}
+              to={to}
+              search={search}
               className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-white p-4 text-center shadow-card transition-all hover:-translate-y-0.5 hover:shadow-card-hover sm:flex-row sm:gap-4 sm:p-5 sm:text-left"
             >
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-sage/25 sm:h-12 sm:w-12">
@@ -205,13 +245,13 @@ function HomePage() {
               <span className="font-display text-[13px] font-semibold leading-tight text-brand-green sm:text-[15px]">
                 {label}
               </span>
-            </div>
+            </Link>
           ))}
         </div>
       </section>
 
       {/* Featured stays — mobile carousel, desktop grid */}
-      <section className="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-16">
+      <section className="relative mx-auto max-w-7xl overflow-hidden px-4 py-10 sm:px-6 lg:px-8 lg:py-16">
         <PalmWatermark className="right-0 top-0 h-40 w-40 -translate-y-6 translate-x-6 rotate-45" />
 
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4">
@@ -228,74 +268,85 @@ function HomePage() {
           </Link>
         </div>
 
-        {/* Mobile carousel */}
-        <div className="mt-6 -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:hidden">
-          {featuredStays.map((s) => (
-            <Link
-              key={s.id}
-              to="/stays/$id"
-              params={{ id: s.id }}
-              className="group w-[78%] shrink-0 snap-start overflow-hidden rounded-2xl border border-border bg-white shadow-card"
-            >
-              <div className="aspect-[4/3] overflow-hidden bg-brand-cream">
-                <img src={s.img} alt={s.name} loading="lazy" className="h-full w-full object-cover" />
-              </div>
-              <div className="p-4">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-brand-sage">{s.type}</p>
-                <h3 className="mt-0.5 text-base">{s.name}</h3>
-                <p className="mt-1 text-xs text-brand-charcoal/70 line-clamp-2">{s.desc}</p>
-                <div className="mt-3 flex items-center justify-between gap-3 text-xs text-brand-charcoal/75">
-                  <span className="inline-flex items-center gap-3">
-                    <span className="inline-flex items-center gap-1.5">
-                      <Users className="h-3.5 w-3.5 text-brand-green" /> {s.guests}
-                    </span>
-                    <span className="inline-flex items-center gap-1.5">
-                      <BedDouble className="h-3.5 w-3.5 text-brand-green" /> {s.beds}
-                    </span>
-                  </span>
-                  <span className="font-semibold text-brand-green">${s.price}/nt</span>
-                </div>
-              </div>
+        {featuredStays.length === 0 ? (
+          <div className="mt-8 rounded-2xl border border-border bg-white p-8 text-center shadow-card">
+            <p className="text-brand-charcoal/75">Apartments are loading from our listings. Please refresh in a moment.</p>
+            <Link to="/stays" className="mt-4 inline-flex text-sm font-semibold text-brand-green">
+              Browse stays
             </Link>
-          ))}
-        </div>
+          </div>
+        ) : (
+          <>
+            {/* Mobile carousel */}
+            <div className="mt-6 -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:hidden">
+              {featuredStays.map((s) => (
+                <Link
+                  key={s.id}
+                  to="/stays/$id"
+                  params={{ id: s.id }}
+                  className="group w-[78%] shrink-0 snap-start overflow-hidden rounded-2xl border border-border bg-white shadow-card"
+                >
+                  <div className="aspect-[4/3] overflow-hidden bg-brand-cream">
+                    <img src={s.img} alt={s.name} loading="lazy" className="h-full w-full object-cover" />
+                  </div>
+                  <div className="p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-brand-sage">{s.type}</p>
+                    <h3 className="mt-0.5 text-base">{s.name}</h3>
+                    <p className="mt-1 text-xs text-brand-charcoal/70 line-clamp-2">{s.desc}</p>
+                    <div className="mt-3 flex items-center justify-between gap-3 text-xs text-brand-charcoal/75">
+                      <span className="inline-flex items-center gap-3">
+                        <span className="inline-flex items-center gap-1.5">
+                          <Users className="h-3.5 w-3.5 text-brand-green" /> {s.guests}
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                          <BedDouble className="h-3.5 w-3.5 text-brand-green" /> {s.beds}
+                        </span>
+                      </span>
+                      <span className="font-semibold text-brand-green">${s.price}/nt</span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
 
-        {/* Desktop grid */}
-        <div className="mt-8 hidden gap-5 sm:grid sm:grid-cols-2 lg:grid-cols-4">
-          {featuredStays.map((s) => (
-            <Link
-              key={s.id}
-              to="/stays/$id"
-              params={{ id: s.id }}
-              className="group overflow-hidden rounded-2xl border border-border bg-white shadow-card transition-shadow hover:shadow-card-hover"
-            >
-              <div className="aspect-[4/3] overflow-hidden bg-brand-cream">
-                <img
-                  src={s.img}
-                  alt={s.name}
-                  loading="lazy"
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                />
-              </div>
-              <div className="p-5">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-brand-sage">{s.type}</p>
-                <h3 className="mt-1 text-lg">{s.name}</h3>
-                <p className="mt-1 text-sm text-brand-charcoal/70 line-clamp-2">{s.desc}</p>
-                <div className="mt-4 flex items-center justify-between gap-3 text-xs text-brand-charcoal/75">
-                  <span className="inline-flex items-center gap-4">
-                    <span className="inline-flex items-center gap-1.5">
-                      <Users className="h-4 w-4 text-brand-green" /> {s.guests}
-                    </span>
-                    <span className="inline-flex items-center gap-1.5">
-                      <BedDouble className="h-4 w-4 text-brand-green" /> {s.beds} {s.beds === 1 ? "Bed" : "Beds"}
-                    </span>
-                  </span>
-                  <span className="font-semibold text-brand-green">${s.price}/nt</span>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+            {/* Desktop grid */}
+            <div className="mt-8 hidden gap-5 sm:grid sm:grid-cols-2 lg:grid-cols-4">
+              {featuredStays.map((s) => (
+                <Link
+                  key={s.id}
+                  to="/stays/$id"
+                  params={{ id: s.id }}
+                  className="group overflow-hidden rounded-2xl border border-border bg-white shadow-card transition-shadow hover:shadow-card-hover"
+                >
+                  <div className="aspect-[4/3] overflow-hidden bg-brand-cream">
+                    <img
+                      src={s.img}
+                      alt={s.name}
+                      loading="lazy"
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  </div>
+                  <div className="p-5">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-brand-sage">{s.type}</p>
+                    <h3 className="mt-1 text-lg">{s.name}</h3>
+                    <p className="mt-1 text-sm text-brand-charcoal/70 line-clamp-2">{s.desc}</p>
+                    <div className="mt-4 flex items-center justify-between gap-3 text-xs text-brand-charcoal/75">
+                      <span className="inline-flex items-center gap-4">
+                        <span className="inline-flex items-center gap-1.5">
+                          <Users className="h-4 w-4 text-brand-green" /> {s.guests}
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                          <BedDouble className="h-4 w-4 text-brand-green" /> {s.beds} {s.beds === 1 ? "Bed" : "Beds"}
+                        </span>
+                      </span>
+                      <span className="font-semibold text-brand-green">${s.price}/nt</span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </>
+        )}
 
         <div className="mt-5 sm:hidden">
           <Link to="/stays" className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-green">
@@ -312,9 +363,9 @@ function HomePage() {
             <h2 className="mt-3 text-3xl sm:text-4xl">A glimpse of your stay</h2>
           </div>
           <div className="mt-8 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-6">
-            {galleryImages.map((src, i) => (
+            {liveGallery.map((src, i) => (
               <div
-                key={src}
+                key={`${src}-${i}`}
                 className={`overflow-hidden rounded-xl bg-brand-cream shadow-card ${
                   i === 0 ? "col-span-2 row-span-2 aspect-square sm:col-span-1 sm:row-span-1 sm:aspect-[4/5] lg:col-span-2 lg:row-span-2 lg:aspect-square" : "aspect-square"
                 }`}
@@ -373,24 +424,82 @@ function HomePage() {
 
           {/* Book a Ride form */}
           <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-brand-green p-5 shadow-card-hover sm:p-7">
-            {/* Decorative orange glow */}
             <div className="pointer-events-none absolute -right-24 -top-24 h-48 w-48 rounded-full bg-brand-orange/20 blur-3xl" aria-hidden="true" />
             <div className="pointer-events-none absolute -left-20 bottom-0 h-40 w-40 rounded-full bg-brand-sage/20 blur-3xl" aria-hidden="true" />
 
             <div className="relative">
               <h3 className="text-2xl text-white">Book a Ride</h3>
-              <p className="mt-1 text-sm text-brand-sage">Fast, easy, and secure.</p>
+              <p className="mt-1 text-sm text-brand-sage">Choose your trip — we’ll finish details on the next step.</p>
 
               <div className="mt-5 space-y-3.5">
-                <FormField icon={Car} label="Service Type" value="Airport Pickup" variant="dark" />
-                <AutocompleteFormField icon={MapPin} label="Pickup Location" value={ridePickup} onChange={setRidePickup} placeholder="Enter pickup" variant="dark" />
-                <AutocompleteFormField icon={MapPin} label="Drop-off Location" value={rideDropoff} onChange={setRideDropoff} placeholder="Select drop-off" variant="dark" />
-                <div className="grid grid-cols-2 gap-3">
-                  <FormField icon={Calendar} label="Date & Time" value="May 24, 10:30 AM" variant="dark" />
-                  <FormField icon={Users} label="Passengers" value="2 Passengers" variant="dark" />
+                <label className="block rounded-xl border border-white/10 bg-brand-green-deep px-4 py-3 transition-colors hover:border-brand-orange/40">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-brand-sage">Service Type</span>
+                  <div className="mt-1 flex items-center gap-2">
+                    <Car className="h-4 w-4 shrink-0 text-brand-orange" />
+                    <select
+                      value={rideService}
+                      onChange={(e) => setRideService(e.target.value)}
+                      className="w-full bg-transparent text-sm font-medium text-white outline-none"
+                    >
+                      <option className="text-brand-charcoal" value="Airport Pickup">Airport Pickup</option>
+                      <option className="text-brand-charcoal" value="Airport Drop-off">Airport Drop-off</option>
+                      <option className="text-brand-charcoal" value="Point to Point">Point to Point</option>
+                      <option className="text-brand-charcoal" value="Hourly / Custom">Hourly / Custom</option>
+                    </select>
+                  </div>
+                </label>
+                <TextFormField icon={MapPin} label="Pickup Location" value={ridePickup} onChange={setRidePickup} placeholder="Type pickup location" variant="dark" />
+                <TextFormField icon={MapPin} label="Drop-off Location" value={rideDropoff} onChange={setRideDropoff} placeholder="Type drop-off location" variant="dark" />
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <label className="block rounded-xl border border-white/10 bg-brand-green-deep px-4 py-3 transition-colors hover:border-brand-orange/40">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-brand-sage">Date</span>
+                    <div className="mt-1 flex items-center gap-2">
+                      <Calendar className="h-4 w-4 shrink-0 text-brand-orange" />
+                      <input
+                        type="date"
+                        value={rideDate}
+                        min={todayISO(0)}
+                        onChange={(e) => setRideDate(e.target.value)}
+                        className="w-full bg-transparent text-sm font-medium text-white outline-none [color-scheme:dark]"
+                      />
+                    </div>
+                  </label>
+                  <label className="block rounded-xl border border-white/10 bg-brand-green-deep px-4 py-3 transition-colors hover:border-brand-orange/40">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-brand-sage">Time</span>
+                    <div className="mt-1 flex items-center gap-2">
+                      <Calendar className="h-4 w-4 shrink-0 text-brand-orange" />
+                      <input
+                        type="time"
+                        value={rideTime}
+                        onChange={(e) => setRideTime(e.target.value)}
+                        className="w-full bg-transparent text-sm font-medium text-white outline-none [color-scheme:dark]"
+                      />
+                    </div>
+                  </label>
                 </div>
-                <button className="mt-1 inline-flex h-12 w-full items-center justify-center rounded-xl bg-brand-orange text-sm font-semibold text-white shadow-lg shadow-brand-orange/20 transition-all hover:-translate-y-0.5 hover:brightness-105">
-                  Book Ride
+                <label className="block rounded-xl border border-white/10 bg-brand-green-deep px-4 py-3 transition-colors hover:border-brand-orange/40">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-brand-sage">Passengers</span>
+                  <div className="mt-1 flex items-center gap-2">
+                    <Users className="h-4 w-4 shrink-0 text-brand-orange" />
+                    <input
+                      type="number"
+                      min={1}
+                      max={14}
+                      value={ridePassengers}
+                      onChange={(e) => setRidePassengers(Math.max(1, Math.min(14, parseInt(e.target.value || "1", 10))))}
+                      className="w-full bg-transparent text-sm font-medium text-white outline-none"
+                    />
+                  </div>
+                </label>
+                {rideError ? (
+                  <p className="text-sm text-brand-orange">{rideError}</p>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={handleBookRide}
+                  className="mt-1 inline-flex h-12 w-full items-center justify-center rounded-xl bg-brand-orange text-sm font-semibold text-white shadow-lg shadow-brand-orange/20 transition-all hover:-translate-y-0.5 hover:brightness-105"
+                >
+                  Continue to Book Ride
                 </button>
                 <p className="flex items-center justify-center gap-1.5 text-xs text-white/60">
                   <CheckCircle2 className="h-3.5 w-3.5 text-brand-sage" />
@@ -415,7 +524,7 @@ function HomePage() {
           </p>
         </div>
 
-        <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
+        <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4">
           {whyReasons.map((r, i) => {
             const Icon = [MapPin, Sparkles, Home, Car][i];
             return (
@@ -475,7 +584,7 @@ function SearchInput({
   return (
     <label className="block rounded-xl border border-border bg-white px-3 py-2.5 transition-colors hover:border-brand-sage focus-within:border-brand-green">
       <span className="block text-[11px] font-semibold uppercase tracking-wider text-brand-charcoal/60">{label}</span>
-      <div className="mt-1 flex items-center gap-2">
+      <div className="mt-1 flex min-w-0 items-center gap-2">
         <Icon className="h-4 w-4 shrink-0 text-brand-green" />
         <input
           type={type}
@@ -483,7 +592,7 @@ function SearchInput({
           min={min}
           max={max}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full bg-transparent text-sm font-medium text-brand-charcoal outline-none"
+          className="min-w-0 w-full bg-transparent text-sm font-medium text-brand-charcoal outline-none"
         />
       </div>
     </label>
@@ -496,12 +605,12 @@ function SearchSelect({
   return (
     <label className="block rounded-xl border border-border bg-white px-3 py-2.5 transition-colors hover:border-brand-sage focus-within:border-brand-green">
       <span className="block text-[11px] font-semibold uppercase tracking-wider text-brand-charcoal/60">{label}</span>
-      <div className="mt-1 flex items-center gap-2">
+      <div className="mt-1 flex min-w-0 items-center gap-2">
         <Icon className="h-4 w-4 shrink-0 text-brand-green" />
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full bg-transparent text-sm font-medium text-brand-charcoal outline-none"
+          className="min-w-0 w-full bg-transparent text-sm font-medium text-brand-charcoal outline-none"
         >
           {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
@@ -510,61 +619,44 @@ function SearchSelect({
   );
 }
 
-function SearchAutocomplete({
+function SearchText({
   icon: Icon, label, value, onChange, placeholder,
 }: { icon: typeof Home; label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
   return (
-    <div className="rounded-xl border border-border bg-white px-3 py-2.5 transition-colors hover:border-brand-sage focus-within:border-brand-green">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-brand-charcoal/60">{label}</p>
-      <div className="mt-1 flex items-center gap-2">
+    <label className="block rounded-xl border border-border bg-white px-3 py-2.5 transition-colors hover:border-brand-sage focus-within:border-brand-green">
+      <span className="block text-[11px] font-semibold uppercase tracking-wider text-brand-charcoal/60">{label}</span>
+      <div className="mt-1 flex min-w-0 items-center gap-2">
         <Icon className="h-4 w-4 shrink-0 text-brand-green" />
-        <PlacesAutocompleteInput
+        <input
+          type="text"
           value={value}
-          onChange={onChange}
+          onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          ariaLabel={label}
-          className="w-full bg-transparent text-sm font-medium text-brand-charcoal outline-none placeholder:text-brand-charcoal/40"
+          className="min-w-0 w-full bg-transparent text-sm font-medium text-brand-charcoal outline-none placeholder:text-brand-charcoal/40"
         />
       </div>
-    </div>
+    </label>
   );
 }
 
-function FormField({ icon: Icon, label, value, variant = "light" }: { icon: typeof Home; label: string; value: string; variant?: "light" | "dark" }) {
-  const isDark = variant === "dark";
-  return (
-    <div className={
-      isDark
-        ? "rounded-xl border border-white/10 bg-brand-green-deep px-4 py-3 transition-colors hover:border-brand-orange/40"
-        : "rounded-xl border border-border bg-white px-4 py-3 transition-colors hover:border-brand-sage"
-    }>
-      <p className={`text-[11px] font-semibold uppercase tracking-wider ${isDark ? "text-brand-sage" : "text-brand-charcoal/60"}`}>{label}</p>
-      <div className="mt-1 flex items-center gap-2">
-        <Icon className={`h-4 w-4 shrink-0 ${isDark ? "text-brand-orange" : "text-brand-green"}`} />
-        <span className={`truncate text-sm font-medium ${isDark ? "text-white" : "text-brand-charcoal"}`}>{value}</span>
-      </div>
-    </div>
-  );
-}
-
-function AutocompleteFormField({
+function TextFormField({
   icon: Icon, label, value, onChange, placeholder, variant = "light",
 }: { icon: typeof Home; label: string; value: string; onChange: (v: string) => void; placeholder?: string; variant?: "light" | "dark" }) {
   const isDark = variant === "dark";
   return (
-    <div className={
+    <label className={
       isDark
-        ? "rounded-xl border border-white/10 bg-brand-green-deep px-4 py-3 transition-colors hover:border-brand-orange/40"
-        : "rounded-xl border border-border bg-white px-4 py-3 transition-colors hover:border-brand-sage"
+        ? "block rounded-xl border border-white/10 bg-brand-green-deep px-4 py-3 transition-colors hover:border-brand-orange/40"
+        : "block rounded-xl border border-border bg-white px-4 py-3 transition-colors hover:border-brand-sage"
     }>
-      <p className={`text-[11px] font-semibold uppercase tracking-wider ${isDark ? "text-brand-sage" : "text-brand-charcoal/60"}`}>{label}</p>
+      <span className={`text-[11px] font-semibold uppercase tracking-wider ${isDark ? "text-brand-sage" : "text-brand-charcoal/60"}`}>{label}</span>
       <div className="mt-1 flex items-center gap-2">
         <Icon className={`h-4 w-4 shrink-0 ${isDark ? "text-brand-orange" : "text-brand-green"}`} />
-        <PlacesAutocompleteInput
+        <input
+          type="text"
           value={value}
-          onChange={onChange}
+          onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          ariaLabel={label}
           className={
             isDark
               ? "w-full bg-transparent text-sm font-medium text-white outline-none placeholder:text-white/40"
@@ -572,6 +664,6 @@ function AutocompleteFormField({
           }
         />
       </div>
-    </div>
+    </label>
   );
 }
