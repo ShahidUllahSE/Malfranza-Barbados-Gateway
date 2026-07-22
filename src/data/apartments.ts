@@ -12,7 +12,7 @@ export type Apartment = {
   name: string;
   subtitle: string;
   description: string;
-  type: "one-bedroom" | "two-bedroom";
+  type: "one-bedroom" | "two-bedroom" | "three-bedroom";
   guests: number;
   beds: number;
   baths: number;
@@ -20,6 +20,18 @@ export type Apartment = {
   pricePerNight: number;
   images: string[];
   amenities: string[];
+  units: ApartmentUnit[];
+};
+
+export type ApartmentUnit = {
+  id: string;
+  name: string;
+  description: string;
+  bedrooms: number;
+  bathrooms: number;
+  maxGuests: number;
+  pricePerNight: number;
+  isActive: boolean;
 };
 
 export const APARTMENTS: Apartment[] = [
@@ -35,6 +47,7 @@ export const APARTMENTS: Apartment[] = [
 
     images: [stayGarden, stayKitchen, stayBathroom, stay1br],
     amenities: ["Wi-Fi", "Air Conditioning", "Kitchen", "Smart TV", "Parking", "Workspace"],
+    units: [],
   },
   {
     id: "city-view",
@@ -47,6 +60,7 @@ export const APARTMENTS: Apartment[] = [
     pricePerNight: 110,
     images: [stay1br, stayKitchen, stayBathroom, stay2br],
     amenities: ["Wi-Fi", "Air Conditioning", "Kitchen", "Smart TV", "Workspace"],
+    units: [],
   },
   {
     id: "modern-comfort",
@@ -59,6 +73,7 @@ export const APARTMENTS: Apartment[] = [
     pricePerNight: 110,
     images: [stayKitchen, stay1br, stayBathroom, stayTropical],
     amenities: ["Wi-Fi", "Air Conditioning", "Kitchen", "Smart TV", "Parking"],
+    units: [],
   },
   {
     id: "tropical-escape",
@@ -71,6 +86,7 @@ export const APARTMENTS: Apartment[] = [
     pricePerNight: 110,
     images: [stayTropical, stayKitchen, stayBathroom, stayGarden],
     amenities: ["Wi-Fi", "Air Conditioning", "Kitchen", "Smart TV"],
+    units: [],
   },
   {
     id: "family-stay",
@@ -83,6 +99,7 @@ export const APARTMENTS: Apartment[] = [
     pricePerNight: 150,
     images: [stay2br, stayKitchen, stayBathroom, stayGarden],
     amenities: ["Wi-Fi", "Air Conditioning", "Kitchen", "Smart TV", "Parking", "Workspace"],
+    units: [],
   },
 ];
 
@@ -113,6 +130,21 @@ function mapApiApartment(record: any): Apartment {
   const photos: string[] = Array.isArray(record.photos)
     ? record.photos.filter((p: unknown) => typeof p === "string" && p.length > 0)
     : [];
+  const units: ApartmentUnit[] = Array.isArray(record.units)
+    ? record.units
+        .filter((unit: any) => unit.isActive !== false)
+        .map((unit: any) => ({
+          id: String(unit._id),
+          name: unit.name,
+          description: unit.description ?? "",
+          bedrooms: unit.bedrooms,
+          bathrooms: unit.bathrooms,
+          maxGuests: unit.maxGuests,
+          pricePerNight: unit.pricePerNight,
+          isActive: unit.isActive !== false,
+        }))
+    : [];
+  const unitPrices = units.map((unit) => unit.pricePerNight);
   return {
     id: record.slug,
     mongoId: String(record._id ?? ""),
@@ -124,8 +156,9 @@ function mapApiApartment(record: any): Apartment {
     beds: record.bedrooms,
     baths: record.bathrooms,
     sizeSqM: record.sizeSqM ?? fallback?.sizeSqM ?? 0,
-    pricePerNight: record.pricePerNight,
+    pricePerNight: unitPrices.length > 0 ? Math.min(...unitPrices) : record.pricePerNight,
     images: photos.length > 0 ? photos : (fallback?.images ?? ["/placeholder.svg"]),
     amenities: Array.isArray(record.amenities) ? record.amenities : [],
+    units,
   };
 }

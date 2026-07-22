@@ -35,6 +35,8 @@ export async function listApartmentBookings() {
     id: booking._id,
     booking_reference: booking.bookingReference,
     apartment_id: String(booking.apartmentId),
+    unit_id: booking.unitId ? String(booking.unitId) : null,
+    unit_name: booking.unitName ?? null,
     guest_name: booking.guestName,
     guest_email: booking.guestEmail,
     guest_phone: booking.guestPhone,
@@ -201,7 +203,7 @@ export async function createApartment(input: {
   slug: string;
   subtitle?: string;
   description: string;
-  type: "one-bedroom" | "two-bedroom";
+  type: "one-bedroom" | "two-bedroom" | "three-bedroom";
   price_per_night: number;
   max_guests: number;
   bedrooms: number;
@@ -210,6 +212,7 @@ export async function createApartment(input: {
   amenities: string[];
   photos: string[];
   is_active?: boolean;
+  units?: ApartmentUnitInput[];
 }) {
   const result = await apiRequest<any>("/admin/apartments", {
     method: "POST",
@@ -228,6 +231,7 @@ export async function createApartment(input: {
       amenities: input.amenities,
       photos: input.photos,
       isActive: input.is_active ?? true,
+      units: input.units ?? [],
     }),
   });
   return toLegacyApartment(result);
@@ -241,6 +245,7 @@ export async function updateApartment(id: string, patch: Partial<{
   amenities: string[];
   photos: string[];
   is_active: boolean;
+  units: ApartmentUnitInput[];
 }>) {
   await apiRequest(`/admin/apartments/${id}`, {
     method: "PATCH",
@@ -253,9 +258,21 @@ export async function updateApartment(id: string, patch: Partial<{
       amenities: patch.amenities,
       photos: patch.photos,
       isActive: patch.is_active,
+      units: patch.units,
     }),
   });
 }
+
+export type ApartmentUnitInput = {
+  _id?: string;
+  name: string;
+  description?: string;
+  bedrooms: number;
+  bathrooms: number;
+  maxGuests: number;
+  pricePerNight: number;
+  isActive: boolean;
+};
 
 export async function uploadApartmentImage(file: File) {
   const form = new FormData();
@@ -286,6 +303,16 @@ function toLegacyApartment(apartment: any) {
     amenities: apartment.amenities ?? [],
     photos: apartment.photos ?? [],
     is_active: apartment.isActive,
+    units: (apartment.units ?? []).map((unit: any) => ({
+      _id: String(unit._id),
+      name: unit.name,
+      description: unit.description ?? "",
+      bedrooms: unit.bedrooms,
+      bathrooms: unit.bathrooms,
+      maxGuests: unit.maxGuests,
+      pricePerNight: unit.pricePerNight,
+      isActive: unit.isActive,
+    })),
     created_at: apartment.createdAt,
   };
 }

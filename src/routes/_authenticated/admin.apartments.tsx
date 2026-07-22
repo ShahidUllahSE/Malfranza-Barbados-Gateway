@@ -9,6 +9,7 @@ import {
   listApartmentBookings,
   updateApartment,
   uploadApartmentImage,
+  type ApartmentUnitInput,
 } from "@/lib/admin";
 import { Drawer } from "./admin.bookings";
 
@@ -144,7 +145,7 @@ function CreateApartmentForm({
   const [slugTouched, setSlugTouched] = useState(false);
   const [subtitle, setSubtitle] = useState("");
   const [description, setDescription] = useState("");
-  const [type, setType] = useState<"one-bedroom" | "two-bedroom">("one-bedroom");
+  const [type, setType] = useState<"one-bedroom" | "two-bedroom" | "three-bedroom">("one-bedroom");
   const [price, setPrice] = useState("110");
   const [maxGuests, setMaxGuests] = useState("2");
   const [bedrooms, setBedrooms] = useState("1");
@@ -152,6 +153,7 @@ function CreateApartmentForm({
   const [sizeSqM, setSizeSqM] = useState("");
   const [amenities, setAmenities] = useState("Wi‑Fi, Air conditioning, Kitchen");
   const [photos, setPhotos] = useState<string[]>([]);
+  const [units, setUnits] = useState<ApartmentUnitInput[]>([]);
 
   useEffect(() => {
     if (!slugTouched) setSlug(slugify(name));
@@ -161,9 +163,12 @@ function CreateApartmentForm({
     if (type === "one-bedroom") {
       setBedrooms("1");
       setMaxGuests((g) => (Number(g) < 2 ? "2" : g));
-    } else {
+    } else if (type === "two-bedroom") {
       setBedrooms("2");
       setMaxGuests((g) => (Number(g) < 4 ? "4" : g));
+    } else {
+      setBedrooms("3");
+      setMaxGuests((g) => (Number(g) < 6 ? "6" : g));
     }
   }, [type]);
 
@@ -192,6 +197,7 @@ function CreateApartmentForm({
         amenities: amenities.split(",").map((s) => s.trim()).filter(Boolean),
         photos,
         is_active: true,
+        units,
       }),
     onSuccess: () => {
       toast.success("Apartment created");
@@ -254,11 +260,14 @@ function CreateApartmentForm({
       <FormField label="Type">
         <select
           value={type}
-          onChange={(e) => setType(e.target.value as "one-bedroom" | "two-bedroom")}
+          onChange={(e) =>
+            setType(e.target.value as "one-bedroom" | "two-bedroom" | "three-bedroom")
+          }
           className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm"
         >
           <option value="one-bedroom">One-bedroom</option>
           <option value="two-bedroom">Two-bedroom</option>
+          <option value="three-bedroom">Three-bedroom</option>
         </select>
       </FormField>
       <div className="grid grid-cols-2 gap-3">
@@ -352,6 +361,7 @@ function CreateApartmentForm({
           </div>
         </div>
       </FormField>
+      <UnitEditor units={units} onChange={setUnits} />
       <div className="flex gap-2 pt-2">
         <button
           type="submit"
@@ -393,6 +403,7 @@ function ApartmentCard({
   const [maxGuests, setMaxGuests] = useState(String(apt.max_guests));
   const [amenities, setAmenities] = useState((apt.amenities ?? []).join(", "));
   const [photos, setPhotos] = useState<string[]>(apt.photos ?? []);
+  const [units, setUnits] = useState<ApartmentUnitInput[]>(apt.units ?? []);
 
   const toggle = useMutation({
     mutationFn: () => updateApartment(apt.id, { is_active: !apt.is_active }),
@@ -411,6 +422,7 @@ function ApartmentCard({
         max_guests: Number(maxGuests),
         amenities: amenities.split(",").map((s: string) => s.trim()).filter(Boolean),
         photos,
+        units,
       }),
     onSuccess: () => {
       toast.success("Apartment updated");
@@ -456,6 +468,11 @@ function ApartmentCard({
           <div className="text-xs text-muted-foreground">
             ${apt.price_per_night}/night · {apt.max_guests} guests · {apt.bedrooms} bed
           </div>
+          {(apt.units?.length ?? 0) > 0 && (
+            <div className="mt-1 text-xs font-medium text-brand-green">
+              {apt.units.length} independently bookable units
+            </div>
+          )}
           {occupancy?.guest && (
             <div className="mt-1 text-xs text-muted-foreground">Guest: {occupancy.guest}</div>
           )}
@@ -549,6 +566,7 @@ function ApartmentCard({
               </div>
             </div>
           </FormField>
+          <UnitEditor units={units} onChange={setUnits} />
           <div className="flex gap-2">
             <button
               onClick={() => save.mutate()}
@@ -576,5 +594,135 @@ function FormField({ label, children }: { label: string; children: React.ReactNo
       <div className="mb-1 text-xs font-medium text-brand-charcoal">{label}</div>
       {children}
     </label>
+  );
+}
+
+function UnitEditor({
+  units,
+  onChange,
+}: {
+  units: ApartmentUnitInput[];
+  onChange: (units: ApartmentUnitInput[]) => void;
+}) {
+  function update(index: number, patch: Partial<ApartmentUnitInput>) {
+    onChange(units.map((unit, i) => (i === index ? { ...unit, ...patch } : unit)));
+  }
+
+  return (
+    <div className="rounded-xl border border-brand-sage/40 bg-brand-sage/10 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold text-brand-charcoal">Bookable units</div>
+          <p className="text-xs text-muted-foreground">
+            Optional. Add a 2-bedroom unit and a separate 1-bedroom unit so they book independently.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() =>
+            onChange([
+              ...units,
+              {
+                name: `Unit ${units.length + 1}`,
+                description: "",
+                bedrooms: 1,
+                bathrooms: 1,
+                maxGuests: 2,
+                pricePerNight: 110,
+                isActive: true,
+              },
+            ])
+          }
+          className="shrink-0 rounded-lg bg-brand-green px-3 py-1.5 text-xs font-semibold text-white"
+        >
+          Add unit
+        </button>
+      </div>
+
+      <div className="mt-3 space-y-3">
+        {units.map((unit, index) => (
+          <div key={unit._id ?? index} className="rounded-lg border bg-white p-3">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <FormField label="Unit name">
+                <input
+                  required
+                  value={unit.name}
+                  onChange={(e) => update(index, { name: e.target.value })}
+                  className="w-full rounded-lg border border-input px-3 py-2 text-sm"
+                  placeholder="Two-Bedroom Unit"
+                />
+              </FormField>
+              <FormField label="Price / night">
+                <input
+                  type="number"
+                  min={0}
+                  value={unit.pricePerNight}
+                  onChange={(e) => update(index, { pricePerNight: Number(e.target.value) })}
+                  className="w-full rounded-lg border border-input px-3 py-2 text-sm"
+                />
+              </FormField>
+              <FormField label="Bedrooms booked together">
+                <input
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={unit.bedrooms}
+                  onChange={(e) => update(index, { bedrooms: Number(e.target.value) })}
+                  className="w-full rounded-lg border border-input px-3 py-2 text-sm"
+                />
+              </FormField>
+              <FormField label="Bathrooms">
+                <input
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={unit.bathrooms}
+                  onChange={(e) => update(index, { bathrooms: Number(e.target.value) })}
+                  className="w-full rounded-lg border border-input px-3 py-2 text-sm"
+                />
+              </FormField>
+              <FormField label="Max guests">
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={unit.maxGuests}
+                  onChange={(e) => update(index, { maxGuests: Number(e.target.value) })}
+                  className="w-full rounded-lg border border-input px-3 py-2 text-sm"
+                />
+              </FormField>
+              <label className="flex items-end gap-2 pb-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={unit.isActive}
+                  onChange={(e) => update(index, { isActive: e.target.checked })}
+                />
+                Available for booking
+              </label>
+            </div>
+            <FormField label="Unit description (optional)">
+              <input
+                value={unit.description ?? ""}
+                onChange={(e) => update(index, { description: e.target.value })}
+                className="w-full rounded-lg border border-input px-3 py-2 text-sm"
+                placeholder="These two bedrooms are always booked together."
+              />
+            </FormField>
+            <button
+              type="button"
+              onClick={() => onChange(units.filter((_, i) => i !== index))}
+              className="mt-2 text-xs font-semibold text-red-600 hover:underline"
+            >
+              Remove unit
+            </button>
+          </div>
+        ))}
+        {units.length === 0 && (
+          <p className="rounded-lg bg-white px-3 py-2 text-xs text-muted-foreground">
+            No units: this apartment continues to book as one complete apartment.
+          </p>
+        )}
+      </div>
+    </div>
   );
 }

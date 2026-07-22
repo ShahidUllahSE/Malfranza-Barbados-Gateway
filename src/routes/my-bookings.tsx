@@ -51,7 +51,9 @@ type PublicBooking = {
 function mapAccountBooking(booking: any): PublicBooking {
   return {
     booking_reference: booking.bookingReference,
-    apartment_name: booking.apartmentName ?? null,
+    apartment_name: booking.unitName
+      ? `${booking.apartmentName ?? "Stay"} · ${booking.unitName}`
+      : (booking.apartmentName ?? null),
     check_in: toDateOnly(booking.checkIn),
     check_out: toDateOnly(booking.checkOut),
     nights: booking.nights,

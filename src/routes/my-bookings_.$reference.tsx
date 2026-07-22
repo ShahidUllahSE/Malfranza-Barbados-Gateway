@@ -129,6 +129,7 @@ function BookingDetailPage() {
               </span>
               <h1 className="mt-3 text-2xl font-bold text-brand-green sm:text-3xl">
                 {booking.apartmentName ?? "Stay booking"}
+                {booking.unitName ? ` · ${booking.unitName}` : ""}
               </h1>
               <p className="mt-1 font-mono text-sm text-muted-foreground">{booking.bookingReference}</p>
             </div>

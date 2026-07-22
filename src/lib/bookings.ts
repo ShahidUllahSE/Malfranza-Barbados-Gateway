@@ -13,8 +13,12 @@ export async function checkApartmentAvailability(
   apartmentId: string,
   checkIn: string,
   checkOut: string,
+  unitIds?: string | string[],
 ): Promise<boolean> {
   const params = new URLSearchParams({ apartmentId, checkIn, checkOut });
+  const ids = (Array.isArray(unitIds) ? unitIds : unitIds ? [unitIds] : []).filter(Boolean);
+  if (ids.length === 1) params.set("unitId", ids[0]);
+  else if (ids.length > 1) params.set("unitIds", ids.join(","));
   const result = await apiRequest<{ available: boolean }>(`/bookings/availability?${params}`);
   return result.available;
 }
@@ -36,7 +40,25 @@ export type ApartmentOccupancy = {
     checkOut: string;
     status: string;
   } | null;
-  blockedRanges: Array<{ checkIn: string; checkOut: string; status: string }>;
+  blockedRanges: Array<{
+    checkIn: string;
+    checkOut: string;
+    status: string;
+    unitId?: string | null;
+    unitName?: string | null;
+  }>;
+  units: Array<{
+    id: string;
+    name: string;
+    bedrooms: number;
+    bathrooms: number;
+    maxGuests: number;
+    pricePerNight: number;
+    isActive: boolean;
+    available: boolean;
+    occupiedNow: boolean;
+    blockedRanges: Array<{ checkIn: string; checkOut: string; status: string }>;
+  }>;
 };
 
 export async function fetchApartmentOccupancy(opts?: {
@@ -55,6 +77,8 @@ export async function fetchApartmentOccupancy(opts?: {
 
 export type ApartmentBookingInput = {
   apartmentId: string;
+  unitId?: string;
+  unitIds?: string[];
   guestName: string;
   guestEmail: string;
   guestPhone: string;

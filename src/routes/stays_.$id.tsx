@@ -95,6 +95,10 @@ function ApartmentDetailPage() {
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [guests, setGuests] = useState(Math.min(2, apt.guests));
+  // One or more units can be selected and booked together.
+  const [selectedUnitIds, setSelectedUnitIds] = useState<string[]>(
+    apt.units.length === 1 ? [apt.units[0].id] : [],
+  );
   const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [occupancy, setOccupancy] = useState<ApartmentOccupancy | null>(null);
@@ -125,6 +129,17 @@ function ApartmentDetailPage() {
   }, [apt.images]);
 
   const blockedRanges = occupancy?.blockedRanges ?? [];
+  const selectedUnits = apt.units.filter((unit) => selectedUnitIds.includes(unit.id));
+  const combinedPrice = selectedUnits.length > 0
+    ? selectedUnits.reduce((sum, unit) => sum + unit.pricePerNight, 0)
+    : apt.pricePerNight;
+  const combinedMaxGuests = selectedUnits.length > 0
+    ? selectedUnits.reduce((sum, unit) => sum + unit.maxGuests, 0)
+    : apt.guests;
+
+  useEffect(() => {
+    setGuests((current) => Math.min(current, combinedMaxGuests));
+  }, [combinedMaxGuests]);
   const amenities = apt.amenities.length > 0
     ? apt.amenities
     : ["Wi-Fi", "Air Conditioning", "Kitchen", "Smart TV"];
@@ -142,18 +157,35 @@ function ApartmentDetailPage() {
       setError("This apartment is not available right now.");
       return;
     }
+    if (apt.units.length > 0 && selectedUnitIds.length === 0) {
+      setError("Please choose which unit(s) you want to book.");
+      return;
+    }
     setError(null);
     setChecking(true);
     try {
-      const available = await checkApartmentAvailability(apt.mongoId, checkIn, checkOut);
+      const available = await checkApartmentAvailability(
+        apt.mongoId,
+        checkIn,
+        checkOut,
+        selectedUnitIds.length > 0 ? selectedUnitIds : undefined,
+      );
       if (!available) {
         setError("Not available for these dates — try adjusting your stay.");
         return;
       }
-      const bookSearch = { apartment: apt.id, checkIn, checkOut, guests };
+      const unitParam = selectedUnitIds.length > 0 ? selectedUnitIds.join(",") : undefined;
+      const bookSearch = {
+        apartment: apt.id,
+        unit: unitParam,
+        checkIn,
+        checkOut,
+        guests,
+      };
       if (!user) {
         const params = new URLSearchParams();
         params.set("apartment", apt.id);
+        if (unitParam) params.set("unit", unitParam);
         params.set("checkIn", checkIn);
         params.set("checkOut", checkOut);
         params.set("guests", String(guests));
@@ -274,9 +306,11 @@ function ApartmentDetailPage() {
 
           {blockedRanges.length > 0 && (
             <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
-              <p className="text-sm font-semibold text-amber-950">Already booked on these dates</p>
+              <p className="text-sm font-semibold text-amber-950">Existing bookings</p>
               <p className="mt-1 text-xs text-amber-900/80">
-                These nights are taken. Choose different dates to book this apartment.
+                {apt.units.length > 0
+                  ? "A unit can still be available when another unit is booked."
+                  : "These nights are taken. Choose different dates to book this apartment."}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {blockedRanges.map((range) => (
@@ -284,6 +318,7 @@ function ApartmentDetailPage() {
                     key={`${range.checkIn}-${range.checkOut}`}
                     className="inline-flex rounded-full border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-950"
                   >
+                    {range.unitName ? `${range.unitName}: ` : ""}
                     {fmtRangeDate(range.checkIn)} – {fmtRangeDate(range.checkOut)}
                   </span>
                 ))}
@@ -292,6 +327,90 @@ function ApartmentDetailPage() {
           )}
 
           <p className="mt-6 leading-relaxed text-brand-charcoal whitespace-pre-wrap">{apt.description}</p>
+
+          {apt.units.length > 0 && (
+            <div className="mt-8">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <h2 className="text-2xl font-bold text-brand-charcoal">Choose your unit(s)</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    These units are inside the same apartment. Book one, or select several to book them together.
+                  </p>
+                </div>
+                {apt.units.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const allSelected = selectedUnitIds.length === apt.units.length;
+                      setSelectedUnitIds(allSelected ? [] : apt.units.map((unit) => unit.id));
+                      setError(null);
+                    }}
+                    className="rounded-full border border-brand-orange px-4 py-2 text-sm font-semibold text-brand-orange transition hover:bg-brand-orange/10"
+                  >
+                    {selectedUnitIds.length === apt.units.length
+                      ? "Clear selection"
+                      : "Book entire apartment"}
+                  </button>
+                )}
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {apt.units.map((unit) => {
+                  const selected = selectedUnitIds.includes(unit.id);
+                  const occupancyUnit = occupancy?.units?.find((item) => item.id === unit.id);
+                  return (
+                    <button
+                      key={unit.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedUnitIds((current) =>
+                          current.includes(unit.id)
+                            ? current.filter((id) => id !== unit.id)
+                            : [...current, unit.id],
+                        );
+                        setError(null);
+                      }}
+                      className={`rounded-2xl border-2 p-4 text-left transition ${
+                        selected
+                          ? "border-brand-green bg-brand-sage/10"
+                          : "border-border hover:border-brand-green/50"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="font-bold text-brand-green">{unit.name}</h3>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {unit.bedrooms} bedroom{unit.bedrooms > 1 ? "s" : ""} booked together ·
+                            {" "}{unit.bathrooms} bathroom{unit.bathrooms > 1 ? "s" : ""} · up to{" "}
+                            {unit.maxGuests} guests
+                          </p>
+                        </div>
+                        <span className="shrink-0 font-bold text-brand-charcoal">
+                          ${unit.pricePerNight}/night
+                        </span>
+                      </div>
+                      {unit.description && (
+                        <p className="mt-2 text-sm text-muted-foreground">{unit.description}</p>
+                      )}
+                      <span
+                        className={`mt-3 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                          occupancyUnit?.occupiedNow
+                            ? "bg-amber-100 text-amber-900"
+                            : "bg-emerald-100 text-emerald-800"
+                        }`}
+                      >
+                        {occupancyUnit?.occupiedNow ? "Booked now" : "Available now"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedUnits.length > 1 && (
+                <div className="mt-3 rounded-xl bg-brand-cream px-4 py-3 text-sm font-semibold text-brand-green">
+                  {selectedUnits.length} units selected · ${combinedPrice}/night combined · up to {combinedMaxGuests} guests
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="mt-6 grid grid-cols-2 gap-4 rounded-2xl border border-border p-5 sm:grid-cols-4">
             <Fact icon={Users} label={`${apt.guests} Guests`} />
@@ -323,8 +442,8 @@ function ApartmentDetailPage() {
 
         <aside id="book" className="hidden h-fit scroll-mt-24 lg:sticky lg:top-24 lg:block">
           <BookingCard
-            price={apt.pricePerNight}
-            maxGuests={apt.guests}
+            price={combinedPrice}
+            maxGuests={combinedMaxGuests}
             checkIn={checkIn}
             checkOut={checkOut}
             guests={guests}
@@ -339,8 +458,8 @@ function ApartmentDetailPage() {
 
         <div id="book-mobile" className="scroll-mt-24 lg:hidden">
           <BookingCard
-            price={apt.pricePerNight}
-            maxGuests={apt.guests}
+            price={combinedPrice}
+            maxGuests={combinedMaxGuests}
             checkIn={checkIn}
             checkOut={checkOut}
             guests={guests}

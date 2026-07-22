@@ -127,7 +127,10 @@ function BookingsPage() {
                   </div>
                   <StatusPill status={b.status} />
                 </div>
-                <p className="text-sm text-muted-foreground truncate">{anyB.apartments?.name ?? "—"}</p>
+                <p className="text-sm text-muted-foreground truncate">
+                  {anyB.apartments?.name ?? "—"}
+                  {anyB.unit_name ? ` · ${anyB.unit_name}` : ""}
+                </p>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                   <span>{b.check_in} → {b.check_out}</span>
                   <span>{b.nights} nights</span>
@@ -182,7 +185,10 @@ function BookingsPage() {
                     )}
                   </AdminTd>
                   <AdminTd className="max-w-[14rem]">
-                    <span className="line-clamp-2 leading-snug">{anyB.apartments?.name ?? "—"}</span>
+                    <span className="line-clamp-2 leading-snug">
+                      {anyB.apartments?.name ?? "—"}
+                      {anyB.unit_name ? ` · ${anyB.unit_name}` : ""}
+                    </span>
                   </AdminTd>
                   <AdminTd nowrap className="text-xs text-muted-foreground">
                     {b.check_in} → {b.check_out}
@@ -227,6 +233,7 @@ function BookingsPage() {
           </h2>
           <p className="text-sm text-muted-foreground mb-4">
             {(openBooking as any).apartments?.name ?? "Apartment"}
+            {(openBooking as any).unit_name ? ` · ${(openBooking as any).unit_name}` : ""}
           </p>
 
           <div className="space-y-3 text-sm">

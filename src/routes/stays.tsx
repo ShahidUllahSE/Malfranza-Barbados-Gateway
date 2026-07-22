@@ -28,7 +28,7 @@ const staysSearchSchema = z.object({
   checkIn: z.string().optional(),
   checkOut: z.string().optional(),
   guests: z.coerce.number().int().min(1).optional(),
-  type: z.enum(["any", "one-bedroom", "two-bedroom"]).optional(),
+  type: z.enum(["any", "one-bedroom", "two-bedroom", "three-bedroom"]).optional(),
   taxiPickup: z.string().optional(),
 });
 
@@ -49,6 +49,7 @@ export const Route = createFileRoute("/stays")({
 const APT_TYPES = [
   { key: "one-bedroom", label: "One-Bedroom Apartment" },
   { key: "two-bedroom", label: "Two-Bedroom Apartment" },
+  { key: "three-bedroom", label: "Three-Bedroom Apartment" },
 ] as const;
 
 const GUEST_RANGES = [
@@ -443,6 +444,11 @@ function ApartmentCard({
           <span className="inline-flex items-center gap-1.5">
             <BedDouble className="h-4 w-4 text-brand-green" /> {apt.beds} {apt.beds === 1 ? "Bed" : "Beds"}
           </span>
+          {apt.units.length > 0 && (
+            <span className="inline-flex items-center gap-1.5 font-semibold text-brand-green">
+              {apt.units.length} separate units
+            </span>
+          )}
         </div>
 
         <div className="mt-5 flex flex-col gap-2 sm:grid sm:grid-cols-2">

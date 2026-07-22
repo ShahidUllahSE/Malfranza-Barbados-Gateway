@@ -46,6 +46,7 @@ function displayName(a: { slug: string; name: string; subtitle: string | null })
 
 const searchSchema = z.object({
   apartment: z.string().optional(),
+  unit: z.string().optional(),
   checkIn: z.string().optional(),
   checkOut: z.string().optional(),
   guests: z.coerce.number().int().min(1).max(6).optional(),
@@ -74,6 +75,15 @@ type Apartment = {
   max_guests: number;
   bedrooms: number;
   photos: string[];
+  units: Array<{
+    id: string;
+    name: string;
+    description: string;
+    price_per_night: number;
+    max_guests: number;
+    bedrooms: number;
+    bathrooms: number;
+  }>;
 };
 
 type Availability = Record<string, boolean>;
@@ -122,6 +132,10 @@ function BookWizard() {
   const [checkOut, setCheckOut] = useState(search.checkOut || todayISO(10));
   const [guests, setGuests] = useState(search.guests ?? 2);
   const [apartmentId, setApartmentId] = useState<string | null>(null);
+  // Multiple units can be booked together in a single booking.
+  const [unitIds, setUnitIds] = useState<string[]>(
+    search.unit ? search.unit.split(",").filter(Boolean) : [],
+  );
   const roomLocked = !!search.apartment;
 
   // Taxi upsell
@@ -161,8 +175,14 @@ function BookWizard() {
 
   const nights = nightsBetween(checkIn, checkOut);
   const selectedApt = apartments.find((a) => a.id === apartmentId) || null;
+  const selectedUnits = selectedApt
+    ? selectedApt.units.filter((unit) => unitIds.includes(unit.id))
+    : [];
+  const selectedRate = selectedUnits.length > 0
+    ? selectedUnits.reduce((sum, unit) => sum + unit.price_per_night, 0)
+    : selectedApt?.price_per_night ?? 0;
 
-  const roomTotal = selectedApt ? selectedApt.price_per_night * nights : 0;
+  const roomTotal = selectedApt ? selectedRate * nights : 0;
   const pickupFee = taxiOn ? 30 : 0;
   const bundleDiscount = taxiOn ? Math.round(roomTotal * 0.05) : 0;
   const total = Math.max(0, roomTotal + pickupFee - bundleDiscount);
@@ -173,17 +193,34 @@ function BookWizard() {
       setLoadingApts(true);
       try {
         const data = await apiRequest<any[]>("/apartments?sort=price-asc");
-        const list: Apartment[] = data.map((apartment) => ({
-          id: apartment._id,
-          slug: apartment.slug,
-          name: apartment.name,
-          subtitle: apartment.subtitle ?? null,
-          description: apartment.description ?? null,
-          price_per_night: apartment.pricePerNight,
-          max_guests: apartment.maxGuests,
-          bedrooms: apartment.bedrooms,
-          photos: apartment.photos ?? [],
-        }));
+        const list: Apartment[] = data.map((apartment) => {
+          const units = (apartment.units ?? [])
+            .filter((unit: any) => unit.isActive !== false)
+            .map((unit: any) => ({
+              id: String(unit._id),
+              name: unit.name,
+              description: unit.description ?? "",
+              price_per_night: unit.pricePerNight,
+              max_guests: unit.maxGuests,
+              bedrooms: unit.bedrooms,
+              bathrooms: unit.bathrooms,
+            }));
+          return {
+            id: apartment._id,
+            slug: apartment.slug,
+            name: apartment.name,
+            subtitle: apartment.subtitle ?? null,
+            description: apartment.description ?? null,
+            price_per_night:
+              units.length > 0
+                ? Math.min(...units.map((unit: Apartment["units"][number]) => unit.price_per_night))
+                : apartment.pricePerNight,
+            max_guests: apartment.maxGuests,
+            bedrooms: apartment.bedrooms,
+            photos: apartment.photos ?? [],
+            units,
+          };
+        });
         setApartments(list);
         if (search.apartment) {
           const match = list.find((a) => a.slug === search.apartment);
@@ -207,7 +244,23 @@ function BookWizard() {
       await Promise.all(
         apartments.map(async (a) => {
           try {
-            results[a.id] = await checkApartmentAvailability(a.id, checkIn, checkOut);
+            if (a.units.length > 0) {
+              const unitResults = await Promise.all(
+                a.units.map(async (unit) => {
+                  const available = await checkApartmentAvailability(
+                    a.id,
+                    checkIn,
+                    checkOut,
+                    unit.id,
+                  );
+                  results[`${a.id}:${unit.id}`] = available;
+                  return available;
+                }),
+              );
+              results[a.id] = unitResults.some(Boolean);
+            } else {
+              results[a.id] = await checkApartmentAvailability(a.id, checkIn, checkOut);
+            }
           } catch {
             results[a.id] = false;
           }
@@ -216,7 +269,10 @@ function BookWizard() {
       if (!cancelled) {
         setAvailability(results);
         // If pre-selected room becomes unavailable, clear it (unless room is locked — keep selection and block continue)
-        if (!roomLocked && apartmentId && results[apartmentId] === false) setApartmentId(null);
+        if (!roomLocked && apartmentId && results[apartmentId] === false) {
+          setApartmentId(null);
+          setUnitIds([]);
+        }
       }
       setCheckingAvail(false);
     })();
@@ -232,20 +288,37 @@ function BookWizard() {
   }, [taxiOn, taxiDate, checkIn]);
 
   /* ---- Step validation ---- */
-  const lockedUnavailable = roomLocked && !!apartmentId && availability[apartmentId] === false;
+  // false when any part of the current selection is booked for the chosen dates
+  const selectionUnavailable = (() => {
+    if (!selectedApt) return false;
+    if (selectedApt.units.length > 0) {
+      if (selectedUnits.length === 0) return availability[selectedApt.id] === false;
+      return selectedUnits.some(
+        (unit) => availability[`${selectedApt.id}:${unit.id}`] === false,
+      );
+    }
+    return availability[selectedApt.id] === false;
+  })();
+  const lockedUnavailable = roomLocked && !!selectedApt && selectionUnavailable;
 
   const canContinue = useMemo(() => {
     if (step === 0) {
       if (!(nights > 0 && guests >= 1)) return false;
       if (roomLocked && apartmentId) {
         if (checkingAvail) return false;
-        if (availability[apartmentId] === false) return false;
+        if (selectionUnavailable) return false;
       }
       return true;
     }
-    if (step === 1) return !!apartmentId && availability[apartmentId] !== false;
+    if (step === 1) {
+      if (!selectedApt) return false;
+      if (selectedApt.units.length > 0 && selectedUnits.length === 0) return false;
+      return !selectionUnavailable;
+    }
     if (step >= 2) {
-      if (!apartmentId || availability[apartmentId] === false) return false;
+      if (!apartmentId || !selectedApt) return false;
+      if (selectedApt.units.length > 0 && selectedUnits.length === 0) return false;
+      if (selectionUnavailable) return false;
     }
     if (step === 2) return !taxiOn || (!!taxiDate && !!taxiTime && taxiPassengers >= 1);
     if (step === 3) {
@@ -257,13 +330,14 @@ function BookWizard() {
     }
     return true;
   }, [
-    step, nights, guests, apartmentId, availability, checkingAvail, roomLocked,
+    step, nights, guests, apartmentId, selectedUnits, selectedApt, selectionUnavailable,
+    availability, checkingAvail, roomLocked,
     taxiOn, taxiDate, taxiTime, taxiPassengers, fullName, email, phone,
   ]);
 
   const goNext = () => {
     if (!canContinue) return;
-    if (roomLocked && step === 0) {
+    if (roomLocked && step === 0 && selectedApt?.units.length === 0) {
       if (!apartmentId || availability[apartmentId] === false) {
         toast.error("This apartment is already booked for those dates. Pick different dates.");
         return;
@@ -288,8 +362,8 @@ function BookWizard() {
       toast.error("Sign in required to book");
       return;
     }
-    if (availability[selectedApt.id] === false) {
-      toast.error("This apartment is already booked for those dates. Choose different dates.");
+    if (selectionUnavailable) {
+      toast.error("This unit is already booked for those dates. Choose different dates.");
       setStep(0);
       return;
     }
@@ -301,6 +375,7 @@ function BookWizard() {
 
       const ref = await createApartmentBooking({
         apartmentId: selectedApt.id,
+        unitIds: selectedUnits.length > 0 ? selectedUnits.map((unit) => unit.id) : undefined,
         guestName: fullName.trim(),
         guestEmail: email.trim(),
         guestPhone: phone.trim(),
@@ -430,6 +505,7 @@ function BookWizard() {
           {/* Summary — shown first on mobile */}
           <BookingSummary
             apt={selectedApt}
+            unitNames={selectedUnits.map((unit) => unit.name)}
             checkIn={checkIn}
             checkOut={checkOut}
             nights={nights}
@@ -469,7 +545,27 @@ function BookWizard() {
                 availability={availability}
                 nights={nights}
                 apartmentId={apartmentId}
-                setApartmentId={setApartmentId}
+                unitIds={unitIds}
+                selectApartment={(nextApartmentId) => {
+                  setApartmentId(nextApartmentId);
+                  setUnitIds([]);
+                }}
+                toggleUnit={(nextApartmentId, toggledUnitId) => {
+                  if (apartmentId !== nextApartmentId) {
+                    setApartmentId(nextApartmentId);
+                    setUnitIds([toggledUnitId]);
+                    return;
+                  }
+                  setUnitIds((current) =>
+                    current.includes(toggledUnitId)
+                      ? current.filter((id) => id !== toggledUnitId)
+                      : [...current, toggledUnitId],
+                  );
+                }}
+                setUnits={(nextApartmentId, nextUnitIds) => {
+                  setApartmentId(nextApartmentId);
+                  setUnitIds(nextUnitIds);
+                }}
               />
             )}
             {step === 2 && (
@@ -665,9 +761,24 @@ function StepDates(props: {
 function StepRoom(props: {
   apartments: Apartment[]; loading: boolean; checkingAvail: boolean;
   availability: Availability; nights: number;
-  apartmentId: string | null; setApartmentId: (id: string) => void;
+  apartmentId: string | null;
+  unitIds: string[];
+  selectApartment: (apartmentId: string) => void;
+  toggleUnit: (apartmentId: string, unitId: string) => void;
+  setUnits: (apartmentId: string, unitIds: string[]) => void;
 }) {
-  const { apartments, loading, checkingAvail, availability, nights, apartmentId, setApartmentId } = props;
+  const {
+    apartments,
+    loading,
+    checkingAvail,
+    availability,
+    nights,
+    apartmentId,
+    unitIds,
+    selectApartment,
+    toggleUnit,
+    setUnits,
+  } = props;
   if (loading) {
     return (
       <div className="py-10 text-center text-muted-foreground">
@@ -693,13 +804,39 @@ function StepRoom(props: {
         {apartments.map((a) => {
           const unavailable = availability[a.id] === false;
           const total = a.price_per_night * nights;
-          const selected = apartmentId === a.id;
+          const aptSelectedUnits = apartmentId === a.id
+            ? a.units.filter((unit) => unitIds.includes(unit.id))
+            : [];
+          const selected = apartmentId === a.id && (a.units.length === 0 || aptSelectedUnits.length > 0);
+          const availableUnits = a.units.filter(
+            (unit) => availability[`${a.id}:${unit.id}`] !== false,
+          );
+          const allUnitsSelected =
+            a.units.length > 0 &&
+            availableUnits.length === a.units.length &&
+            aptSelectedUnits.length === a.units.length;
+          const combinedNightlyRate = aptSelectedUnits.reduce(
+            (sum, unit) => sum + unit.price_per_night,
+            0,
+          );
           return (
             <li key={a.id}>
-              <button
-                type="button"
-                disabled={unavailable}
-                onClick={() => setApartmentId(a.id)}
+              <div
+                role={a.units.length === 0 ? "button" : undefined}
+                tabIndex={a.units.length === 0 && !unavailable ? 0 : undefined}
+                aria-disabled={unavailable}
+                onClick={() => {
+                  if (!unavailable && a.units.length === 0) selectApartment(a.id);
+                }}
+                onKeyDown={(event) => {
+                  if (
+                    !unavailable &&
+                    a.units.length === 0 &&
+                    (event.key === "Enter" || event.key === " ")
+                  ) {
+                    selectApartment(a.id);
+                  }
+                }}
                 className={`relative w-full overflow-hidden rounded-2xl border-2 bg-white text-left transition ${
                   selected
                     ? "border-brand-green shadow-card"
@@ -741,6 +878,87 @@ function StepRoom(props: {
                       )}
                     </div>
                     <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{a.description}</p>
+                    {a.units.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-brand-charcoal">
+                            Choose units (select one or more)
+                          </p>
+                          {availableUnits.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setUnits(
+                                  a.id,
+                                  allUnitsSelected ? [] : availableUnits.map((unit) => unit.id),
+                                );
+                              }}
+                              className="text-xs font-semibold text-brand-orange hover:underline"
+                            >
+                              {allUnitsSelected ? "Clear selection" : "Book entire apartment"}
+                            </button>
+                          )}
+                        </div>
+                        {a.units.map((unit) => {
+                          const unitUnavailable = availability[`${a.id}:${unit.id}`] === false;
+                          const unitSelected = apartmentId === a.id && unitIds.includes(unit.id);
+                          return (
+                            <button
+                              key={unit.id}
+                              type="button"
+                              disabled={unitUnavailable}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                toggleUnit(a.id, unit.id);
+                              }}
+                              className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left ${
+                                unitSelected
+                                  ? "border-brand-green bg-brand-sage/15"
+                                  : unitUnavailable
+                                    ? "cursor-not-allowed border-slate-200 bg-slate-50 opacity-60"
+                                    : "border-slate-200 hover:border-brand-green/50"
+                              }`}
+                            >
+                              <span className="flex items-center gap-2.5">
+                                <span
+                                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 ${
+                                    unitSelected
+                                      ? "border-brand-green bg-brand-green text-white"
+                                      : "border-slate-300 bg-white"
+                                  }`}
+                                >
+                                  {unitSelected && <Check className="h-3.5 w-3.5" />}
+                                </span>
+                                <span>
+                                  <span className="block text-sm font-semibold text-brand-charcoal">
+                                    {unit.name}
+                                  </span>
+                                  <span className="block text-xs text-muted-foreground">
+                                    {unit.bedrooms} bedroom{unit.bedrooms > 1 ? "s" : ""} booked together ·
+                                    up to {unit.max_guests} guests
+                                  </span>
+                                </span>
+                              </span>
+                              <span className="shrink-0 text-right">
+                                <span className="block text-sm font-bold text-brand-green">
+                                  {money(unit.price_per_night * nights)}
+                                </span>
+                                <span className="text-[11px] text-muted-foreground">
+                                  {unitUnavailable ? "Booked" : "Available"}
+                                </span>
+                              </span>
+                            </button>
+                          );
+                        })}
+                        {aptSelectedUnits.length > 1 && (
+                          <div className="rounded-xl bg-brand-cream/70 px-3 py-2 text-xs font-semibold text-brand-green">
+                            {aptSelectedUnits.length} units selected · {money(combinedNightlyRate)}/night
+                            {nights > 0 && <> · {money(combinedNightlyRate * nights)} for {nights} night{nights > 1 ? "s" : ""}</>}
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Thumbnail strip so guests see the room they're picking */}
                     {(() => {
@@ -776,7 +994,7 @@ function StepRoom(props: {
                     </div>
                   </div>
                 </div>
-              </button>
+              </div>
             </li>
           );
         })}
@@ -963,11 +1181,11 @@ function FakeCardField({ label, value }: { label: string; value: string }) {
 /* ---------------- Summary Sidebar ---------------- */
 
 function BookingSummary(props: {
-  apt: Apartment | null; checkIn: string; checkOut: string; nights: number; guests: number;
+  apt: Apartment | null; unitNames?: string[]; checkIn: string; checkOut: string; nights: number; guests: number;
   roomTotal: number; taxiOn: boolean; pickupFee: number; bundleDiscount: number; total: number;
   className?: string;
 }) {
-  const { apt, checkIn, checkOut, nights, guests, roomTotal, taxiOn, pickupFee, bundleDiscount, total, className } = props;
+  const { apt, unitNames, checkIn, checkOut, nights, guests, roomTotal, taxiOn, pickupFee, bundleDiscount, total, className } = props;
   return (
     <aside className={`h-fit rounded-2xl border border-border bg-white p-5 shadow-card lg:sticky lg:top-6 ${className ?? ""}`}>
       <h3 className="text-base font-bold text-brand-green">Booking summary</h3>
@@ -978,6 +1196,11 @@ function BookingSummary(props: {
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-brand-charcoal">{apt.subtitle || apt.name}</p>
             <p className="truncate text-xs text-muted-foreground">{apt.name}</p>
+            {unitNames && unitNames.length > 0 && (
+              <p className="mt-0.5 text-xs font-medium text-brand-green">
+                {unitNames.join(" + ")}
+              </p>
+            )}
           </div>
         </div>
       ) : (
@@ -1144,19 +1367,20 @@ function ConfirmationScreen(props: {
 function BookSignInGate({
   search,
 }: {
-  search: { apartment?: string; checkIn?: string; checkOut?: string; guests?: number };
+  search: { apartment?: string; unit?: string; checkIn?: string; checkOut?: string; guests?: number };
 }) {
   const { openAuthModal } = useUserAuth();
 
   const redirectTo = useMemo(() => {
     const params = new URLSearchParams();
     if (search.apartment) params.set("apartment", search.apartment);
+    if (search.unit) params.set("unit", search.unit);
     if (search.checkIn) params.set("checkIn", search.checkIn);
     if (search.checkOut) params.set("checkOut", search.checkOut);
     if (search.guests != null) params.set("guests", String(search.guests));
     const qs = params.toString();
     return qs ? `/book?${qs}` : "/book";
-  }, [search.apartment, search.checkIn, search.checkOut, search.guests]);
+  }, [search.apartment, search.unit, search.checkIn, search.checkOut, search.guests]);
 
   useEffect(() => {
     openAuthModal({
