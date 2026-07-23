@@ -14,8 +14,9 @@ import {
   X,
   Users,
 } from "lucide-react";
-import { clearAllTokens, getCurrentAdmin } from "@/lib/api";
+import { getCurrentAdmin } from "@/lib/api";
 import { Logo } from "@/components/Logo";
+import { useUserAuth } from "@/context/UserAuthContext";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
@@ -42,6 +43,7 @@ const NAV: NavItem[] = [
 
 function AdminLayout() {
   const navigate = useNavigate();
+  const { signOut: clearAuthSession } = useUserAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [status, setStatus] = useState<"checking" | "ok" | "denied">("checking");
   const [email, setEmail] = useState("");
@@ -59,7 +61,7 @@ function AdminLayout() {
   useEffect(() => setMobileOpen(false), [pathname]);
 
   function signOut() {
-    clearAllTokens();
+    clearAuthSession();
     navigate({ to: "/", search: { auth: "signin" } });
   }
 

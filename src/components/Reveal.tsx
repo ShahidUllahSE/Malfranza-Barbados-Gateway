@@ -17,6 +17,19 @@ export function Reveal({
       el.classList.add("is-revealed");
       return;
     }
+
+    const inViewport = () => {
+      const rect = el.getBoundingClientRect();
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      return rect.top < vh + 40 && rect.bottom > -40;
+    };
+
+    // Already on screen (e.g. homepage first paint) — reveal immediately.
+    if (inViewport()) {
+      el.classList.add("is-revealed");
+      return;
+    }
+
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
@@ -26,7 +39,7 @@ export function Reveal({
           }
         }
       },
-      { threshold: 0.12, rootMargin: "0px 0px -40px 0px" },
+      { threshold: 0.01, rootMargin: "40px 0px 40px 0px" },
     );
     io.observe(el);
     return () => io.disconnect();

@@ -94,7 +94,7 @@ export function SiteHeader() {
                 key={link.to}
                 type="button"
                 onClick={openMyBookingsAuth}
-                className="text-sm font-medium text-brand-charcoal transition-colors hover:text-brand-green lg:text-[15px]"
+                className="cursor-pointer text-sm font-medium text-brand-charcoal transition-colors hover:text-brand-green lg:text-[15px]"
               >
                 {link.label}
               </button>
@@ -117,7 +117,7 @@ export function SiteHeader() {
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="hidden h-10 items-center gap-2 rounded-full border border-transparent pl-1 pr-2 text-left transition-colors hover:border-border hover:bg-brand-cream/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/30 md:inline-flex lg:pr-3"
+                  className="hidden h-10 cursor-pointer items-center gap-2 rounded-full border border-transparent pl-1 pr-2 text-left transition-colors hover:border-border hover:bg-brand-cream/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/30 md:inline-flex lg:pr-3"
                   aria-label="Account menu"
                 >
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-green text-xs font-semibold text-white">
@@ -164,7 +164,10 @@ export function SiteHeader() {
                 )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onClick={handleSignOut}
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    handleSignOut();
+                  }}
                   className="cursor-pointer rounded-lg px-2 py-2 text-destructive focus:text-destructive"
                 >
                   <LogOut className="h-4 w-4" />
@@ -176,7 +179,7 @@ export function SiteHeader() {
             <button
               type="button"
               onClick={() => openAuthModal("signin")}
-              className="hidden text-sm font-medium text-brand-charcoal transition-colors hover:text-brand-green md:inline-flex"
+              className="hidden cursor-pointer text-sm font-medium text-brand-charcoal transition-colors hover:text-brand-green md:inline-flex"
             >
               Sign in
             </button>
@@ -185,7 +188,7 @@ export function SiteHeader() {
           <button
             type="button"
             onClick={handleBookNow}
-            className="hidden h-10 items-center justify-center rounded-xl bg-brand-orange px-4 text-sm font-semibold text-brand-orange-foreground shadow-sm transition-all hover:brightness-105 hover:shadow-md md:inline-flex lg:px-5"
+            className="hidden h-10 cursor-pointer items-center justify-center rounded-xl bg-brand-orange px-4 text-sm font-semibold text-brand-orange-foreground shadow-sm transition-all hover:brightness-105 hover:shadow-md md:inline-flex lg:px-5"
           >
             Book Now
           </button>
@@ -193,7 +196,7 @@ export function SiteHeader() {
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-brand-green md:hidden"
+            className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg text-brand-green md:hidden"
             aria-label="Toggle menu"
             aria-expanded={open}
           >
@@ -226,7 +229,7 @@ export function SiteHeader() {
                     setOpen(false);
                     openMyBookingsAuth();
                   }}
-                  className="rounded-lg px-3 py-2.5 text-left text-base font-medium text-brand-charcoal hover:bg-brand-cream"
+                  className="cursor-pointer rounded-lg px-3 py-2.5 text-left text-base font-medium text-brand-charcoal hover:bg-brand-cream"
                 >
                   {link.label}
                 </button>
@@ -266,7 +269,7 @@ export function SiteHeader() {
               <button
                 type="button"
                 onClick={handleSignOut}
-                className="rounded-lg px-3 py-2.5 text-left text-base font-medium text-destructive hover:bg-brand-cream"
+                className="cursor-pointer rounded-lg px-3 py-2.5 text-left text-base font-medium text-destructive hover:bg-brand-cream"
               >
                 Sign out
               </button>
@@ -277,7 +280,7 @@ export function SiteHeader() {
                   setOpen(false);
                   openAuthModal("signin");
                 }}
-                className="rounded-lg px-3 py-2.5 text-left text-base font-medium text-brand-charcoal hover:bg-brand-cream"
+                className="cursor-pointer rounded-lg px-3 py-2.5 text-left text-base font-medium text-brand-charcoal hover:bg-brand-cream"
               >
                 Sign in
               </button>
@@ -286,7 +289,7 @@ export function SiteHeader() {
             <button
               type="button"
               onClick={handleBookNow}
-              className="mt-2 rounded-xl bg-brand-orange px-4 py-3 text-center text-sm font-semibold text-brand-orange-foreground"
+              className="mt-2 cursor-pointer rounded-xl bg-brand-orange px-4 py-3 text-center text-sm font-semibold text-brand-orange-foreground"
             >
               Book Now
             </button>

@@ -59,6 +59,13 @@ export async function updateDriver(
   });
 }
 
+export async function deleteDriver(id: string) {
+  await apiRequest(`/admin/drivers/${id}`, {
+    method: "DELETE",
+    auth: true,
+  });
+}
+
 export type DriverTripStatus = "assigned" | "en_route" | "completed" | "cancelled";
 
 export type DriverDetailTrip = {

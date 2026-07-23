@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Bell, BellOff, Car, LogOut, MapPin } from "lucide-react";
-import { clearAllTokens, getCurrentDriver, type DriverIdentity } from "@/lib/api";
+import { getCurrentDriver, type DriverIdentity } from "@/lib/api";
 import {
   listMyDriverTrips,
   setMyDriverAvailability,
@@ -11,6 +11,7 @@ import {
 } from "@/lib/drivers";
 import { StatusPill } from "@/components/admin/AdminBits";
 import { Logo } from "@/components/Logo";
+import { useUserAuth } from "@/context/UserAuthContext";
 
 export const Route = createFileRoute("/driver")({
   head: () => ({
@@ -34,6 +35,7 @@ function notifyBrowser(title: string, body: string) {
 
 function DriverPortalPage() {
   const navigate = useNavigate();
+  const { signOut: clearAuthSession } = useUserAuth();
   const qc = useQueryClient();
   const [driver, setDriver] = useState<DriverIdentity | null>(null);
   const [status, setStatus] = useState<"checking" | "ok" | "denied">("checking");
@@ -144,7 +146,7 @@ function DriverPortalPage() {
   }
 
   function signOut() {
-    clearAllTokens();
+    clearAuthSession();
     navigate({ to: "/", search: { auth: "signin" } });
   }
 

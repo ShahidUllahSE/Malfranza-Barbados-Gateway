@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Dialog,
@@ -70,9 +70,14 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
   const [formError, setFormError] = useState<string | null>(null);
   const [authReason, setAuthReason] = useState<string | null>(null);
   const [redirectTo, setRedirectTo] = useState<string | null>(null);
+  // Bumped on sign-out so an in-flight restoreSession cannot put the user back.
+  const sessionEpochRef = useRef(0);
 
   const refreshSession = useCallback(async () => {
-    setSession(await restoreSession());
+    const epoch = sessionEpochRef.current;
+    const next = await restoreSession();
+    if (epoch !== sessionEpochRef.current) return;
+    setSession(next);
   }, []);
 
   useEffect(() => {
@@ -110,6 +115,7 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
   }, [clearErrors]);
 
   const signOut = useCallback(() => {
+    sessionEpochRef.current += 1;
     clearAllTokens();
     setSession(null);
   }, []);
@@ -356,7 +362,7 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
               <button
                 type="submit"
                 disabled={busy}
-                className="w-full rounded-lg bg-brand-green px-4 py-2.5 text-sm font-semibold text-brand-green-foreground shadow-sm transition hover:opacity-90 disabled:opacity-60"
+                className="w-full cursor-pointer rounded-lg bg-brand-green px-4 py-2.5 text-sm font-semibold text-brand-green-foreground shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {busy
                   ? "Please wait…"
@@ -375,7 +381,7 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
                   <button
                     type="button"
                     onClick={() => switchMode("signup")}
-                    className="font-semibold text-brand-green hover:underline"
+                    className="cursor-pointer font-semibold text-brand-green hover:underline"
                   >
                     Create an account
                   </button>
@@ -386,7 +392,7 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
                   <button
                     type="button"
                     onClick={() => switchMode("signin")}
-                    className="font-semibold text-brand-green hover:underline"
+                    className="cursor-pointer font-semibold text-brand-green hover:underline"
                   >
                     Sign in
                   </button>

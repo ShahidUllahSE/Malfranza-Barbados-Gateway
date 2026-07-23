@@ -2,8 +2,14 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ChevronRight, Plus } from "lucide-react";
-import { createDriver, listDrivers, updateDriver, type AdminDriver } from "@/lib/drivers";
+import { ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  createDriver,
+  deleteDriver,
+  listDrivers,
+  updateDriver,
+  type AdminDriver,
+} from "@/lib/drivers";
 import { AdminTableShell, AdminTd, AdminTh } from "@/components/admin/AdminBits";
 import { Drawer } from "./admin.bookings";
 
@@ -15,13 +21,19 @@ function DriversPage() {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["admin", "drivers"], queryFn: listDrivers });
   const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<AdminDriver | null>(null);
+  const [deleting, setDeleting] = useState<AdminDriver | null>(null);
+
+  function refresh() {
+    qc.invalidateQueries({ queryKey: ["admin", "drivers"] });
+  }
 
   const toggleAvailable = useMutation({
     mutationFn: (driver: AdminDriver) =>
       updateDriver(driver.id, { isAvailable: !driver.isAvailable }),
     onSuccess: (_data, driver) => {
       toast.success(driver.isAvailable ? "Marked unavailable" : "Marked available");
-      qc.invalidateQueries({ queryKey: ["admin", "drivers"] });
+      refresh();
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Update failed"),
   });
@@ -31,9 +43,19 @@ function DriversPage() {
       updateDriver(driver.id, { isActive: !driver.isActive }),
     onSuccess: (_data, driver) => {
       toast.success(driver.isActive ? "Driver deactivated" : "Driver activated");
-      qc.invalidateQueries({ queryKey: ["admin", "drivers"] });
+      refresh();
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Update failed"),
+  });
+
+  const remove = useMutation({
+    mutationFn: (id: string) => deleteDriver(id),
+    onSuccess: () => {
+      toast.success("Driver deleted");
+      setDeleting(null);
+      refresh();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Delete failed"),
   });
 
   const rows = q.data ?? [];
@@ -44,13 +66,13 @@ function DriversPage() {
         <div>
           <h1 className="font-display text-2xl font-bold text-brand-charcoal sm:text-3xl">Drivers</h1>
           <p className="text-sm text-muted-foreground">
-            Manage taxi drivers, availability, and portal access.
+            Create, edit, activate, or delete taxi drivers and portal access.
           </p>
         </div>
         <button
           type="button"
           onClick={() => setCreating(true)}
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-green px-4 text-sm font-semibold text-white hover:opacity-90"
+          className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-green px-4 text-sm font-semibold text-white hover:opacity-90"
         >
           <Plus className="h-4 w-4" />
           Add driver
@@ -91,14 +113,18 @@ function DriversPage() {
                   params={{ id: driver.id }}
                   className="inline-flex items-center gap-1 rounded-lg bg-brand-sage/30 px-2.5 py-1.5 text-xs font-semibold text-brand-green hover:bg-brand-sage/50"
                 >
-                  View rides
+                  Details
                   <ChevronRight className="h-3.5 w-3.5" />
                 </Link>
+                <RowAction onClick={() => setEditing(driver)}>Edit</RowAction>
                 <RowAction onClick={() => toggleAvailable.mutate(driver)}>
                   {driver.isAvailable ? "Set unavailable" : "Set available"}
                 </RowAction>
                 <RowAction muted onClick={() => toggleActive.mutate(driver)}>
                   {driver.isActive ? "Deactivate" : "Activate"}
+                </RowAction>
+                <RowAction danger onClick={() => setDeleting(driver)}>
+                  Delete
                 </RowAction>
               </div>
             </div>
@@ -111,7 +137,7 @@ function DriversPage() {
         </div>
 
         {/* Desktop table */}
-        <AdminTableShell minWidth="56rem">
+        <AdminTableShell minWidth="64rem">
           <thead className="bg-slate-50">
             <tr>
               <AdminTh>Name</AdminTh>
@@ -167,11 +193,23 @@ function DriversPage() {
                     >
                       Details
                     </Link>
+                    <RowAction onClick={() => setEditing(driver)}>
+                      <span className="inline-flex items-center gap-1">
+                        <Pencil className="h-3 w-3" />
+                        Edit
+                      </span>
+                    </RowAction>
                     <RowAction onClick={() => toggleAvailable.mutate(driver)}>
                       {driver.isAvailable ? "Unavailable" : "Available"}
                     </RowAction>
                     <RowAction muted onClick={() => toggleActive.mutate(driver)}>
                       {driver.isActive ? "Deactivate" : "Activate"}
+                    </RowAction>
+                    <RowAction danger onClick={() => setDeleting(driver)}>
+                      <span className="inline-flex items-center gap-1">
+                        <Trash2 className="h-3 w-3" />
+                        Delete
+                      </span>
                     </RowAction>
                   </div>
                 </AdminTd>
@@ -194,47 +232,117 @@ function DriversPage() {
           <p className="mb-4 text-sm text-muted-foreground">
             They sign in with the same modal using this email and password.
           </p>
-          <CreateDriverForm
+          <DriverForm
+            mode="create"
             onCancel={() => setCreating(false)}
-            onCreated={() => {
+            onDone={() => {
               setCreating(false);
-              qc.invalidateQueries({ queryKey: ["admin", "drivers"] });
+              refresh();
             }}
           />
+        </Drawer>
+      )}
+
+      {editing && (
+        <Drawer onClose={() => setEditing(null)}>
+          <h2 className="font-display text-xl font-bold text-brand-charcoal">Edit driver</h2>
+          <p className="mb-4 text-sm text-muted-foreground">
+            Update profile details. Leave password blank to keep the current one.
+          </p>
+          <DriverForm
+            mode="edit"
+            initial={editing}
+            onCancel={() => setEditing(null)}
+            onDone={() => {
+              setEditing(null);
+              refresh();
+            }}
+          />
+        </Drawer>
+      )}
+
+      {deleting && (
+        <Drawer onClose={() => !remove.isPending && setDeleting(null)}>
+          <h2 className="font-display text-xl font-bold text-brand-charcoal">Delete driver</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Permanently remove <span className="font-semibold text-brand-charcoal">{deleting.name}</span>
+            {" "}({deleting.email}). This cannot be undone.
+          </p>
+          <p className="mt-2 text-sm text-amber-800">
+            If they have active assigned trips, delete will be blocked — deactivate them instead.
+          </p>
+          <div className="mt-6 flex gap-2">
+            <button
+              type="button"
+              disabled={remove.isPending}
+              onClick={() => remove.mutate(deleting.id)}
+              className="flex-1 cursor-pointer rounded-lg bg-red-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+            >
+              {remove.isPending ? "Deleting…" : "Yes, delete"}
+            </button>
+            <button
+              type="button"
+              disabled={remove.isPending}
+              onClick={() => setDeleting(null)}
+              className="cursor-pointer rounded-lg bg-slate-100 px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+            >
+              Cancel
+            </button>
+          </div>
         </Drawer>
       )}
     </div>
   );
 }
 
-function CreateDriverForm({
+function DriverForm({
+  mode,
+  initial,
   onCancel,
-  onCreated,
+  onDone,
 }: {
+  mode: "create" | "edit";
+  initial?: AdminDriver;
   onCancel: () => void;
-  onCreated: () => void;
+  onDone: () => void;
 }) {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
+  const [name, setName] = useState(initial?.name ?? "");
+  const [email, setEmail] = useState(initial?.email ?? "");
+  const [phone, setPhone] = useState(initial?.phone ?? "");
   const [password, setPassword] = useState("");
-  const [vehicleLabel, setVehicleLabel] = useState("");
+  const [vehicleLabel, setVehicleLabel] = useState(initial?.vehicleLabel ?? "");
+  const [isActive, setIsActive] = useState(initial?.isActive ?? true);
+  const [isAvailable, setIsAvailable] = useState(initial?.isAvailable ?? true);
 
-  const create = useMutation({
-    mutationFn: () =>
-      createDriver({
+  const save = useMutation({
+    mutationFn: async () => {
+      if (mode === "create") {
+        await createDriver({
+          name: name.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
+          password,
+          vehicleLabel: vehicleLabel.trim() || undefined,
+          isAvailable,
+        });
+        return;
+      }
+
+      await updateDriver(initial!.id, {
         name: name.trim(),
-        email: email.trim(),
         phone: phone.trim(),
-        password,
-        vehicleLabel: vehicleLabel.trim() || undefined,
-        isAvailable: true,
-      }),
-    onSuccess: () => {
-      toast.success("Driver created");
-      onCreated();
+        vehicleLabel: vehicleLabel.trim() || null,
+        isActive,
+        isAvailable,
+        ...(password.trim() ? { password: password.trim() } : {}),
+      });
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Create failed"),
+    onSuccess: () => {
+      toast.success(mode === "create" ? "Driver created" : "Driver updated");
+      onDone();
+    },
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : mode === "create" ? "Create failed" : "Update failed"),
   });
 
   return (
@@ -242,14 +350,28 @@ function CreateDriverForm({
       className="space-y-3"
       onSubmit={(e) => {
         e.preventDefault();
-        create.mutate();
+        if (mode === "create" && password.trim().length < 8) {
+          toast.error("Password must be at least 8 characters");
+          return;
+        }
+        save.mutate();
       }}
     >
       <Field label="Full name">
         <input required value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
       </Field>
       <Field label="Email">
-        <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
+        <input
+          required
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className={inputClass}
+          disabled={mode === "edit"}
+        />
+        {mode === "edit" && (
+          <p className="mt-1 text-[11px] text-muted-foreground">Email can’t be changed after create.</p>
+        )}
       </Field>
       <Field label="Phone">
         <input required value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} />
@@ -262,28 +384,51 @@ function CreateDriverForm({
           placeholder="White van · B 1234"
         />
       </Field>
-      <Field label="Password">
+      <Field label={mode === "create" ? "Password" : "New password (optional)"}>
         <input
-          required
+          required={mode === "create"}
           type="password"
-          minLength={8}
+          minLength={mode === "create" ? 8 : undefined}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className={inputClass}
+          placeholder={mode === "edit" ? "Leave blank to keep current" : undefined}
         />
       </Field>
+      {mode === "edit" && (
+        <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-brand-charcoal">
+            <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
+            Active (can sign in to the driver portal)
+          </label>
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-brand-charcoal">
+            <input
+              type="checkbox"
+              checked={isAvailable}
+              onChange={(e) => setIsAvailable(e.target.checked)}
+            />
+            Available for new trip assignments
+          </label>
+        </div>
+      )}
       <div className="flex gap-2 pt-2">
         <button
           type="submit"
-          disabled={create.isPending}
-          className="flex-1 rounded-lg bg-brand-green px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          disabled={save.isPending}
+          className="flex-1 cursor-pointer rounded-lg bg-brand-green px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
         >
-          {create.isPending ? "Creating…" : "Create driver"}
+          {save.isPending
+            ? mode === "create"
+              ? "Creating…"
+              : "Saving…"
+            : mode === "create"
+              ? "Create driver"
+              : "Save changes"}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700"
+          className="cursor-pointer rounded-lg bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700"
         >
           Cancel
         </button>
@@ -320,19 +465,23 @@ function RowAction({
   children,
   onClick,
   muted,
+  danger,
 }: {
   children: React.ReactNode;
   onClick: () => void;
   muted?: boolean;
+  danger?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition ${
-        muted
-          ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
-          : "bg-brand-green text-white hover:opacity-90"
+      className={`cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-semibold transition ${
+        danger
+          ? "border border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+          : muted
+            ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
+            : "bg-brand-green text-white hover:opacity-90"
       }`}
     >
       {children}

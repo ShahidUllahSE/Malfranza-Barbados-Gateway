@@ -98,30 +98,71 @@ function RootComponent() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const reveal = (el: HTMLElement) => {
+      el.classList.add("is-revealed");
+    };
+
+    const inViewport = (el: HTMLElement) => {
+      const rect = el.getBoundingClientRect();
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      // Treat anything intersecting the viewport (with a small buffer) as visible.
+      return rect.top < vh + 40 && rect.bottom > -40;
+    };
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      document.querySelectorAll<HTMLElement>("main section").forEach(reveal);
+      return;
+    }
+
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
           if (e.isIntersecting) {
-            (e.target as HTMLElement).classList.add("is-revealed");
+            reveal(e.target as HTMLElement);
             io.unobserve(e.target);
           }
         }
       },
-      { threshold: 0.08, rootMargin: "0px 0px -30px 0px" },
+      // Generous margins so first-paint / tall heroes aren't missed.
+      { threshold: 0.01, rootMargin: "40px 0px 40px 0px" },
     );
+
     const attach = () => {
       document.querySelectorAll<HTMLElement>("main section:not(.reveal-init)").forEach((el) => {
         el.classList.add("reveal", "reveal-init");
+        // Above-the-fold content must show on first paint — IO alone can miss it.
+        if (inViewport(el)) {
+          reveal(el);
+          return;
+        }
         io.observe(el);
       });
     };
+
     attach();
-    const mo = new MutationObserver(() => attach());
+    // Sections often appear after route loaders resolve; re-check on DOM changes.
+    const mo = new MutationObserver(() => {
+      requestAnimationFrame(attach);
+    });
     mo.observe(document.body, { childList: true, subtree: true });
+
+    // Safety net for anything still invisible but on screen after layout settles.
+    const safetyId = window.setTimeout(() => {
+      document
+        .querySelectorAll<HTMLElement>("main section.reveal:not(.is-revealed)")
+        .forEach((el) => {
+          if (inViewport(el)) {
+            reveal(el);
+            io.unobserve(el);
+          }
+        });
+    }, 150);
+
     return () => {
       io.disconnect();
       mo.disconnect();
+      window.clearTimeout(safetyId);
     };
   }, [pathname]);
 

@@ -128,7 +128,12 @@ export async function fetchApartment(slug: string): Promise<Apartment | undefine
 function mapApiApartment(record: any): Apartment {
   const fallback = getApartment(record.slug);
   const photos: string[] = Array.isArray(record.photos)
-    ? record.photos.filter((p: unknown) => typeof p === "string" && p.length > 0)
+    ? record.photos.filter(
+        (p: unknown) =>
+          typeof p === "string" &&
+          p.trim().length > 0 &&
+          !p.includes("placeholder"),
+      )
     : [];
   const units: ApartmentUnit[] = Array.isArray(record.units)
     ? record.units
@@ -157,7 +162,7 @@ function mapApiApartment(record: any): Apartment {
     baths: record.bathrooms,
     sizeSqM: record.sizeSqM ?? fallback?.sizeSqM ?? 0,
     pricePerNight: unitPrices.length > 0 ? Math.min(...unitPrices) : record.pricePerNight,
-    images: photos.length > 0 ? photos : (fallback?.images ?? ["/placeholder.svg"]),
+    images: photos.length > 0 ? photos : (fallback?.images ?? []),
     amenities: Array.isArray(record.amenities) ? record.amenities : [],
     units,
   };

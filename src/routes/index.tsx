@@ -1,11 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import {
   Home, BedDouble, Plane, Users, Calendar, MapPin, Car,
   CheckCircle2, ShieldCheck, Sparkles, ArrowRight,
 } from "lucide-react";
-import { fetchApartments } from "@/data/apartments";
+import { APARTMENTS, fetchApartments, type Apartment } from "@/data/apartments";
 import heroImg from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_43 PM.png";
 import stayKitchen from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_20 PM.png";
 import stay2br from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_43 PM.png";
@@ -23,7 +23,6 @@ const homeSearchSchema = z.object({
 
 export const Route = createFileRoute("/")({
   validateSearch: (search) => homeSearchSchema.parse(search),
-  loader: () => fetchApartments(),
   head: () => ({
     meta: [
       { title: "Malfranza Apartments & Taxi | Comfortable Stays & Reliable Rides in Barbados" },
@@ -96,9 +95,31 @@ function todayISO(offsetDays = 0) {
   return d.toISOString().slice(0, 10);
 }
 
+/** Drop empty, placeholder, or otherwise unusable image URLs from gallery mixes. */
+function isUsableImageSrc(src: unknown): src is string {
+  if (typeof src !== "string") return false;
+  const value = src.trim();
+  if (!value) return false;
+  if (value.includes("placeholder")) return false;
+  if (value === "null" || value === "undefined") return false;
+  return true;
+}
+
 function HomePage() {
   const navigate = useNavigate();
-  const apartments = Route.useLoaderData();
+  // Seed instantly so first paint isn't blank while the API loads.
+  const [apartments, setApartments] = useState<Apartment[]>(APARTMENTS);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchApartments().then((items) => {
+      if (!cancelled && items.length > 0) setApartments(items);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const featuredStays = apartments.slice(0, 4).map((a) => ({
     id: a.id,
     img: a.images[0],
@@ -109,10 +130,24 @@ function HomePage() {
     beds: a.beds,
     price: a.pricePerNight,
   }));
-  const liveGallery = [
-    ...apartments.flatMap((a) => a.images.slice(0, 2)),
-    ...galleryImages,
-  ].filter((src, i, arr) => arr.indexOf(src) === i).slice(0, 6);
+  const liveGallery = useMemo(() => {
+    const preferred = apartments
+      .flatMap((a) => a.images.slice(0, 2))
+      .filter(isUsableImageSrc);
+    const merged: string[] = [];
+    for (const src of [...preferred, ...galleryImages]) {
+      if (!isUsableImageSrc(src)) continue;
+      if (merged.includes(src)) continue;
+      merged.push(src);
+      if (merged.length >= 6) break;
+    }
+    // Always fill to 6 with known-good local photos so the grid never has empty slots.
+    for (const src of galleryImages) {
+      if (merged.length >= 6) break;
+      if (!merged.includes(src)) merged.push(src);
+    }
+    return merged.slice(0, 6);
+  }, [apartments]);
 
   // Hero search state
   const [checkIn, setCheckIn] = useState(todayISO(7));
@@ -374,6 +409,13 @@ function HomePage() {
                   src={src}
                   alt=""
                   loading="lazy"
+                  onError={(event) => {
+                    // Swap any late-breaking remote URL for a known local photo.
+                    const fallback = galleryImages[i % galleryImages.length];
+                    if (fallback && event.currentTarget.src !== fallback) {
+                      event.currentTarget.src = fallback;
+                    }
+                  }}
                   className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
                 />
               </div>

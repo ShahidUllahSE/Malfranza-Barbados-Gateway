@@ -193,6 +193,20 @@ export async function updateEnquiryStatus(id: string, status: EnquiryStatus) {
   });
 }
 
+export async function updateEnquiry(
+  id: string,
+  patch: Partial<{ status: EnquiryStatus; admin_notes: string }>,
+) {
+  await apiRequest(`/admin/enquiries/${id}`, {
+    method: "PATCH",
+    auth: true,
+    body: JSON.stringify({
+      status: patch.status,
+      adminNotes: patch.admin_notes,
+    }),
+  });
+}
+
 export async function listAllApartments() {
   const result = await apiRequest<{ items: any[] }>("/admin/apartments?limit=100", { auth: true });
   return result.items.map(toLegacyApartment);
@@ -239,9 +253,15 @@ export async function createApartment(input: {
 
 export async function updateApartment(id: string, patch: Partial<{
   name: string;
+  slug: string;
+  subtitle: string | null;
   description: string | null;
+  type: "one-bedroom" | "two-bedroom" | "three-bedroom";
   price_per_night: number;
   max_guests: number;
+  bedrooms: number;
+  bathrooms: number;
+  size_sqm: number | null;
   amenities: string[];
   photos: string[];
   is_active: boolean;
@@ -252,14 +272,27 @@ export async function updateApartment(id: string, patch: Partial<{
     auth: true,
     body: JSON.stringify({
       name: patch.name,
+      slug: patch.slug,
+      subtitle: patch.subtitle === null ? undefined : patch.subtitle,
       description: patch.description ?? undefined,
+      type: patch.type,
       pricePerNight: patch.price_per_night,
       maxGuests: patch.max_guests,
+      bedrooms: patch.bedrooms,
+      bathrooms: patch.bathrooms,
+      sizeSqM: patch.size_sqm === null ? undefined : patch.size_sqm,
       amenities: patch.amenities,
       photos: patch.photos,
       isActive: patch.is_active,
       units: patch.units,
     }),
+  });
+}
+
+export async function deleteApartment(id: string) {
+  await apiRequest(`/admin/apartments/${id}`, {
+    method: "DELETE",
+    auth: true,
   });
 }
 
@@ -295,6 +328,7 @@ function toLegacyApartment(apartment: any) {
     slug: apartment.slug,
     subtitle: apartment.subtitle ?? null,
     description: apartment.description,
+    type: apartment.type as "one-bedroom" | "two-bedroom" | "three-bedroom",
     price_per_night: apartment.pricePerNight,
     max_guests: apartment.maxGuests,
     bedrooms: apartment.bedrooms,
