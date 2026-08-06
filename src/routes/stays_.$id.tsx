@@ -1,10 +1,11 @@
 import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
-  MapPin, Users, BedDouble, Bath, Ruler, Shield, ChevronRight,
+  MapPin, Users, BedDouble, Bath, Ruler, Shield, ChevronRight, ChevronLeft,
   Wind, Wifi, Tv, ChefHat, Refrigerator, Microwave, Flame, Coffee,
   ShowerHead, Droplets, Sparkles, Shirt, BellRing, Car, Brush, Headphones,
   Images, BadgeCheck, HeartHandshake, CalendarCheck, Snowflake, Briefcase,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import { fetchApartment } from "@/data/apartments";
@@ -15,7 +16,12 @@ import {
 } from "@/lib/bookings";
 import { AreaMap } from "@/components/maps/AreaMap";
 import { OISTINS_CENTER } from "@/lib/googleMaps";
-import { useUserAuth } from "@/context/UserAuthContext";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/stays_/$id")({
   loader: async ({ params }) => {
@@ -91,7 +97,6 @@ function amenityIcon(label: string): LucideIcon {
 function ApartmentDetailPage() {
   const { apt } = Route.useLoaderData();
   const navigate = useNavigate();
-  const { user, openAuthModal } = useUserAuth();
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [guests, setGuests] = useState(Math.min(2, apt.guests));
@@ -102,7 +107,10 @@ function ApartmentDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [occupancy, setOccupancy] = useState<ApartmentOccupancy | null>(null);
-  const [lightbox, setLightbox] = useState(0);
+  /** Main preview index in the grid (also seeds the full viewer). */
+  const [previewIndex, setPreviewIndex] = useState(0);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -119,14 +127,44 @@ function ApartmentDetailPage() {
     };
   }, [apt.id]);
 
+  const photos = useMemo(
+    () => (apt.images.length > 0 ? apt.images : ["/placeholder.svg"]),
+    [apt.images],
+  );
+
+  /** Up to 5 slots for the grid; repeats only if fewer unique photos. */
   const gallery = useMemo(() => {
-    if (apt.images.length >= 5) return apt.images;
-    if (apt.images.length === 0) return ["/placeholder.svg"];
-    // Repeat photos so the grid still looks full when the API has fewer images
-    const filled = [...apt.images];
-    while (filled.length < 5) filled.push(apt.images[filled.length % apt.images.length]);
+    if (photos.length >= 5) return photos.slice(0, 5);
+    const filled = [...photos];
+    while (filled.length < 5) filled.push(photos[filled.length % photos.length]!);
     return filled;
-  }, [apt.images]);
+  }, [photos]);
+
+  const openViewer = (index: number) => {
+    const next = ((index % photos.length) + photos.length) % photos.length;
+    setViewerIndex(next);
+    setPreviewIndex(next % gallery.length);
+    setViewerOpen(true);
+  };
+
+  const stepViewer = (delta: number) => {
+    setViewerIndex((current) => (current + delta + photos.length) % photos.length);
+  };
+
+  useEffect(() => {
+    if (!viewerOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        stepViewer(-1);
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        stepViewer(1);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [viewerOpen, photos.length]);
 
   const blockedRanges = occupancy?.blockedRanges ?? [];
   const selectedUnits = apt.units.filter((unit) => selectedUnitIds.includes(unit.id));
@@ -174,31 +212,15 @@ function ApartmentDetailPage() {
         setError("Not available for these dates — try adjusting your stay.");
         return;
       }
-      const unitParam = selectedUnitIds.length > 0 ? selectedUnitIds.join(",") : undefined;
-      const bookSearch = {
-        apartment: apt.id,
-        unit: unitParam,
-        checkIn,
-        checkOut,
-        guests,
-      };
-      if (!user) {
-        const params = new URLSearchParams();
-        params.set("apartment", apt.id);
-        if (unitParam) params.set("unit", unitParam);
-        params.set("checkIn", checkIn);
-        params.set("checkOut", checkOut);
-        params.set("guests", String(guests));
-        openAuthModal({
-          mode: "signin",
-          reason: "Sign in to book this stay. Your booking will appear under My Bookings.",
-          redirectTo: `/book?${params.toString()}`,
-        });
-        return;
-      }
       navigate({
         to: "/book",
-        search: bookSearch,
+        search: {
+          apartment: apt.id,
+          unit: selectedUnitIds.length > 0 ? selectedUnitIds.join(",") : undefined,
+          checkIn,
+          checkOut,
+          guests,
+        },
       });
     } catch {
       setError("Couldn't check availability. Please try again.");
@@ -221,21 +243,28 @@ function ApartmentDetailPage() {
         </ol>
       </nav>
 
-      {/* Gallery from backend photos */}
+      {/* Gallery — click any photo to open the full viewer */}
       <section className="mx-auto mt-6 max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-3 overflow-hidden rounded-2xl sm:rounded-3xl md:grid-cols-2">
           <div className="relative aspect-[4/3] md:aspect-auto md:h-[420px] lg:h-[520px]">
-            <img
-              src={gallery[lightbox] ?? gallery[0]}
-              alt={`${apt.name} main view`}
-              className="h-full w-full object-cover"
-            />
             <button
               type="button"
-              onClick={() => setLightbox(0)}
+              onClick={() => openViewer(previewIndex)}
+              className="h-full w-full cursor-zoom-in"
+              aria-label={`View ${apt.name} photos`}
+            >
+              <img
+                src={photos[previewIndex] ?? photos[0]}
+                alt={`${apt.name} main view`}
+                className="h-full w-full object-cover transition duration-300 hover:brightness-95"
+              />
+            </button>
+            <button
+              type="button"
+              onClick={() => openViewer(0)}
               className="absolute bottom-3 right-3 inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-2 text-xs font-medium text-brand-green shadow-card hover:bg-white sm:hidden"
             >
-              <Images className="h-4 w-4" /> {apt.images.length} photo{apt.images.length === 1 ? "" : "s"}
+              <Images className="h-4 w-4" /> {photos.length} photo{photos.length === 1 ? "" : "s"}
             </button>
           </div>
           <div className="hidden grid-cols-2 gap-3 sm:grid md:h-[420px] lg:h-[520px]">
@@ -243,17 +272,18 @@ function ApartmentDetailPage() {
               <button
                 key={i}
                 type="button"
-                onClick={() => setLightbox(i % gallery.length)}
-                className="relative overflow-hidden"
+                onClick={() => openViewer(i % photos.length)}
+                className="relative cursor-zoom-in overflow-hidden"
+                aria-label={`View photo ${i + 1}`}
               >
                 <img
                   src={gallery[i]}
                   alt={`${apt.name} photo ${i + 1}`}
-                  className="aspect-square h-full w-full object-cover md:aspect-auto"
+                  className="aspect-square h-full w-full object-cover transition duration-300 hover:brightness-95 md:aspect-auto"
                 />
-                {i === 4 && apt.images.length > 1 && (
+                {i === 4 && photos.length > 1 && (
                   <span className="absolute bottom-3 right-3 inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-2 text-xs font-medium text-brand-green shadow-card sm:px-4 sm:text-sm">
-                    <Images className="h-4 w-4" /> {apt.images.length} photos
+                    <Images className="h-4 w-4" /> {photos.length} photos
                   </span>
                 )}
               </button>
@@ -261,6 +291,87 @@ function ApartmentDetailPage() {
           </div>
         </div>
       </section>
+
+      <Dialog open={viewerOpen} onOpenChange={setViewerOpen}>
+        <DialogContent
+          className="max-h-[100dvh] w-[100vw] max-w-[100vw] gap-0 overflow-hidden border-0 bg-black p-0 text-white shadow-none sm:max-h-[96dvh] sm:w-[min(96vw,1100px)] sm:max-w-[1100px] sm:rounded-2xl [&>button]:hidden"
+          aria-describedby={undefined}
+        >
+          <DialogTitle className="sr-only">{apt.name} photo gallery</DialogTitle>
+          <DialogDescription className="sr-only">
+            Photo {viewerIndex + 1} of {photos.length}. Use arrow keys to navigate.
+          </DialogDescription>
+
+          <div className="relative flex h-[100dvh] flex-col sm:h-[min(92dvh,860px)]">
+            <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
+              <p className="truncate text-sm font-medium text-white/90">
+                {apt.name}
+                <span className="ml-2 font-normal text-white/60">
+                  {viewerIndex + 1} / {photos.length}
+                </span>
+              </p>
+              <button
+                type="button"
+                onClick={() => setViewerOpen(false)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
+                aria-label="Close photo viewer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="relative flex min-h-0 flex-1 items-center justify-center px-2 sm:px-14">
+              {photos.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => stepViewer(-1)}
+                    className="absolute left-2 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm transition hover:bg-white/25 sm:left-4"
+                    aria-label="Previous photo"
+                  >
+                    <ChevronLeft className="h-6 w-6" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => stepViewer(1)}
+                    className="absolute right-2 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm transition hover:bg-white/25 sm:right-4"
+                    aria-label="Next photo"
+                  >
+                    <ChevronRight className="h-6 w-6" />
+                  </button>
+                </>
+              )}
+              <img
+                src={photos[viewerIndex]}
+                alt={`${apt.name} photo ${viewerIndex + 1}`}
+                className="max-h-full max-w-full object-contain select-none"
+                draggable={false}
+              />
+            </div>
+
+            {photos.length > 1 && (
+              <div className="flex gap-2 overflow-x-auto px-4 py-3 sm:justify-center sm:px-5">
+                {photos.map((src, i) => (
+                  <button
+                    key={`${src}-${i}`}
+                    type="button"
+                    onClick={() => setViewerIndex(i)}
+                    className={`h-14 w-20 shrink-0 overflow-hidden rounded-md ring-2 transition ${
+                      i === viewerIndex
+                        ? "ring-brand-orange opacity-100"
+                        : "ring-transparent opacity-60 hover:opacity-100"
+                    }`}
+                    aria-label={`Go to photo ${i + 1}`}
+                    aria-current={i === viewerIndex}
+                  >
+                    <img src={src} alt="" className="h-full w-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <section className="mx-auto mt-8 grid max-w-7xl grid-cols-1 gap-8 px-4 sm:mt-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-10 lg:px-8">
         <div className="min-w-0">

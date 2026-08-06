@@ -137,43 +137,48 @@ function DriversPage() {
         </div>
 
         {/* Desktop table */}
-        <AdminTableShell minWidth="64rem">
+        <AdminTableShell>
           <thead className="bg-slate-50">
             <tr>
-              <AdminTh>Name</AdminTh>
-              <AdminTh>Email</AdminTh>
-              <AdminTh>Phone</AdminTh>
-              <AdminTh>Vehicle</AdminTh>
-              <AdminTh>Status</AdminTh>
-              <AdminTh>Availability</AdminTh>
-              <AdminTh className="sticky right-0 bg-slate-50 shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.12)]">
-                Actions
-              </AdminTh>
+              <AdminTh className="w-[12%]">Name</AdminTh>
+              <AdminTh className="w-[18%]">Email</AdminTh>
+              <AdminTh className="w-[12%]">Phone</AdminTh>
+              <AdminTh className="w-[14%]">Vehicle</AdminTh>
+              <AdminTh className="w-[10%]">Status</AdminTh>
+              <AdminTh className="w-[12%]">Availability</AdminTh>
+              <AdminTh className="w-[22%]">Actions</AdminTh>
             </tr>
           </thead>
           <tbody>
             {rows.map((driver) => (
               <tr key={driver.id} className="group border-t border-slate-100">
-                <AdminTd nowrap className="font-medium">
+                <AdminTd className="font-medium">
                   <Link
                     to="/admin/drivers/$id"
                     params={{ id: driver.id }}
-                    className="text-brand-charcoal hover:text-brand-green hover:underline"
+                    className="block truncate text-brand-charcoal hover:text-brand-green hover:underline"
+                    title={driver.name}
                   >
                     {driver.name}
                   </Link>
                 </AdminTd>
-                <AdminTd className="max-w-[14rem] text-xs">
-                  <span className="break-all">{driver.email}</span>
+                <AdminTd className="text-xs">
+                  <span className="block truncate" title={driver.email}>
+                    {driver.email}
+                  </span>
                 </AdminTd>
-                <AdminTd nowrap className="text-sm">{driver.phone}</AdminTd>
-                <AdminTd nowrap className="text-sm text-muted-foreground">
-                  {driver.vehicleLabel || "—"}
+                <AdminTd className="text-sm">
+                  <span className="block truncate">{driver.phone}</span>
                 </AdminTd>
-                <AdminTd nowrap>
+                <AdminTd className="text-sm text-muted-foreground">
+                  <span className="block truncate" title={driver.vehicleLabel || undefined}>
+                    {driver.vehicleLabel || "—"}
+                  </span>
+                </AdminTd>
+                <AdminTd>
                   <StatusBadge active={driver.isActive} onLabel="Active" offLabel="Inactive" />
                 </AdminTd>
-                <AdminTd nowrap>
+                <AdminTd>
                   <StatusBadge
                     active={driver.isAvailable}
                     onLabel="Available"
@@ -181,11 +186,8 @@ function DriversPage() {
                     tone="blue"
                   />
                 </AdminTd>
-                <AdminTd
-                  nowrap
-                  className="sticky right-0 bg-white shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.12)] group-hover:bg-slate-50"
-                >
-                  <div className="flex items-center gap-2">
+                <AdminTd>
+                  <div className="flex flex-wrap items-center gap-1">
                     <Link
                       to="/admin/drivers/$id"
                       params={{ id: driver.id }}

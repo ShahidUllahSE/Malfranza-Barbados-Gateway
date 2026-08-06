@@ -295,7 +295,7 @@ function TaxiTripDetailPage() {
           </div>
 
           <div className="hidden lg:block">
-            <AdminTableShell minWidth="56rem">
+            <AdminTableShell>
               <thead className="bg-slate-50">
                 <tr>
                   <AdminTh>Guest</AdminTh>

@@ -3,10 +3,10 @@ import {
   Wifi, Wind, ChefHat, Tv, Bath, Car, WashingMachine, Route as RouteIcon,
   KeyRound, ShoppingBag, CheckCircle2, Sparkles, Zap, MapPin,
 } from "lucide-react";
-import stayKitchen from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_20 PM.png";
-import stay1br from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_34 PM.png";
-import stayBathroom from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_13 PM.png";
-import stayGarden from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_00 PM.png";
+import stayKitchen from "@/assets/newimage/Malfranza Apartment Number 1-5.jpg";
+import stay1br from "@/assets/newimage/Malfranza Apartment Number 2.jpg";
+import stayBathroom from "@/assets/newimage/Malfranza Apartment Number 2-5.jpg";
+import stayGarden from "@/assets/newimage/Malfranza Apartment Number 1-2.jpg";
 
 export const Route = createFileRoute("/amenities")({
   head: () => ({

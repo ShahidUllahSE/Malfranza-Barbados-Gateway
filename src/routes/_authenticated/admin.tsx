@@ -13,6 +13,7 @@ import {
   Menu,
   X,
   Users,
+  Cable,
 } from "lucide-react";
 import { getCurrentAdmin } from "@/lib/api";
 import { Logo } from "@/components/Logo";
@@ -28,8 +29,19 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminLayout,
 });
 
-type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
-const NAV: NavItem[] = [
+type NavLink = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
+type NavGroup = {
+  label: string;
+  icon: typeof LayoutDashboard;
+  children: { to: string; label: string }[];
+};
+type NavEntry = NavLink | NavGroup;
+
+function isNavGroup(item: NavEntry): item is NavGroup {
+  return "children" in item;
+}
+
+const NAV: NavEntry[] = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/admin/bookings", label: "Bookings", icon: ClipboardList },
   { to: "/admin/apartments", label: "Apartments", icon: BedDouble },
@@ -38,6 +50,17 @@ const NAV: NavItem[] = [
   { to: "/admin/drivers", label: "Drivers", icon: Users },
   { to: "/admin/enquiries", label: "Enquiries", icon: MessageSquare },
   { to: "/admin/reports", label: "Reports", icon: BarChart3 },
+  {
+    label: "Channels",
+    icon: Cable,
+    children: [
+      { to: "/admin/channels/booking", label: "Booking.com" },
+      { to: "/admin/channels/airbnb", label: "Airbnb" },
+      { to: "/admin/channels/expedia", label: "Expedia" },
+      { to: "/admin/channels/vrbo", label: "VRBO" },
+      { to: "/admin/channels/direct", label: "Direct website" },
+    ],
+  },
   { to: "/admin/settings", label: "Settings", icon: SettingsIcon },
 ];
 
@@ -67,8 +90,16 @@ function AdminLayout() {
 
   if (status === "checking") {
     return (
-      <div className="min-h-screen bg-brand-cream flex items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading admin…</p>
+      <div className="min-h-screen bg-brand-cream p-6">
+        <div className="mx-auto max-w-7xl space-y-4">
+          <div className="mfz-shimmer h-10 w-48 rounded-lg" />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }, (_, i) => (
+              <div key={i} className="mfz-shimmer h-24 rounded-2xl" />
+            ))}
+          </div>
+          <div className="mfz-shimmer h-64 rounded-2xl" />
+        </div>
       </div>
     );
   }
@@ -142,6 +173,8 @@ function SidebarContent({
   onSignOut: () => void;
   email: string;
 }) {
+  const channelsOpen = pathname.startsWith("/admin/channels") || pathname.startsWith("/admin/beds24");
+
   return (
     <>
       <div className="p-5 border-b border-white/10 hidden lg:block">
@@ -152,6 +185,41 @@ function SidebarContent({
       </div>
       <nav className="flex-1 overflow-y-auto p-3 space-y-1">
         {NAV.map((item) => {
+          if (isNavGroup(item)) {
+            const Icon = item.icon;
+            const groupActive = item.children.some((c) => pathname.startsWith(c.to));
+            return (
+              <div key={item.label} className="pt-1">
+                <div
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium ${
+                    groupActive || channelsOpen ? "text-white" : "text-white/80"
+                  }`}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {item.label}
+                </div>
+                <div className="ml-3 mt-0.5 space-y-0.5 border-l border-white/15 pl-3">
+                  {item.children.map((child) => {
+                    const active = pathname.startsWith(child.to);
+                    return (
+                      <Link
+                        key={child.to}
+                        to={child.to as never}
+                        className={`block rounded-lg px-2.5 py-2 text-[13px] font-medium transition ${
+                          active
+                            ? "bg-white/15 text-white"
+                            : "text-white/70 hover:bg-white/10 hover:text-white"
+                        }`}
+                      >
+                        {child.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          }
+
           const active = item.exact ? pathname === item.to : pathname.startsWith(item.to);
           const Icon = item.icon;
           return (

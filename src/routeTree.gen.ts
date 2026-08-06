@@ -28,11 +28,20 @@ import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminReportsRouteImport } from './routes/_authenticated/admin.reports'
 import { Route as AuthenticatedAdminEnquiriesRouteImport } from './routes/_authenticated/admin.enquiries'
 import { Route as AuthenticatedAdminDriversRouteImport } from './routes/_authenticated/admin.drivers'
+import { Route as AuthenticatedAdminChannelsRouteImport } from './routes/_authenticated/admin.channels'
 import { Route as AuthenticatedAdminCalendarRouteImport } from './routes/_authenticated/admin.calendar'
 import { Route as AuthenticatedAdminBookingsRouteImport } from './routes/_authenticated/admin.bookings'
+import { Route as AuthenticatedAdminBeds24RouteImport } from './routes/_authenticated/admin.beds24'
 import { Route as AuthenticatedAdminApartmentsRouteImport } from './routes/_authenticated/admin.apartments'
+import { Route as AuthenticatedAdminChannelsIndexRouteImport } from './routes/_authenticated/admin.channels.index'
 import { Route as AuthenticatedAdminTaxiIdRouteImport } from './routes/_authenticated/admin.taxi_.$id'
+import { Route as AuthenticatedAdminInsightsSlugRouteImport } from './routes/_authenticated/admin.insights.$slug'
 import { Route as AuthenticatedAdminDriversIdRouteImport } from './routes/_authenticated/admin.drivers_.$id'
+import { Route as AuthenticatedAdminChannelsVrboRouteImport } from './routes/_authenticated/admin.channels.vrbo'
+import { Route as AuthenticatedAdminChannelsExpediaRouteImport } from './routes/_authenticated/admin.channels.expedia'
+import { Route as AuthenticatedAdminChannelsDirectRouteImport } from './routes/_authenticated/admin.channels.direct'
+import { Route as AuthenticatedAdminChannelsBookingRouteImport } from './routes/_authenticated/admin.channels.booking'
+import { Route as AuthenticatedAdminChannelsAirbnbRouteImport } from './routes/_authenticated/admin.channels.airbnb'
 
 const TaxiRoute = TaxiRouteImport.update({
   id: '/taxi',
@@ -132,6 +141,12 @@ const AuthenticatedAdminDriversRoute =
     path: '/drivers',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminChannelsRoute =
+  AuthenticatedAdminChannelsRouteImport.update({
+    id: '/channels',
+    path: '/channels',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminCalendarRoute =
   AuthenticatedAdminCalendarRouteImport.update({
     id: '/calendar',
@@ -144,11 +159,23 @@ const AuthenticatedAdminBookingsRoute =
     path: '/bookings',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminBeds24Route =
+  AuthenticatedAdminBeds24RouteImport.update({
+    id: '/beds24',
+    path: '/beds24',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminApartmentsRoute =
   AuthenticatedAdminApartmentsRouteImport.update({
     id: '/apartments',
     path: '/apartments',
     getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminChannelsIndexRoute =
+  AuthenticatedAdminChannelsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAdminChannelsRoute,
   } as any)
 const AuthenticatedAdminTaxiIdRoute =
   AuthenticatedAdminTaxiIdRouteImport.update({
@@ -156,11 +183,47 @@ const AuthenticatedAdminTaxiIdRoute =
     path: '/taxi/$id',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminInsightsSlugRoute =
+  AuthenticatedAdminInsightsSlugRouteImport.update({
+    id: '/insights/$slug',
+    path: '/insights/$slug',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminDriversIdRoute =
   AuthenticatedAdminDriversIdRouteImport.update({
     id: '/drivers_/$id',
     path: '/drivers/$id',
     getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminChannelsVrboRoute =
+  AuthenticatedAdminChannelsVrboRouteImport.update({
+    id: '/vrbo',
+    path: '/vrbo',
+    getParentRoute: () => AuthenticatedAdminChannelsRoute,
+  } as any)
+const AuthenticatedAdminChannelsExpediaRoute =
+  AuthenticatedAdminChannelsExpediaRouteImport.update({
+    id: '/expedia',
+    path: '/expedia',
+    getParentRoute: () => AuthenticatedAdminChannelsRoute,
+  } as any)
+const AuthenticatedAdminChannelsDirectRoute =
+  AuthenticatedAdminChannelsDirectRouteImport.update({
+    id: '/direct',
+    path: '/direct',
+    getParentRoute: () => AuthenticatedAdminChannelsRoute,
+  } as any)
+const AuthenticatedAdminChannelsBookingRoute =
+  AuthenticatedAdminChannelsBookingRouteImport.update({
+    id: '/booking',
+    path: '/booking',
+    getParentRoute: () => AuthenticatedAdminChannelsRoute,
+  } as any)
+const AuthenticatedAdminChannelsAirbnbRoute =
+  AuthenticatedAdminChannelsAirbnbRouteImport.update({
+    id: '/airbnb',
+    path: '/airbnb',
+    getParentRoute: () => AuthenticatedAdminChannelsRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -177,16 +240,25 @@ export interface FileRoutesByFullPath {
   '/my-bookings/$reference': typeof MyBookingsReferenceRoute
   '/stays/$id': typeof StaysIdRoute
   '/admin/apartments': typeof AuthenticatedAdminApartmentsRoute
+  '/admin/beds24': typeof AuthenticatedAdminBeds24Route
   '/admin/bookings': typeof AuthenticatedAdminBookingsRoute
   '/admin/calendar': typeof AuthenticatedAdminCalendarRoute
+  '/admin/channels': typeof AuthenticatedAdminChannelsRouteWithChildren
   '/admin/drivers': typeof AuthenticatedAdminDriversRoute
   '/admin/enquiries': typeof AuthenticatedAdminEnquiriesRoute
   '/admin/reports': typeof AuthenticatedAdminReportsRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/taxi': typeof AuthenticatedAdminTaxiRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/admin/channels/airbnb': typeof AuthenticatedAdminChannelsAirbnbRoute
+  '/admin/channels/booking': typeof AuthenticatedAdminChannelsBookingRoute
+  '/admin/channels/direct': typeof AuthenticatedAdminChannelsDirectRoute
+  '/admin/channels/expedia': typeof AuthenticatedAdminChannelsExpediaRoute
+  '/admin/channels/vrbo': typeof AuthenticatedAdminChannelsVrboRoute
   '/admin/drivers/$id': typeof AuthenticatedAdminDriversIdRoute
+  '/admin/insights/$slug': typeof AuthenticatedAdminInsightsSlugRoute
   '/admin/taxi/$id': typeof AuthenticatedAdminTaxiIdRoute
+  '/admin/channels/': typeof AuthenticatedAdminChannelsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -201,6 +273,7 @@ export interface FileRoutesByTo {
   '/my-bookings/$reference': typeof MyBookingsReferenceRoute
   '/stays/$id': typeof StaysIdRoute
   '/admin/apartments': typeof AuthenticatedAdminApartmentsRoute
+  '/admin/beds24': typeof AuthenticatedAdminBeds24Route
   '/admin/bookings': typeof AuthenticatedAdminBookingsRoute
   '/admin/calendar': typeof AuthenticatedAdminCalendarRoute
   '/admin/drivers': typeof AuthenticatedAdminDriversRoute
@@ -209,8 +282,15 @@ export interface FileRoutesByTo {
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/taxi': typeof AuthenticatedAdminTaxiRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
+  '/admin/channels/airbnb': typeof AuthenticatedAdminChannelsAirbnbRoute
+  '/admin/channels/booking': typeof AuthenticatedAdminChannelsBookingRoute
+  '/admin/channels/direct': typeof AuthenticatedAdminChannelsDirectRoute
+  '/admin/channels/expedia': typeof AuthenticatedAdminChannelsExpediaRoute
+  '/admin/channels/vrbo': typeof AuthenticatedAdminChannelsVrboRoute
   '/admin/drivers/$id': typeof AuthenticatedAdminDriversIdRoute
+  '/admin/insights/$slug': typeof AuthenticatedAdminInsightsSlugRoute
   '/admin/taxi/$id': typeof AuthenticatedAdminTaxiIdRoute
+  '/admin/channels': typeof AuthenticatedAdminChannelsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -228,16 +308,25 @@ export interface FileRoutesById {
   '/my-bookings_/$reference': typeof MyBookingsReferenceRoute
   '/stays_/$id': typeof StaysIdRoute
   '/_authenticated/admin/apartments': typeof AuthenticatedAdminApartmentsRoute
+  '/_authenticated/admin/beds24': typeof AuthenticatedAdminBeds24Route
   '/_authenticated/admin/bookings': typeof AuthenticatedAdminBookingsRoute
   '/_authenticated/admin/calendar': typeof AuthenticatedAdminCalendarRoute
+  '/_authenticated/admin/channels': typeof AuthenticatedAdminChannelsRouteWithChildren
   '/_authenticated/admin/drivers': typeof AuthenticatedAdminDriversRoute
   '/_authenticated/admin/enquiries': typeof AuthenticatedAdminEnquiriesRoute
   '/_authenticated/admin/reports': typeof AuthenticatedAdminReportsRoute
   '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/_authenticated/admin/taxi': typeof AuthenticatedAdminTaxiRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/_authenticated/admin/channels/airbnb': typeof AuthenticatedAdminChannelsAirbnbRoute
+  '/_authenticated/admin/channels/booking': typeof AuthenticatedAdminChannelsBookingRoute
+  '/_authenticated/admin/channels/direct': typeof AuthenticatedAdminChannelsDirectRoute
+  '/_authenticated/admin/channels/expedia': typeof AuthenticatedAdminChannelsExpediaRoute
+  '/_authenticated/admin/channels/vrbo': typeof AuthenticatedAdminChannelsVrboRoute
   '/_authenticated/admin/drivers_/$id': typeof AuthenticatedAdminDriversIdRoute
+  '/_authenticated/admin/insights/$slug': typeof AuthenticatedAdminInsightsSlugRoute
   '/_authenticated/admin/taxi_/$id': typeof AuthenticatedAdminTaxiIdRoute
+  '/_authenticated/admin/channels/': typeof AuthenticatedAdminChannelsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -255,16 +344,25 @@ export interface FileRouteTypes {
     | '/my-bookings/$reference'
     | '/stays/$id'
     | '/admin/apartments'
+    | '/admin/beds24'
     | '/admin/bookings'
     | '/admin/calendar'
+    | '/admin/channels'
     | '/admin/drivers'
     | '/admin/enquiries'
     | '/admin/reports'
     | '/admin/settings'
     | '/admin/taxi'
     | '/admin/'
+    | '/admin/channels/airbnb'
+    | '/admin/channels/booking'
+    | '/admin/channels/direct'
+    | '/admin/channels/expedia'
+    | '/admin/channels/vrbo'
     | '/admin/drivers/$id'
+    | '/admin/insights/$slug'
     | '/admin/taxi/$id'
+    | '/admin/channels/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -279,6 +377,7 @@ export interface FileRouteTypes {
     | '/my-bookings/$reference'
     | '/stays/$id'
     | '/admin/apartments'
+    | '/admin/beds24'
     | '/admin/bookings'
     | '/admin/calendar'
     | '/admin/drivers'
@@ -287,8 +386,15 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/taxi'
     | '/admin'
+    | '/admin/channels/airbnb'
+    | '/admin/channels/booking'
+    | '/admin/channels/direct'
+    | '/admin/channels/expedia'
+    | '/admin/channels/vrbo'
     | '/admin/drivers/$id'
+    | '/admin/insights/$slug'
     | '/admin/taxi/$id'
+    | '/admin/channels'
   id:
     | '__root__'
     | '/'
@@ -305,16 +411,25 @@ export interface FileRouteTypes {
     | '/my-bookings_/$reference'
     | '/stays_/$id'
     | '/_authenticated/admin/apartments'
+    | '/_authenticated/admin/beds24'
     | '/_authenticated/admin/bookings'
     | '/_authenticated/admin/calendar'
+    | '/_authenticated/admin/channels'
     | '/_authenticated/admin/drivers'
     | '/_authenticated/admin/enquiries'
     | '/_authenticated/admin/reports'
     | '/_authenticated/admin/settings'
     | '/_authenticated/admin/taxi'
     | '/_authenticated/admin/'
+    | '/_authenticated/admin/channels/airbnb'
+    | '/_authenticated/admin/channels/booking'
+    | '/_authenticated/admin/channels/direct'
+    | '/_authenticated/admin/channels/expedia'
+    | '/_authenticated/admin/channels/vrbo'
     | '/_authenticated/admin/drivers_/$id'
+    | '/_authenticated/admin/insights/$slug'
     | '/_authenticated/admin/taxi_/$id'
+    | '/_authenticated/admin/channels/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -467,6 +582,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminDriversRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/channels': {
+      id: '/_authenticated/admin/channels'
+      path: '/channels'
+      fullPath: '/admin/channels'
+      preLoaderRoute: typeof AuthenticatedAdminChannelsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/calendar': {
       id: '/_authenticated/admin/calendar'
       path: '/calendar'
@@ -481,6 +603,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminBookingsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/beds24': {
+      id: '/_authenticated/admin/beds24'
+      path: '/beds24'
+      fullPath: '/admin/beds24'
+      preLoaderRoute: typeof AuthenticatedAdminBeds24RouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/apartments': {
       id: '/_authenticated/admin/apartments'
       path: '/apartments'
@@ -488,11 +617,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminApartmentsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/channels/': {
+      id: '/_authenticated/admin/channels/'
+      path: '/'
+      fullPath: '/admin/channels/'
+      preLoaderRoute: typeof AuthenticatedAdminChannelsIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminChannelsRoute
+    }
     '/_authenticated/admin/taxi_/$id': {
       id: '/_authenticated/admin/taxi_/$id'
       path: '/taxi/$id'
       fullPath: '/admin/taxi/$id'
       preLoaderRoute: typeof AuthenticatedAdminTaxiIdRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/insights/$slug': {
+      id: '/_authenticated/admin/insights/$slug'
+      path: '/insights/$slug'
+      fullPath: '/admin/insights/$slug'
+      preLoaderRoute: typeof AuthenticatedAdminInsightsSlugRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/drivers_/$id': {
@@ -502,13 +645,78 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminDriversIdRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/channels/vrbo': {
+      id: '/_authenticated/admin/channels/vrbo'
+      path: '/vrbo'
+      fullPath: '/admin/channels/vrbo'
+      preLoaderRoute: typeof AuthenticatedAdminChannelsVrboRouteImport
+      parentRoute: typeof AuthenticatedAdminChannelsRoute
+    }
+    '/_authenticated/admin/channels/expedia': {
+      id: '/_authenticated/admin/channels/expedia'
+      path: '/expedia'
+      fullPath: '/admin/channels/expedia'
+      preLoaderRoute: typeof AuthenticatedAdminChannelsExpediaRouteImport
+      parentRoute: typeof AuthenticatedAdminChannelsRoute
+    }
+    '/_authenticated/admin/channels/direct': {
+      id: '/_authenticated/admin/channels/direct'
+      path: '/direct'
+      fullPath: '/admin/channels/direct'
+      preLoaderRoute: typeof AuthenticatedAdminChannelsDirectRouteImport
+      parentRoute: typeof AuthenticatedAdminChannelsRoute
+    }
+    '/_authenticated/admin/channels/booking': {
+      id: '/_authenticated/admin/channels/booking'
+      path: '/booking'
+      fullPath: '/admin/channels/booking'
+      preLoaderRoute: typeof AuthenticatedAdminChannelsBookingRouteImport
+      parentRoute: typeof AuthenticatedAdminChannelsRoute
+    }
+    '/_authenticated/admin/channels/airbnb': {
+      id: '/_authenticated/admin/channels/airbnb'
+      path: '/airbnb'
+      fullPath: '/admin/channels/airbnb'
+      preLoaderRoute: typeof AuthenticatedAdminChannelsAirbnbRouteImport
+      parentRoute: typeof AuthenticatedAdminChannelsRoute
+    }
   }
 }
 
+interface AuthenticatedAdminChannelsRouteChildren {
+  AuthenticatedAdminChannelsAirbnbRoute: typeof AuthenticatedAdminChannelsAirbnbRoute
+  AuthenticatedAdminChannelsBookingRoute: typeof AuthenticatedAdminChannelsBookingRoute
+  AuthenticatedAdminChannelsDirectRoute: typeof AuthenticatedAdminChannelsDirectRoute
+  AuthenticatedAdminChannelsExpediaRoute: typeof AuthenticatedAdminChannelsExpediaRoute
+  AuthenticatedAdminChannelsVrboRoute: typeof AuthenticatedAdminChannelsVrboRoute
+  AuthenticatedAdminChannelsIndexRoute: typeof AuthenticatedAdminChannelsIndexRoute
+}
+
+const AuthenticatedAdminChannelsRouteChildren: AuthenticatedAdminChannelsRouteChildren =
+  {
+    AuthenticatedAdminChannelsAirbnbRoute:
+      AuthenticatedAdminChannelsAirbnbRoute,
+    AuthenticatedAdminChannelsBookingRoute:
+      AuthenticatedAdminChannelsBookingRoute,
+    AuthenticatedAdminChannelsDirectRoute:
+      AuthenticatedAdminChannelsDirectRoute,
+    AuthenticatedAdminChannelsExpediaRoute:
+      AuthenticatedAdminChannelsExpediaRoute,
+    AuthenticatedAdminChannelsVrboRoute: AuthenticatedAdminChannelsVrboRoute,
+    AuthenticatedAdminChannelsIndexRoute: AuthenticatedAdminChannelsIndexRoute,
+  }
+
+const AuthenticatedAdminChannelsRouteWithChildren =
+  AuthenticatedAdminChannelsRoute._addFileChildren(
+    AuthenticatedAdminChannelsRouteChildren,
+  )
+
 interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminApartmentsRoute: typeof AuthenticatedAdminApartmentsRoute
+  AuthenticatedAdminBeds24Route: typeof AuthenticatedAdminBeds24Route
   AuthenticatedAdminBookingsRoute: typeof AuthenticatedAdminBookingsRoute
   AuthenticatedAdminCalendarRoute: typeof AuthenticatedAdminCalendarRoute
+  AuthenticatedAdminChannelsRoute: typeof AuthenticatedAdminChannelsRouteWithChildren
   AuthenticatedAdminDriversRoute: typeof AuthenticatedAdminDriversRoute
   AuthenticatedAdminEnquiriesRoute: typeof AuthenticatedAdminEnquiriesRoute
   AuthenticatedAdminReportsRoute: typeof AuthenticatedAdminReportsRoute
@@ -516,13 +724,16 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminTaxiRoute: typeof AuthenticatedAdminTaxiRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAdminDriversIdRoute: typeof AuthenticatedAdminDriversIdRoute
+  AuthenticatedAdminInsightsSlugRoute: typeof AuthenticatedAdminInsightsSlugRoute
   AuthenticatedAdminTaxiIdRoute: typeof AuthenticatedAdminTaxiIdRoute
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminApartmentsRoute: AuthenticatedAdminApartmentsRoute,
+  AuthenticatedAdminBeds24Route: AuthenticatedAdminBeds24Route,
   AuthenticatedAdminBookingsRoute: AuthenticatedAdminBookingsRoute,
   AuthenticatedAdminCalendarRoute: AuthenticatedAdminCalendarRoute,
+  AuthenticatedAdminChannelsRoute: AuthenticatedAdminChannelsRouteWithChildren,
   AuthenticatedAdminDriversRoute: AuthenticatedAdminDriversRoute,
   AuthenticatedAdminEnquiriesRoute: AuthenticatedAdminEnquiriesRoute,
   AuthenticatedAdminReportsRoute: AuthenticatedAdminReportsRoute,
@@ -530,6 +741,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminTaxiRoute: AuthenticatedAdminTaxiRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedAdminDriversIdRoute: AuthenticatedAdminDriversIdRoute,
+  AuthenticatedAdminInsightsSlugRoute: AuthenticatedAdminInsightsSlugRoute,
   AuthenticatedAdminTaxiIdRoute: AuthenticatedAdminTaxiIdRoute,
 }
 

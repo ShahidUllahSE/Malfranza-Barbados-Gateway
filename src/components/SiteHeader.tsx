@@ -56,15 +56,7 @@ export function SiteHeader() {
 
   function handleBookNow() {
     setOpen(false);
-    if (user) {
-      navigate({ to: "/book" });
-      return;
-    }
-    openAuthModal({
-      mode: "signin",
-      reason: "Sign in to book a stay. Your booking will appear under My Bookings.",
-      redirectTo: "/book",
-    });
+    navigate({ to: "/book" });
   }
 
   function handleSignOut() {

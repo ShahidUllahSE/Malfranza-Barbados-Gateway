@@ -6,15 +6,15 @@ import {
   CheckCircle2, ShieldCheck, Sparkles, ArrowRight,
 } from "lucide-react";
 import { APARTMENTS, fetchApartments, type Apartment } from "@/data/apartments";
-import heroImg from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_43 PM.png";
-import stayKitchen from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_20 PM.png";
-import stay2br from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_43 PM.png";
-import stayBathroom from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_13 PM.png";
-import stayGarden from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_00 PM.png";
-import stayTropical from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_27 PM.png";
-import stay1br from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_34 PM.png";
+import heroImg from "@/assets/newimage/Malfranza Apartment Number 1.jpg";
+import stayKitchen from "@/assets/newimage/Malfranza Apartment Number 1-5.jpg";
+import stay2br from "@/assets/newimage/Malfranza A AND B.jpg";
+import stayBathroom from "@/assets/newimage/Malfranza Apartment Number 2-5.jpg";
+import stayGarden from "@/assets/newimage/Malfranza Apartment Number 1-2.jpg";
+import stayTropical from "@/assets/newimage/Malfranza Apartment Number 3.jpg";
+import stay1br from "@/assets/newimage/Malfranza Apartment Number 2.jpg";
 import taxiVan from "@/assets/ChatGPT Image Jul 2, 2026, 10_48_48 PM.png";
-import locationBanner from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_00 PM.png";
+import locationBanner from "@/assets/newimage/Malfranza Apartment Number 1-3.jpg";
 
 const homeSearchSchema = z.object({
   auth: z.enum(["signin", "signup", "setup"]).optional(),

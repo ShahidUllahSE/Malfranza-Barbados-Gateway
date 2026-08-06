@@ -19,12 +19,14 @@ import {
   X,
   Lock,
 } from "lucide-react";
-import { apiRequest } from "@/lib/api";
+import { apiRequest, setUserToken, clearAdminToken, clearDriverToken } from "@/lib/api";
 import { useUserAuth } from "@/context/UserAuthContext";
 import {
   checkApartmentAvailability,
   createApartmentBooking,
   createTaxiBooking,
+  fetchTaxiFareSettings,
+  guestFareFromSettings,
 } from "@/lib/bookings";
 import { APARTMENTS as SEEDED_APTS } from "@/data/apartments";
 
@@ -118,7 +120,7 @@ const STEPS = [
 
 function BookWizard() {
   const search = Route.useSearch();
-  const { user, openAuthModal } = useUserAuth();
+  const { user, refreshSession } = useUserAuth();
 
   // Data
   const [apartments, setApartments] = useState<Apartment[]>([]);
@@ -144,6 +146,23 @@ function BookWizard() {
   const [taxiTime, setTaxiTime] = useState("12:00");
   const [taxiFlight, setTaxiFlight] = useState("");
   const [taxiPassengers, setTaxiPassengers] = useState(2);
+  const [airportPickupFare, setAirportPickupFare] = useState(30);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchTaxiFareSettings()
+      .then((settings) => {
+        if (!cancelled) {
+          setAirportPickupFare(guestFareFromSettings(settings, taxiPassengers));
+        }
+      })
+      .catch(() => {
+        /* keep fallback */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [taxiPassengers]);
 
   // Guest details
   const [fullName, setFullName] = useState("");
@@ -171,6 +190,8 @@ function BookWizard() {
     taxiDriverName?: string;
     taxiVehicle?: string | null;
     taxiEtaMins?: number | null;
+    accountCreated?: boolean;
+    guestEmail?: string;
   } | null>(null);
 
   const nights = nightsBetween(checkIn, checkOut);
@@ -183,7 +204,7 @@ function BookWizard() {
     : selectedApt?.price_per_night ?? 0;
 
   const roomTotal = selectedApt ? selectedRate * nights : 0;
-  const pickupFee = taxiOn ? 30 : 0;
+  const pickupFee = taxiOn ? airportPickupFare : 0;
   const bundleDiscount = taxiOn ? Math.round(roomTotal * 0.05) : 0;
   const total = Math.max(0, roomTotal + pickupFee - bundleDiscount);
 
@@ -354,14 +375,6 @@ function BookWizard() {
   /* ---- Dummy payment submit ---- */
   async function handleDummyPay() {
     if (!selectedApt) return;
-    if (!user) {
-      openAuthModal({
-        mode: "signin",
-        reason: "Sign in to complete your booking. This links the stay to your account so you can find it under My Bookings.",
-      });
-      toast.error("Sign in required to book");
-      return;
-    }
     if (selectionUnavailable) {
       toast.error("This unit is already booked for those dates. Choose different dates.");
       setStep(0);
@@ -373,7 +386,7 @@ function BookWizard() {
       await new Promise((r) => setTimeout(r, 1200));
       const txnId = `DEMO-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
 
-      const ref = await createApartmentBooking({
+      const booking = await createApartmentBooking({
         apartmentId: selectedApt.id,
         unitIds: selectedUnits.length > 0 ? selectedUnits.map((unit) => unit.id) : undefined,
         guestName: fullName.trim(),
@@ -399,6 +412,16 @@ function BookWizard() {
           : undefined,
       });
 
+      const ref = booking.bookingReference;
+
+      // Auto-sign-in guest after booking so My Bookings works immediately
+      if (booking.token) {
+        clearAdminToken();
+        clearDriverToken();
+        setUserToken(booking.token);
+        await refreshSession().catch(() => undefined);
+      }
+
       // Also record a taxi_bookings entry so it appears in Taxi Trips admin
       let taxiRef: string | undefined;
       let taxiDriverName: string | undefined;
@@ -422,6 +445,12 @@ function BookWizard() {
           taxiDriverName = taxi.driver?.name;
           taxiVehicle = taxi.driver?.vehicleLabel ?? null;
           taxiEtaMins = taxi.durationMinutes;
+          if (taxi.token) {
+            clearAdminToken();
+            clearDriverToken();
+            setUserToken(taxi.token);
+            await refreshSession().catch(() => undefined);
+          }
         } catch {
           toast.warning("Your stay was booked, but the taxi request needs manual confirmation.");
         }
@@ -448,6 +477,8 @@ function BookWizard() {
         taxiDriverName,
         taxiVehicle,
         taxiEtaMins,
+        accountCreated: booking.accountCreated,
+        guestEmail: email.trim().toLowerCase(),
       });
       setStep(STEPS.length - 1);
     } catch (e: unknown) {
@@ -470,6 +501,8 @@ function BookWizard() {
         taxiDriverName={confirmation.taxiDriverName}
         taxiVehicle={confirmation.taxiVehicle}
         taxiEtaMins={confirmation.taxiEtaMins}
+        accountCreated={confirmation.accountCreated}
+        guestEmail={confirmation.guestEmail}
         apt={selectedApt}
         checkIn={checkIn}
         checkOut={checkOut}
@@ -479,10 +512,6 @@ function BookWizard() {
         taxi={taxiOn ? { date: taxiDate, time: taxiTime, passengers: taxiPassengers, flight: taxiFlight } : null}
       />
     );
-  }
-
-  if (!user) {
-    return <BookSignInGate search={search} />;
   }
 
   return (
@@ -580,6 +609,7 @@ function BookWizard() {
                 setTaxiFlight={setTaxiFlight}
                 taxiPassengers={taxiPassengers}
                 setTaxiPassengers={setTaxiPassengers}
+                pickupFee={pickupFee}
               />
             )}
             {step === 3 && (
@@ -592,7 +622,7 @@ function BookWizard() {
                 setPhone={setPhone}
                 requests={requests}
                 setRequests={setRequests}
-                emailLocked
+                emailLocked={!!user}
               />
             )}
             {step === 4 && (
@@ -1011,10 +1041,11 @@ function StepTaxi(props: {
   taxiTime: string; setTaxiTime: (v: string) => void;
   taxiFlight: string; setTaxiFlight: (v: string) => void;
   taxiPassengers: number; setTaxiPassengers: (n: number) => void;
+  pickupFee: number;
 }) {
   const {
     taxiOn, setTaxiOn, taxiDate, setTaxiDate, taxiTime, setTaxiTime,
-    taxiFlight, setTaxiFlight, taxiPassengers, setTaxiPassengers,
+    taxiFlight, setTaxiFlight, taxiPassengers, setTaxiPassengers, pickupFee,
   } = props;
   return (
     <div>
@@ -1030,7 +1061,9 @@ function StepTaxi(props: {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <p className="font-bold text-brand-green">Add airport pickup and save 5% on your stay</p>
-                <p className="mt-0.5 text-sm text-muted-foreground">$30 flat fee · reliable driver, on-time meet & greet</p>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  {money(pickupFee)} for {taxiPassengers} guest{taxiPassengers > 1 ? "s" : ""} · reliable driver, on-time meet & greet
+                </p>
               </div>
               <button
                 type="button"
@@ -1095,7 +1128,7 @@ function StepDetails(props: {
       <p className="mt-1 text-sm text-muted-foreground">
         {emailLocked
           ? "Confirmation goes to your account email. You can update your name or phone if needed."
-          : "We'll send the confirmation to your email."}
+          : "No account needed — we'll create one and email you a temporary password."}
       </p>
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <Field label="Full name">
@@ -1261,6 +1294,8 @@ function ConfirmationScreen(props: {
   taxiDriverName?: string;
   taxiVehicle?: string | null;
   taxiEtaMins?: number | null;
+  accountCreated?: boolean;
+  guestEmail?: string;
   apt: Apartment | null;
   checkIn: string;
   checkOut: string;
@@ -1275,6 +1310,8 @@ function ConfirmationScreen(props: {
     taxiDriverName,
     taxiVehicle,
     taxiEtaMins,
+    accountCreated,
+    guestEmail,
     apt,
     checkIn,
     checkOut,
@@ -1292,7 +1329,11 @@ function ConfirmationScreen(props: {
             <CheckCircle2 className="h-8 w-8" />
           </div>
           <h1 className="mt-4 text-2xl font-bold text-brand-green">Booking confirmed</h1>
-          <p className="mt-1 text-sm text-muted-foreground">A confirmation has been recorded. You'll receive an email shortly.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {accountCreated
+              ? `Account details and a temporary password were sent to ${guestEmail || "your email"}.`
+              : "A confirmation email is on its way. You can also find this stay under My Bookings."}
+          </p>
 
           <div className="mt-6 rounded-2xl border border-border bg-brand-cream/50 p-5 text-left">
             <div className="flex items-center justify-between gap-2">
@@ -1360,59 +1401,6 @@ function ConfirmationScreen(props: {
       </div>
       {/* silence unused import warning */}
       <X className="hidden" />
-    </div>
-  );
-}
-
-function BookSignInGate({
-  search,
-}: {
-  search: { apartment?: string; unit?: string; checkIn?: string; checkOut?: string; guests?: number };
-}) {
-  const { openAuthModal } = useUserAuth();
-
-  const redirectTo = useMemo(() => {
-    const params = new URLSearchParams();
-    if (search.apartment) params.set("apartment", search.apartment);
-    if (search.unit) params.set("unit", search.unit);
-    if (search.checkIn) params.set("checkIn", search.checkIn);
-    if (search.checkOut) params.set("checkOut", search.checkOut);
-    if (search.guests != null) params.set("guests", String(search.guests));
-    const qs = params.toString();
-    return qs ? `/book?${qs}` : "/book";
-  }, [search.apartment, search.unit, search.checkIn, search.checkOut, search.guests]);
-
-  useEffect(() => {
-    openAuthModal({
-      mode: "signin",
-      reason: "Sign in to continue booking your stay.",
-      redirectTo,
-    });
-  }, [openAuthModal, redirectTo]);
-
-  return (
-    <div className="min-h-[50vh] bg-brand-cream/40">
-      <div className="mx-auto max-w-lg px-4 py-16 text-center sm:px-6">
-        <p className="text-sm text-muted-foreground">Opening sign in…</p>
-        <button
-          type="button"
-          onClick={() =>
-            openAuthModal({
-              mode: "signin",
-              reason: "Sign in to continue booking your stay.",
-              redirectTo,
-            })
-          }
-          className="mt-4 inline-flex items-center justify-center rounded-full bg-brand-orange px-6 py-3 text-sm font-semibold text-white shadow-sm hover:brightness-105"
-        >
-          Sign in
-        </button>
-        <div className="mt-4">
-          <Link to="/stays" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-brand-green">
-            <ArrowLeft className="h-4 w-4" /> Browse stays
-          </Link>
-        </div>
-      </div>
     </div>
   );
 }

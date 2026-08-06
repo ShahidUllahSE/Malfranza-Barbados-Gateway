@@ -12,6 +12,7 @@ import { useEffect } from "react";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { SiteHeader } from "../components/SiteHeader";
 import { SiteFooter } from "../components/SiteFooter";
+import { WhatsAppFloat } from "../components/WhatsAppFloat";
 import { UserAuthProvider } from "../context/UserAuthContext";
 import { Toaster } from "../components/ui/sonner";
 
@@ -180,6 +181,7 @@ function RootComponent() {
               <Outlet />
             </main>
             <SiteFooter />
+            <WhatsAppFloat />
           </div>
         )}
       </UserAuthProvider>

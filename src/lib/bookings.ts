@@ -100,16 +100,29 @@ export type ApartmentBookingInput = {
   };
 };
 
-export async function createApartmentBooking(input: ApartmentBookingInput) {
-  if (!getUserToken()) {
-    throw new Error("Sign in required to book a stay");
-  }
-  const result = await apiRequest<{ bookingReference: string }>("/bookings", {
+export type ApartmentBookingResult = {
+  bookingReference: string;
+  status?: string;
+  paymentStatus?: string;
+  nights?: number;
+  totalAmount?: number;
+  accountCreated?: boolean;
+  token?: string | null;
+  user?: {
+    id: string;
+    email: string;
+    name: string;
+    phone?: string | null;
+    role: "user";
+  };
+};
+
+export async function createApartmentBooking(input: ApartmentBookingInput): Promise<ApartmentBookingResult> {
+  return apiRequest<ApartmentBookingResult>("/bookings", {
     method: "POST",
     body: JSON.stringify(input),
-    userAuth: true,
+    optionalUserAuth: true,
   });
-  return result.bookingReference;
 }
 
 export async function getPublicBooking(reference: string, email: string) {
@@ -143,6 +156,15 @@ export type TaxiBookingResult = {
   pickupLocation?: string;
   dropoffLocation?: string;
   serviceType?: string;
+  accountCreated?: boolean;
+  token?: string | null;
+  user?: {
+    id: string;
+    email: string;
+    name: string;
+    phone?: string | null;
+    role: "user";
+  };
   driver: {
     id: string;
     name: string;
@@ -152,13 +174,10 @@ export type TaxiBookingResult = {
 };
 
 export async function createTaxiBooking(input: TaxiBookingInput): Promise<TaxiBookingResult> {
-  if (!getUserToken()) {
-    throw new Error("Sign in required to book a ride");
-  }
   return apiRequest<TaxiBookingResult>("/taxi/bookings", {
     method: "POST",
     body: JSON.stringify(input),
-    userAuth: true,
+    optionalUserAuth: true,
   });
 }
 
@@ -168,7 +187,43 @@ export type TaxiFareEstimate = {
   estimatedFare: number;
   currency?: string;
   estimated?: boolean;
+  guestFare?: number;
+  perKmUsd?: number;
 };
+
+export type TaxiFareSettings = {
+  fareFor1Guest: number;
+  fareFor2Guests: number;
+  fareFor3Guests: number;
+  fareFor4PlusGuests: number;
+  perKmUsd: number;
+  minimumFareUsd: number;
+};
+
+export function guestFareFromSettings(settings: TaxiFareSettings, passengers: number): number {
+  if (passengers <= 1) return settings.fareFor1Guest;
+  if (passengers === 2) return settings.fareFor2Guests;
+  if (passengers === 3) return settings.fareFor3Guests;
+  return settings.fareFor4PlusGuests;
+}
+
+export async function fetchTaxiFareSettings(): Promise<TaxiFareSettings> {
+  return apiRequest<TaxiFareSettings>("/taxi/fare-settings");
+}
+
+export async function fetchAdminTaxiFareSettings(): Promise<TaxiFareSettings> {
+  return apiRequest<TaxiFareSettings>("/admin/taxi/settings", { auth: true });
+}
+
+export async function updateAdminTaxiFareSettings(
+  settings: TaxiFareSettings,
+): Promise<TaxiFareSettings> {
+  return apiRequest<TaxiFareSettings>("/admin/taxi/settings", {
+    method: "PUT",
+    auth: true,
+    body: JSON.stringify(settings),
+  });
+}
 
 /** Client-side fare estimate (replaces former TanStack Start server function). */
 export async function estimateTaxiFare(input: {

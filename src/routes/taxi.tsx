@@ -3,11 +3,12 @@ import { useState, useEffect } from "react";
 import { z } from "zod";
 import {
   Clock, Sparkles, ShieldCheck, Plane, Car, Users, MapPin, Compass,
-  Calendar, Watch, User, ArrowRight, CheckCircle2, HeartHandshake, DollarSign, Lock,
+  Calendar, Watch, User, ArrowRight, CheckCircle2, HeartHandshake, DollarSign,
 } from "lucide-react";
 import taxiHero from "@/assets/ChatGPT Image Jul 2, 2026, 10_48_48 PM.png";
-import { createTaxiBooking, type TaxiBookingResult } from "@/lib/bookings";
+import { createTaxiBooking, estimateTaxiFare, fetchTaxiFareSettings, type TaxiBookingResult, type TaxiFareSettings } from "@/lib/bookings";
 import { useUserAuth } from "@/context/UserAuthContext";
+import { clearAdminToken, clearDriverToken, setUserToken } from "@/lib/api";
 import { toast } from "sonner";
 
 const taxiSearchSchema = z.object({
@@ -42,7 +43,7 @@ const SERVICE_TYPES = [
 
 function TaxiPage() {
   const search = Route.useSearch();
-  const { user, openAuthModal } = useUserAuth();
+  const { user, refreshSession } = useUserAuth();
   const [form, setForm] = useState({
     serviceType: search.serviceType ?? SERVICE_TYPES[0],
     pickup: search.pickup ?? "",
@@ -57,6 +58,21 @@ function TaxiPage() {
   const [submitting, setSubmitting] = useState(false);
   const [confirmation, setConfirmation] = useState<TaxiBookingResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fareSettings, setFareSettings] = useState<TaxiFareSettings | null>(null);
+  const [estimate, setEstimate] = useState<{ fare: number; distanceKm?: number } | null>(null);
+  const [estimating, setEstimating] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchTaxiFareSettings()
+      .then((settings) => {
+        if (!cancelled) setFareSettings(settings);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!user) {
@@ -71,16 +87,45 @@ function TaxiPage() {
     }));
   }, [user]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) {
-      openAuthModal({
-        mode: "signin",
-        reason: "Sign in to book a taxi. Rides are saved to your account under My Bookings.",
-      });
-      toast.error("Sign in required to book a ride");
+  // Live fare estimate when pickup, drop-off, or passengers change.
+  useEffect(() => {
+    const pickup = form.pickup.trim();
+    const dropoff = form.dropoff.trim();
+    if (pickup.length < 2 || dropoff.length < 2) {
+      setEstimate(null);
       return;
     }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      setEstimating(true);
+      estimateTaxiFare({
+        pickupLocation: pickup,
+        dropoffLocation: dropoff,
+        passengers: form.passengers,
+      })
+        .then((result) => {
+          if (!cancelled) {
+            setEstimate({
+              fare: result.estimatedFare,
+              distanceKm: result.distanceKm,
+            });
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setEstimate(null);
+        })
+        .finally(() => {
+          if (!cancelled) setEstimating(false);
+        });
+    }, 450);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [form.pickup, form.dropoff, form.passengers]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!form.pickup || !form.dropoff || !form.date || !form.time) {
       setError("Please fill in pickup, drop-off, date and time.");
       return;
@@ -103,6 +148,15 @@ function TaxiPage() {
         customerEmail: form.email,
         customerPhone: form.phone,
       });
+      if (result.token) {
+        clearAdminToken();
+        clearDriverToken();
+        setUserToken(result.token);
+        await refreshSession().catch(() => undefined);
+      }
+      if (result.accountCreated) {
+        toast.success("Account created — check your email for a temporary password.");
+      }
       setConfirmation(result);
       if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
@@ -258,33 +312,8 @@ function TaxiPage() {
             </div>
 
             {!user && (
-              <div className="relative mt-5 flex flex-col gap-3 rounded-2xl border border-white/15 bg-white/10 p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-start gap-3 text-sm text-white/90">
-                  <Lock className="mt-0.5 h-4 w-4 shrink-0 text-brand-orange" />
-                  <p>Sign in required — taxi bookings are linked to your account so you can see them under My Bookings.</p>
-                </div>
-                <div className="flex shrink-0 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => openAuthModal({
-                      mode: "signin",
-                      reason: "Sign in to book a taxi ride.",
-                    })}
-                    className="rounded-full bg-brand-orange px-4 py-2 text-sm font-semibold text-white"
-                  >
-                    Sign in
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => openAuthModal({
-                      mode: "signup",
-                      reason: "Create an account to book and track your rides.",
-                    })}
-                    className="rounded-full border border-white/30 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
-                  >
-                    Create account
-                  </button>
-                </div>
+              <div className="relative mt-5 rounded-2xl border border-white/15 bg-white/10 p-4 text-sm text-white/90">
+                No account needed — fill in your details below and we’ll email you a temporary password to track your ride.
               </div>
             )}
 
@@ -359,15 +388,26 @@ function TaxiPage() {
               </RideField>
 
               <div className="lg:col-span-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
-                <p className="text-sm text-white/70 font-medium inline-flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-brand-sage" /> Free cancellation up to 12 hours
-                </p>
+                <div className="text-sm text-white/70 font-medium">
+                  {estimating ? (
+                    <span>Calculating fare…</span>
+                  ) : estimate ? (
+                    <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <DollarSign className="h-4 w-4 text-brand-sage" />
+                      Estimated fare{" "}
+                      <span className="font-bold text-white">${estimate.fare}</span>
+                      {estimate.distanceKm != null && (
+                        <span className="text-white/50">· ~{estimate.distanceKm} km</span>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-brand-sage" /> Free cancellation up to 12 hours
+                    </span>
+                  )}
+                </div>
                 <button type="submit" disabled={submitting} className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-orange px-7 py-3.5 font-semibold text-white shadow-lg shadow-brand-orange/20 hover:-translate-y-0.5 hover:brightness-105 transition disabled:opacity-60">
-                  {submitting
-                    ? "Submitting…"
-                    : user
-                      ? <>Book Ride Now <ArrowRight className="h-4 w-4" /></>
-                      : <>Sign in to book <Lock className="h-4 w-4" /></>}
+                  {submitting ? "Submitting…" : <>Book Ride Now <ArrowRight className="h-4 w-4" /></>}
                 </button>
               </div>
 
@@ -376,6 +416,36 @@ function TaxiPage() {
           </div>
         </div>
       </section>
+
+      {fareSettings && (
+        <section className="mx-auto mt-10 max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="rounded-2xl border border-border bg-white p-5 shadow-card sm:p-6">
+            <h2 className="text-lg font-bold text-brand-green sm:text-xl">Fares by guests</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Base rates set by Malfranza
+              {fareSettings.perKmUsd > 0
+                ? ` · plus $${fareSettings.perKmUsd}/km for your route`
+                : " · flat guest pricing"}
+              . Minimum fare ${fareSettings.minimumFareUsd}.
+            </p>
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {[
+                { label: "1 guest", value: fareSettings.fareFor1Guest },
+                { label: "2 guests", value: fareSettings.fareFor2Guests },
+                { label: "3 guests", value: fareSettings.fareFor3Guests },
+                { label: "4+ guests", value: fareSettings.fareFor4PlusGuests },
+              ].map((tier) => (
+                <div key={tier.label} className="rounded-xl bg-brand-cream/80 px-3 py-3 text-center">
+                  <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {tier.label}
+                  </div>
+                  <div className="mt-1 text-xl font-bold text-brand-green">${tier.value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
 
       {/* SERVICES GRID */}

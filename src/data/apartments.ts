@@ -1,9 +1,3 @@
-import stayGarden from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_00 PM.png";
-import stay1br from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_34 PM.png";
-import stayKitchen from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_20 PM.png";
-import stayTropical from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_27 PM.png";
-import stay2br from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_43 PM.png";
-import stayBathroom from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_13 PM.png";
 import { apiRequest } from "@/lib/api";
 
 export type Apartment = {
@@ -34,72 +28,132 @@ export type ApartmentUnit = {
   isActive: boolean;
 };
 
+/** Real property photos from src/assets/newimage */
+const NEW_IMAGE_MODULES = import.meta.glob(
+  "../assets/newimage/*.{jpg,jpeg,JPG,JPEG,png,PNG}",
+  { eager: true, import: "default" },
+) as Record<string, string>;
+
+function naturalName(path: string) {
+  return path.split("/").pop() ?? path;
+}
+
+function galleryFor(match: string): string[] {
+  const needle = match.toLowerCase();
+  return Object.entries(NEW_IMAGE_MODULES)
+    .filter(([path]) => naturalName(path).toLowerCase().includes(needle))
+    .sort(([a], [b]) =>
+      naturalName(a).localeCompare(naturalName(b), undefined, {
+        numeric: true,
+        sensitivity: "base",
+      }),
+    )
+    .map(([, url]) => url)
+    .slice(0, 6);
+}
+
+const AMENITIES_STANDARD = [
+  "Wi-Fi",
+  "Air Conditioning",
+  "Kitchen",
+  "Smart TV",
+  "Parking",
+  "Workspace",
+] as const;
+
+/**
+ * Seed / fallback listings aligned with the property photo sets.
+ * Live data still comes from the API when available; empty/placeholder photos fall back here.
+ */
 export const APARTMENTS: Apartment[] = [
   {
-    id: "garden-view",
+    id: "apartment-1",
     mongoId: "",
-    name: "One-Bedroom Apartment",
-    subtitle: "Garden View",
-    description: "Peaceful ground floor apartment with lush garden views and a private patio.",
+    name: "Malfranza Apartment Number 1",
+    subtitle: "Garden courtyard stay",
+    description:
+      "Comfortable self-catering apartment in our lime-green courtyard building in Barbados. Private patio access, tropical landscaping, and on-site parking — ideal for couples or a short city base.",
     type: "one-bedroom",
-    guests: 2, beds: 1, baths: 1, sizeSqM: 56,
+    guests: 2,
+    beds: 1,
+    baths: 1,
+    sizeSqM: 55,
     pricePerNight: 110,
-
-    images: [stayGarden, stayKitchen, stayBathroom, stay1br],
-    amenities: ["Wi-Fi", "Air Conditioning", "Kitchen", "Smart TV", "Parking", "Workspace"],
+    images: galleryFor("apartment number 1"),
+    amenities: [...AMENITIES_STANDARD],
     units: [],
   },
   {
-    id: "city-view",
+    id: "apartment-2",
     mongoId: "",
-    name: "One-Bedroom Apartment",
-    subtitle: "City View",
-    description: "Bright and airy apartment with city views and a cozy modern feel.",
+    name: "Malfranza Apartment Number 2",
+    subtitle: "Bright bedroom suite",
+    description:
+      "Light-filled apartment with a restful bedroom, air conditioning, and Malfranza’s signature tropical finishes. A quiet, well-kept stay close to everything Oistins has to offer.",
     type: "one-bedroom",
-    guests: 2, beds: 1, baths: 1, sizeSqM: 54,
+    guests: 2,
+    beds: 1,
+    baths: 1,
+    sizeSqM: 54,
     pricePerNight: 110,
-    images: [stay1br, stayKitchen, stayBathroom, stay2br],
-    amenities: ["Wi-Fi", "Air Conditioning", "Kitchen", "Smart TV", "Workspace"],
+    images: galleryFor("apartment number 2"),
+    amenities: [...AMENITIES_STANDARD],
     units: [],
   },
   {
-    id: "modern-comfort",
+    id: "apartment-3",
     mongoId: "",
-    name: "One-Bedroom Apartment",
-    subtitle: "Modern Comfort",
-    description: "Stylish apartment with modern finishes and a fully equipped kitchen.",
+    name: "Malfranza Apartment Number 3",
+    subtitle: "Tropical double room",
+    description:
+      "Cheerful double bedroom suite with split air conditioning, tropical décor, and tiled floors for easy beach-day living. Perfect for a relaxed Barbados getaway.",
     type: "one-bedroom",
-    guests: 2, beds: 1, baths: 1, sizeSqM: 58,
-    pricePerNight: 110,
-    images: [stayKitchen, stay1br, stayBathroom, stayTropical],
+    guests: 2,
+    beds: 1,
+    baths: 1,
+    sizeSqM: 52,
+    pricePerNight: 105,
+    images: galleryFor("apartment number 3"),
     amenities: ["Wi-Fi", "Air Conditioning", "Kitchen", "Smart TV", "Parking"],
     units: [],
   },
   {
-    id: "tropical-escape",
+    id: "apartment-a-and-b",
     mongoId: "",
-    name: "One-Bedroom Apartment",
-    subtitle: "Tropical Escape",
-    description: "Tranquil retreat with tropical décor and plenty of natural light.",
-    type: "one-bedroom",
-    guests: 2, beds: 1, baths: 1, sizeSqM: 55,
-    pricePerNight: 110,
-    images: [stayTropical, stayKitchen, stayBathroom, stayGarden],
-    amenities: ["Wi-Fi", "Air Conditioning", "Kitchen", "Smart TV"],
-    units: [],
-  },
-  {
-    id: "family-stay",
-    mongoId: "",
-    name: "Two-Bedroom Apartment",
-    subtitle: "Family Stay",
-    description: "Spacious two-bedroom apartment ideal for families or small groups.",
+    name: "Malfranza Apartments A & B",
+    subtitle: "Two-unit residence",
+    description:
+      "A flexible Malfranza property with two independently bookable units — Unit A and Unit B. Book one for a couple’s stay, or both when travelling as a family or small group.",
     type: "two-bedroom",
-    guests: 4, beds: 2, baths: 1, sizeSqM: 82,
-    pricePerNight: 150,
-    images: [stay2br, stayKitchen, stayBathroom, stayGarden],
-    amenities: ["Wi-Fi", "Air Conditioning", "Kitchen", "Smart TV", "Parking", "Workspace"],
-    units: [],
+    guests: 4,
+    beds: 2,
+    baths: 2,
+    sizeSqM: 90,
+    pricePerNight: 110,
+    images: galleryFor("a and b"),
+    amenities: [...AMENITIES_STANDARD],
+    units: [
+      {
+        id: "unit-a",
+        name: "Unit A",
+        description: "Self-contained unit A with private facilities.",
+        bedrooms: 1,
+        bathrooms: 1,
+        maxGuests: 2,
+        pricePerNight: 110,
+        isActive: true,
+      },
+      {
+        id: "unit-b",
+        name: "Unit B",
+        description: "Self-contained unit B with private facilities.",
+        bedrooms: 1,
+        bathrooms: 1,
+        maxGuests: 2,
+        pricePerNight: 110,
+        isActive: true,
+      },
+    ],
   },
 ];
 
@@ -110,7 +164,9 @@ export function getApartment(id: string) {
 export async function fetchApartments(): Promise<Apartment[]> {
   try {
     const records = await apiRequest<any[]>("/apartments?sort=price-asc");
-    return records.map(mapApiApartment);
+    const mapped = records.map(mapApiApartment).filter((a) => a.images.length > 0 || a.mongoId);
+    // Prefer API list when non-empty; otherwise local seed with real photos.
+    return mapped.length > 0 ? mapped : APARTMENTS;
   } catch {
     return APARTMENTS;
   }
@@ -121,7 +177,7 @@ export async function fetchApartment(slug: string): Promise<Apartment | undefine
     const record = await apiRequest<any>(`/apartments/${encodeURIComponent(slug)}`);
     return mapApiApartment(record);
   } catch {
-    return undefined;
+    return getApartment(slug);
   }
 }
 
@@ -132,7 +188,8 @@ function mapApiApartment(record: any): Apartment {
         (p: unknown) =>
           typeof p === "string" &&
           p.trim().length > 0 &&
-          !p.includes("placeholder"),
+          !p.includes("placeholder") &&
+          !p.includes("ChatGPT Image"),
       )
     : [];
   const units: ApartmentUnit[] = Array.isArray(record.units)
@@ -150,6 +207,7 @@ function mapApiApartment(record: any): Apartment {
         }))
     : [];
   const unitPrices = units.map((unit) => unit.pricePerNight);
+  const seedImages = fallback?.images ?? [];
   return {
     id: record.slug,
     mongoId: String(record._id ?? ""),
@@ -162,8 +220,9 @@ function mapApiApartment(record: any): Apartment {
     baths: record.bathrooms,
     sizeSqM: record.sizeSqM ?? fallback?.sizeSqM ?? 0,
     pricePerNight: unitPrices.length > 0 ? Math.min(...unitPrices) : record.pricePerNight,
-    images: photos.length > 0 ? photos : (fallback?.images ?? []),
+    // Prefer local real photos when present; otherwise API (non-old) photos.
+    images: (seedImages.length > 0 ? seedImages : photos).slice(0, 6),
     amenities: Array.isArray(record.amenities) ? record.amenities : [],
-    units,
+    units: units.length > 0 ? units : (fallback?.units ?? []),
   };
 }

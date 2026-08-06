@@ -60,7 +60,12 @@ export function clearAllTokens(): void {
 
 export async function apiRequest<T>(
   path: string,
-  init: RequestInit & { auth?: boolean; userAuth?: boolean; driverAuth?: boolean } = {},
+  init: RequestInit & {
+    auth?: boolean;
+    userAuth?: boolean;
+    driverAuth?: boolean;
+    optionalUserAuth?: boolean;
+  } = {},
 ): Promise<T> {
   const headers = new Headers(init.headers);
   if (!(init.body instanceof FormData)) {
@@ -70,6 +75,9 @@ export async function apiRequest<T>(
   const flags = [init.auth, init.userAuth, init.driverAuth].filter(Boolean).length;
   if (flags > 1) {
     throw new Error("Use only one of auth, userAuth, or driverAuth");
+  }
+  if (init.optionalUserAuth && (init.userAuth || init.auth || init.driverAuth)) {
+    throw new Error("optionalUserAuth cannot be combined with other auth flags");
   }
 
   if (init.auth) {
@@ -82,6 +90,9 @@ export async function apiRequest<T>(
     const token = getUserToken();
     if (!token) throw new Error("Sign in required");
     headers.set("Authorization", `Bearer ${token}`);
+  } else if (init.optionalUserAuth) {
+    const token = getUserToken();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
   }
 
   if (init.driverAuth) {

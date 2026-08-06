@@ -6,7 +6,7 @@ import {
   Phone, MessageCircle, Mail, MapPin, Lock, ChevronRight, ArrowRight,
   Plus, Minus,
 } from "lucide-react";
-import stayGarden from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_00 PM.png";
+import stayGarden from "@/assets/newimage/Malfranza Apartment Number 1-2.jpg";
 import { createEnquiry } from "@/lib/bookings";
 import { getCurrentUser } from "@/lib/user";
 import { LocationMap } from "@/components/maps/LocationMap";

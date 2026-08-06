@@ -7,22 +7,7 @@ import {
 } from "lucide-react";
 import { fetchApartments, type Apartment } from "@/data/apartments";
 import { fetchApartmentOccupancy, type ApartmentOccupancy } from "@/lib/bookings";
-import { useUserAuth } from "@/context/UserAuthContext";
-import heroImg from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_34 PM.png";
-
-function buildBookRedirect(input: {
-  apartment: string;
-  checkIn?: string;
-  checkOut?: string;
-  guests?: number;
-}) {
-  const params = new URLSearchParams();
-  params.set("apartment", input.apartment);
-  if (input.checkIn) params.set("checkIn", input.checkIn);
-  if (input.checkOut) params.set("checkOut", input.checkOut);
-  if (input.guests != null) params.set("guests", String(input.guests));
-  return `/book?${params.toString()}`;
-}
+import heroImg from "@/assets/newimage/Malfranza Apartment Number 1.jpg";
 
 const staysSearchSchema = z.object({
   checkIn: z.string().optional(),
@@ -346,7 +331,6 @@ function ApartmentCard({
   searchDates?: { checkIn: string; checkOut: string; guests?: number };
 }) {
   const navigate = useNavigate();
-  const { user, openAuthModal } = useUserAuth();
   const displayed = apt.amenities.slice(0, 4);
   const ranges = occupancy?.blockedRanges ?? [];
   const unavailableForSearch = searchDates ? occupancy?.available === false : false;
@@ -354,25 +338,14 @@ function ApartmentCard({
   const bookDisabled = unavailableForSearch;
 
   function handleBookNow() {
-    const bookSearch = {
-      apartment: apt.id,
-      checkIn: searchDates?.checkIn,
-      checkOut: searchDates?.checkOut,
-      guests: searchDates?.guests,
-    };
-    if (user) {
-      navigate({ to: "/book", search: bookSearch });
-      return;
-    }
-    openAuthModal({
-      mode: "signin",
-      reason: "Sign in to book this stay. Your booking will appear under My Bookings.",
-      redirectTo: buildBookRedirect({
+    navigate({
+      to: "/book",
+      search: {
         apartment: apt.id,
         checkIn: searchDates?.checkIn,
         checkOut: searchDates?.checkOut,
         guests: searchDates?.guests,
-      }),
+      },
     });
   }
 

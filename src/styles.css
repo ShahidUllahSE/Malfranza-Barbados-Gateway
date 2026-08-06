@@ -132,3 +132,22 @@
 @media (prefers-reduced-motion: reduce) {
   .reveal { opacity: 1; transform: none; transition: none; }
 }
+
+/* Admin table / card shimmer */
+@keyframes mfz-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.mfz-shimmer {
+  background: linear-gradient(
+    90deg,
+    oklch(0.94 0.01 145) 0%,
+    oklch(0.98 0.01 145) 45%,
+    oklch(0.94 0.01 145) 100%
+  );
+  background-size: 200% 100%;
+  animation: mfz-shimmer 1.35s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mfz-shimmer { animation: none; }
+}

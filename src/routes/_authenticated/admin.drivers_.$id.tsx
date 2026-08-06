@@ -285,7 +285,7 @@ function DriverDetailPage() {
 
         {/* Desktop table */}
         <div className="hidden lg:block">
-          <AdminTableShell minWidth="64rem">
+          <AdminTableShell>
             <thead className="bg-slate-50">
               <tr>
                 <AdminTh>Guest</AdminTh>
@@ -293,9 +293,7 @@ function DriverDetailPage() {
                 <AdminTh>Pickup</AdminTh>
                 <AdminTh>Service</AdminTh>
                 <AdminTh>Fare</AdminTh>
-                <AdminTh className="sticky right-0 bg-slate-50 shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.12)]">
-                  Status
-                </AdminTh>
+                <AdminTh>Status</AdminTh>
               </tr>
             </thead>
             <tbody>
@@ -329,10 +327,7 @@ function DriverDetailPage() {
                   <AdminTd nowrap className="font-semibold">
                     ${trip.estimatedFare.toFixed(0)}
                   </AdminTd>
-                  <AdminTd
-                    nowrap
-                    className="sticky right-0 bg-white shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.12)] group-hover:bg-slate-50"
-                  >
+                  <AdminTd nowrap>
                     <StatusPill status={trip.status} />
                   </AdminTd>
                 </tr>
