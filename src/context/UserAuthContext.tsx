@@ -16,9 +16,10 @@ import {
   type AuthSession,
 } from "@/lib/session";
 import { toastError, toastSuccess } from "@/lib/toast";
-import { registerUser, type UserIdentity } from "@/lib/user";
+import { resendSignupOtp, startSignup, verifySignupOtp } from "@/lib/user";
 
 type AuthMode = "signin" | "signup" | "setup";
+type SignupStep = "form" | "otp";
 
 type OpenAuthOptions = {
   mode?: AuthMode;
@@ -64,6 +65,8 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [signupStep, setSignupStep] = useState<SignupStep>("form");
   const [bootstrapKey, setBootstrapKey] = useState("");
   const [busy, setBusy] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -94,6 +97,8 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
       ? { mode: modeOrOptions }
       : modeOrOptions;
     setMode(options.mode ?? "signin");
+    setSignupStep("form");
+    setOtpCode("");
     setAuthReason(options.reason ?? null);
     setRedirectTo(options.redirectTo ?? null);
     clearErrors();
@@ -103,6 +108,8 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
   const closeAuthModal = useCallback(() => {
     setOpen(false);
     setPassword("");
+    setOtpCode("");
+    setSignupStep("form");
     setBootstrapKey("");
     setAuthReason(null);
     setRedirectTo(null);
@@ -111,6 +118,8 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
 
   const switchMode = useCallback((nextMode: AuthMode) => {
     setMode(nextMode);
+    setSignupStep("form");
+    setOtpCode("");
     clearErrors();
   }, [clearErrors]);
 
@@ -169,11 +178,17 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
         toastError("Please fix the highlighted fields.");
         return;
       }
-    } else {
+    } else if (mode === "signup" && signupStep === "form") {
       const clientErrors = validateRegisterForm({ name, email, password, phone });
       if (Object.keys(clientErrors).length > 0) {
         setFieldErrors(clientErrors);
         toastError("Please fix the highlighted fields.");
+        return;
+      }
+    } else if (mode === "signup" && signupStep === "otp") {
+      if (!/^\d{6}$/.test(otpCode.trim())) {
+        setFieldErrors({ code: "Enter the 6-digit code from your email" });
+        toastError("Enter the 6-digit verification code.");
         return;
       }
     }
@@ -189,17 +204,27 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      if (mode === "signup") {
-        const identity = await registerUser({
+      if (mode === "signup" && signupStep === "form") {
+        const result = await startSignup({
           name: name.trim(),
           email: email.trim(),
           password,
           phone: phone.trim() || undefined,
         });
+        setSignupStep("otp");
+        toastSuccess("Check your email", result.message);
+        return;
+      }
+
+      if (mode === "signup" && signupStep === "otp") {
+        const identity = await verifySignupOtp({
+          email: email.trim(),
+          code: otpCode.trim(),
+        });
         const nextPath = redirectTo;
         setSession({ kind: "user", role: "user", user: identity, admin: null, driver: null });
         closeAuthModal();
-        toastSuccess("Account created", "You're signed in.");
+        toastSuccess("Account verified", "You're signed in.");
         if (nextPath) navigateToRedirect(nextPath);
         return;
       }
@@ -235,8 +260,36 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
         setFormError(err.message);
         toastError(err.message);
         if (err.status === 409) switchMode("signin");
+        if (err.status === 410 || err.status === 404) {
+          setSignupStep("form");
+          setOtpCode("");
+        }
       } else {
         const message = err instanceof Error ? err.message : "Something went wrong";
+        setFormError(message);
+        toastError(message);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onResendOtp() {
+    clearErrors();
+    setBusy(true);
+    try {
+      const result = await resendSignupOtp(email.trim());
+      toastSuccess("Code resent", result.message);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setFormError(err.message);
+        toastError(err.message);
+        if (err.status === 410 || err.status === 404) {
+          setSignupStep("form");
+          setOtpCode("");
+        }
+      } else {
+        const message = err instanceof Error ? err.message : "Could not resend code";
         setFormError(message);
         toastError(message);
       }
@@ -261,15 +314,23 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const title =
-    mode === "setup" ? "Create admin account" : mode === "signup" ? "Create account" : "Sign in";
+    mode === "setup"
+      ? "Create admin account"
+      : mode === "signup" && signupStep === "otp"
+        ? "Verify your email"
+        : mode === "signup"
+          ? "Create account"
+          : "Sign in";
 
   const description =
     authReason
     ?? (mode === "setup"
       ? "One-time setup for the primary admin account."
-      : mode === "signup"
-        ? "Create a guest account to book and manage your Malfranza bookings."
-        : null);
+      : mode === "signup" && signupStep === "otp"
+        ? `Enter the 6-digit code we sent to ${email.trim() || "your email"}.`
+        : mode === "signup"
+          ? "Create a guest account — we’ll email a code to verify your address."
+          : null);
 
   return (
     <UserAuthContext.Provider value={value}>
@@ -291,87 +352,139 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
             )}
 
             <form onSubmit={onSubmit} className="mt-6 space-y-4">
-              {mode === "signup" && (
+              {mode === "signup" && signupStep === "otp" ? (
                 <>
-                  <AuthField label="Full name" error={fieldErrors.name}>
+                  <AuthField label="Verification code" error={fieldErrors.code}>
                     <input
                       type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
                       required
-                      value={name}
+                      maxLength={6}
+                      value={otpCode}
                       onChange={(e) => {
-                        setName(e.target.value);
-                        if (fieldErrors.name) setFieldErrors((prev) => ({ ...prev, name: "" }));
+                        setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6));
+                        if (fieldErrors.code) setFieldErrors((prev) => ({ ...prev, code: "" }));
                       }}
-                      className={inputClass(!!fieldErrors.name)}
-                      placeholder="Your name"
+                      className={`${inputClass(!!fieldErrors.code)} tracking-[0.35em] text-center text-lg font-semibold`}
+                      placeholder="000000"
                     />
                   </AuthField>
-                  <AuthField label="Phone (optional)" error={fieldErrors.phone}>
+                  <button
+                    type="submit"
+                    disabled={busy}
+                    className="w-full cursor-pointer rounded-lg bg-brand-green px-4 py-2.5 text-sm font-semibold text-brand-green-foreground shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {busy ? "Verifying…" : "Verify & create account"}
+                  </button>
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => {
+                        setSignupStep("form");
+                        setOtpCode("");
+                        clearErrors();
+                      }}
+                      className="cursor-pointer font-medium text-muted-foreground hover:text-brand-green"
+                    >
+                      ← Edit details
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void onResendOtp()}
+                      className="cursor-pointer font-semibold text-brand-green hover:underline disabled:opacity-60"
+                    >
+                      Resend code
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {mode === "signup" && (
+                    <>
+                      <AuthField label="Full name" error={fieldErrors.name}>
+                        <input
+                          type="text"
+                          required
+                          value={name}
+                          onChange={(e) => {
+                            setName(e.target.value);
+                            if (fieldErrors.name) setFieldErrors((prev) => ({ ...prev, name: "" }));
+                          }}
+                          className={inputClass(!!fieldErrors.name)}
+                          placeholder="Your name"
+                        />
+                      </AuthField>
+                      <AuthField label="Phone (optional)" error={fieldErrors.phone}>
+                        <input
+                          type="tel"
+                          value={phone}
+                          onChange={(e) => {
+                            setPhone(e.target.value);
+                            if (fieldErrors.phone) setFieldErrors((prev) => ({ ...prev, phone: "" }));
+                          }}
+                          className={inputClass(!!fieldErrors.phone)}
+                          placeholder="+1 246 000 0000"
+                        />
+                      </AuthField>
+                    </>
+                  )}
+                  <AuthField label="Email" error={fieldErrors.email}>
                     <input
-                      type="tel"
-                      value={phone}
+                      type="email"
+                      required
+                      value={email}
                       onChange={(e) => {
-                        setPhone(e.target.value);
-                        if (fieldErrors.phone) setFieldErrors((prev) => ({ ...prev, phone: "" }));
+                        setEmail(e.target.value);
+                        if (fieldErrors.email) setFieldErrors((prev) => ({ ...prev, email: "" }));
                       }}
-                      className={inputClass(!!fieldErrors.phone)}
-                      placeholder="+1 246 000 0000"
+                      className={inputClass(!!fieldErrors.email)}
+                      placeholder="you@example.com"
                     />
                   </AuthField>
+                  {mode === "setup" && (
+                    <AuthField label="Bootstrap key" error={fieldErrors.bootstrapKey}>
+                      <input
+                        type="password"
+                        required
+                        value={bootstrapKey}
+                        onChange={(e) => setBootstrapKey(e.target.value)}
+                        className={inputClass(!!fieldErrors.bootstrapKey)}
+                        placeholder="One-time key from backend .env"
+                      />
+                    </AuthField>
+                  )}
+                  <AuthField label="Password" error={fieldErrors.password}>
+                    <input
+                      type="password"
+                      required
+                      minLength={8}
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (fieldErrors.password) setFieldErrors((prev) => ({ ...prev, password: "" }));
+                      }}
+                      className={inputClass(!!fieldErrors.password)}
+                      placeholder="At least 8 characters"
+                    />
+                  </AuthField>
+                  <button
+                    type="submit"
+                    disabled={busy}
+                    className="w-full cursor-pointer rounded-lg bg-brand-green px-4 py-2.5 text-sm font-semibold text-brand-green-foreground shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {busy
+                      ? "Please wait…"
+                      : mode === "setup"
+                        ? "Create admin"
+                        : mode === "signup"
+                          ? "Continue"
+                          : "Sign in"}
+                  </button>
                 </>
               )}
-              <AuthField label="Email" error={fieldErrors.email}>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    if (fieldErrors.email) setFieldErrors((prev) => ({ ...prev, email: "" }));
-                  }}
-                  className={inputClass(!!fieldErrors.email)}
-                  placeholder="you@example.com"
-                />
-              </AuthField>
-              {mode === "setup" && (
-                <AuthField label="Bootstrap key" error={fieldErrors.bootstrapKey}>
-                  <input
-                    type="password"
-                    required
-                    value={bootstrapKey}
-                    onChange={(e) => setBootstrapKey(e.target.value)}
-                    className={inputClass(!!fieldErrors.bootstrapKey)}
-                    placeholder="One-time key from backend .env"
-                  />
-                </AuthField>
-              )}
-              <AuthField label="Password" error={fieldErrors.password}>
-                <input
-                  type="password"
-                  required
-                  minLength={8}
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    if (fieldErrors.password) setFieldErrors((prev) => ({ ...prev, password: "" }));
-                  }}
-                  className={inputClass(!!fieldErrors.password)}
-                  placeholder="At least 8 characters"
-                />
-              </AuthField>
-              <button
-                type="submit"
-                disabled={busy}
-                className="w-full cursor-pointer rounded-lg bg-brand-green px-4 py-2.5 text-sm font-semibold text-brand-green-foreground shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {busy
-                  ? "Please wait…"
-                  : mode === "setup"
-                    ? "Create admin"
-                    : mode === "signup"
-                      ? "Create account"
-                      : "Sign in"}
-              </button>
             </form>
 
             <div className="mt-6 text-center text-sm text-muted-foreground">

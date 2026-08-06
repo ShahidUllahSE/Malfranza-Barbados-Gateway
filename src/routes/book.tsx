@@ -630,6 +630,7 @@ function BookWizard() {
                 total={total}
                 paying={paying}
                 onPay={handleDummyPay}
+                guestName={fullName}
                 apt={selectedApt}
                 nights={nights}
                 guests={guests}
@@ -654,8 +655,14 @@ function BookWizard() {
                   disabled={!canContinue}
                   className="inline-flex items-center gap-2 rounded-full bg-brand-orange px-5 py-3 text-sm font-semibold text-white shadow-sm disabled:opacity-40 hover:brightness-105 transition sm:px-6"
                 >
-                  Continue <ArrowRight className="h-4 w-4" />
+                  {step === 3 ? "Continue to payment" : "Continue"}{" "}
+                  <ArrowRight className="h-4 w-4" />
                 </button>
+              )}
+              {step === 4 && (
+                <p className="text-xs text-muted-foreground sm:text-right">
+                  Use the Pay button above to finish this demo booking.
+                </p>
               )}
             </div>
           </div>
@@ -668,9 +675,31 @@ function BookWizard() {
               <p className="text-xs text-muted-foreground">Total</p>
               <p className="text-lg font-bold text-brand-green">{money(total)}</p>
             </div>
-            <p className="truncate text-xs text-muted-foreground">
-              Step {Math.min(step + 1, STEPS.length)} of {STEPS.length}
-            </p>
+            {step < 4 ? (
+              <button
+                type="button"
+                onClick={goNext}
+                disabled={!canContinue}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-brand-orange px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
+              >
+                {step === 3 ? "To payment" : "Continue"}
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleDummyPay}
+                disabled={paying}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-brand-orange px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {paying ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <CreditCard className="h-3.5 w-3.5" />
+                )}
+                Pay (Demo)
+              </button>
+            )}
           </div>
         </div>
         <div className="pb-20 lg:pb-0" />
@@ -1161,52 +1190,189 @@ function StepDetails(props: {
   );
 }
 
-/* ---------------- Step 5: Payment (dummy) ---------------- */
+/* ---------------- Step 5: Payment (dummy demo) ---------------- */
+
+type DummyPayMethod = "card" | "transfer" | "arrival";
 
 function StepPayment(props: {
-  total: number; paying: boolean; onPay: () => void;
-  apt: Apartment | null; nights: number; guests: number; checkIn: string; checkOut: string;
+  total: number;
+  paying: boolean;
+  onPay: () => void;
+  guestName: string;
+  apt: Apartment | null;
+  nights: number;
+  guests: number;
+  checkIn: string;
+  checkOut: string;
 }) {
-  const { total, paying, onPay } = props;
+  const { total, paying, onPay, guestName } = props;
+  const [method, setMethod] = useState<DummyPayMethod>("card");
+  const [cardName, setCardName] = useState(guestName || "");
+  const [cardNumber, setCardNumber] = useState("4242 4242 4242 4242");
+  const [expiry, setExpiry] = useState("12 / 30");
+  const [cvc, setCvc] = useState("123");
+
+  useEffect(() => {
+    if (guestName && !cardName) setCardName(guestName);
+  }, [guestName, cardName]);
+
   return (
     <div>
       <h2 className="text-xl font-bold text-brand-green">Payment</h2>
-      <p className="mt-1 text-sm text-muted-foreground">This is a demo checkout — no real card required.</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Demo checkout only — no real charges. Use the sample card or switch method, then pay.
+      </p>
 
-      <div className="mt-5 rounded-2xl border-2 border-dashed border-brand-green/30 bg-brand-cream/40 p-6">
-        <div className="flex items-center gap-3 text-sm text-brand-green">
-          <Lock className="h-4 w-4" />
-          Demo mode · click below to complete a test payment
-        </div>
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <FakeCardField label="Card number" value="4242 4242 4242 4242" />
-          <FakeCardField label="Expiry" value="12 / 30" />
-          <FakeCardField label="CVC" value="123" />
-        </div>
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <span className="text-lg font-bold text-brand-green">Total {money(total)}</span>
-          <button
-            onClick={onPay}
-            disabled={paying}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-brand-orange px-7 py-3.5 text-sm font-semibold text-white shadow-sm disabled:opacity-60 hover:brightness-105 transition sm:w-auto"
-          >
-            {paying ? <><Loader2 className="h-4 w-4 animate-spin" /> Processing…</> : <>Pay {money(total)} (Demo)</>}
-          </button>
+      <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-sm text-amber-950">
+        <span className="font-semibold">Dummy payment step.</span>{" "}
+        In production this is where live card processing would connect. For now it only
+        simulates a successful charge and creates your booking.
+      </div>
+
+      <div className="mt-5">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Payment method
+        </p>
+        <div className="mt-2 grid gap-2 sm:grid-cols-3">
+          {(
+            [
+              { id: "card" as const, label: "Card", hint: "Visa / Mastercard" },
+              { id: "transfer" as const, label: "Bank transfer", hint: "Demo only" },
+              { id: "arrival" as const, label: "Pay on arrival", hint: "Demo only" },
+            ] as const
+          ).map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => setMethod(m.id)}
+              className={`rounded-xl border px-3 py-3 text-left transition ${
+                method === m.id
+                  ? "border-brand-green bg-brand-green/5 ring-2 ring-brand-green/20"
+                  : "border-border bg-white hover:border-brand-sage"
+              }`}
+            >
+              <p className="text-sm font-semibold text-brand-charcoal">{m.label}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{m.hint}</p>
+            </button>
+          ))}
         </div>
       </div>
 
-      <p className="mt-3 text-xs text-muted-foreground">
-        By completing, you agree to Malfranza's booking terms. Payments are simulated in this demo.
-      </p>
-    </div>
-  );
-}
+      {method === "card" && (
+        <div className="mt-5 rounded-2xl border border-border bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2 text-sm font-medium text-brand-green">
+            <Lock className="h-4 w-4" />
+            Card details (pre-filled demo values)
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Name on card
+              </label>
+              <input
+                value={cardName}
+                onChange={(e) => setCardName(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-border bg-brand-cream/20 px-3 py-2.5 text-sm outline-none focus:border-brand-green"
+                placeholder="Name on card"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Card number
+              </label>
+              <input
+                value={cardNumber}
+                onChange={(e) => setCardNumber(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-border bg-brand-cream/20 px-3 py-2.5 font-mono text-sm outline-none focus:border-brand-green"
+                placeholder="4242 4242 4242 4242"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Expiry
+              </label>
+              <input
+                value={expiry}
+                onChange={(e) => setExpiry(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-border bg-brand-cream/20 px-3 py-2.5 font-mono text-sm outline-none focus:border-brand-green"
+                placeholder="MM / YY"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                CVC
+              </label>
+              <input
+                value={cvc}
+                onChange={(e) => setCvc(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-border bg-brand-cream/20 px-3 py-2.5 font-mono text-sm outline-none focus:border-brand-green"
+                placeholder="123"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
-function FakeCardField({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-border bg-white px-3 py-2.5">
-      <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="mt-0.5 text-sm font-medium text-brand-charcoal">{value}</div>
+      {method === "transfer" && (
+        <div className="mt-5 rounded-2xl border border-border bg-white p-5 text-sm shadow-sm">
+          <p className="font-semibold text-brand-charcoal">Demo bank transfer</p>
+          <p className="mt-2 text-muted-foreground">
+            In a live build we would show transfer instructions. For this demo, continue with
+            “Pay” to mark the stay as paid without moving money.
+          </p>
+          <ul className="mt-3 space-y-1 text-brand-charcoal/85">
+            <li>
+              Bank: <span className="font-medium">Malfranza Demo Bank</span>
+            </li>
+            <li>
+              Reference: <span className="font-mono text-xs">MFZ-DEMO</span>
+            </li>
+            <li>
+              Amount: <span className="font-semibold text-brand-green">{money(total)}</span>
+            </li>
+          </ul>
+        </div>
+      )}
+
+      {method === "arrival" && (
+        <div className="mt-5 rounded-2xl border border-border bg-white p-5 text-sm shadow-sm">
+          <p className="font-semibold text-brand-charcoal">Pay on arrival (demo)</p>
+          <p className="mt-2 text-muted-foreground">
+            Your reservation is still created as <strong className="text-brand-charcoal">paid</strong>{" "}
+            in this demo so admin reports work. A live site would mark it as unpaid until check-in.
+          </p>
+        </div>
+      )}
+
+      <div className="mt-6 flex flex-col gap-3 rounded-2xl border-2 border-brand-green/20 bg-brand-cream/50 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Amount due
+          </p>
+          <p className="text-2xl font-bold text-brand-green">{money(total)}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onPay}
+          disabled={paying}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-brand-orange px-7 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 disabled:opacity-60 sm:w-auto"
+        >
+          {paying ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> Processing…
+            </>
+          ) : (
+            <>
+              <CreditCard className="h-4 w-4" />
+              Pay {money(total)} (Demo)
+            </>
+          )}
+        </button>
+      </div>
+
+      <p className="mt-3 text-xs text-muted-foreground">
+        By completing, you agree to Malfranza&apos;s booking terms. No card network is contacted.
+      </p>
     </div>
   );
 }

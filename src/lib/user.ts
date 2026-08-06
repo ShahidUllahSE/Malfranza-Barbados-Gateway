@@ -7,20 +7,45 @@ export type UserIdentity = {
   phone?: string | null;
 };
 
-export async function registerUser(input: {
+export async function startSignup(input: {
   name: string;
   email: string;
   password: string;
   phone?: string;
-}): Promise<UserIdentity> {
-  const result = await apiRequest<{ user: UserIdentity; token: string }>("/users/register", {
+}): Promise<{ email: string; message: string; emailSent: boolean; expiresInSeconds: number }> {
+  return apiRequest("/users/register", {
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+export async function verifySignupOtp(input: {
+  email: string;
+  code: string;
+}): Promise<UserIdentity> {
+  const result = await apiRequest<{ user: UserIdentity; token: string }>(
+    "/users/register/verify-otp",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
   clearAdminToken();
   clearDriverToken();
   setUserToken(result.token);
   return result.user;
+}
+
+export async function resendSignupOtp(email: string): Promise<{
+  email: string;
+  message: string;
+  emailSent: boolean;
+  expiresInSeconds: number;
+}> {
+  return apiRequest("/users/register/resend-otp", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
 }
 
 export async function loginUser(email: string, password: string): Promise<UserIdentity> {
