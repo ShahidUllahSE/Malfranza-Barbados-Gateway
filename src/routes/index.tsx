@@ -15,6 +15,7 @@ import stayTropical from "@/assets/newimage/Malfranza Apartment Number 3.jpg";
 import stay1br from "@/assets/newimage/Malfranza Apartment Number 2.jpg";
 import taxiVan from "@/assets/ChatGPT Image Jul 2, 2026, 10_48_48 PM.png";
 import locationBanner from "@/assets/newimage/Malfranza Apartment Number 1-3.jpg";
+import { PlacesAutocompleteInput } from "@/components/maps/PlacesAutocompleteInput";
 
 const homeSearchSchema = z.object({
   auth: z.enum(["signin", "signup", "setup", "forgot", "reset"]).optional(),
@@ -305,7 +306,7 @@ function HomePage() {
                   { value: "one-bedroom", label: "One-Bedroom" },
                   { value: "two-bedroom", label: "Two-Bedroom" },
                 ]} />
-                <SearchText icon={MapPin} label="Taxi Pickup" value={taxiPickup} onChange={setTaxiPickup} placeholder="Type pickup location" />
+                <SearchText icon={MapPin} label="Taxi Pickup" value={taxiPickup} onChange={setTaxiPickup} placeholder="Search pickup location" />
                 <button
                   type="button"
                   onClick={handleSearch}
@@ -546,8 +547,8 @@ function HomePage() {
                     </select>
                   </div>
                 </label>
-                <TextFormField icon={MapPin} label="Pickup Location" value={ridePickup} onChange={setRidePickup} placeholder="Type pickup location" variant="dark" />
-                <TextFormField icon={MapPin} label="Drop-off Location" value={rideDropoff} onChange={setRideDropoff} placeholder="Type drop-off location" variant="dark" />
+                <TextFormField icon={MapPin} label="Pickup Location" value={ridePickup} onChange={setRidePickup} placeholder="Search pickup on the map" variant="dark" />
+                <TextFormField icon={MapPin} label="Drop-off Location" value={rideDropoff} onChange={setRideDropoff} placeholder="Search drop-off on the map" variant="dark" />
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <label className="block rounded-xl border border-white/10 bg-brand-green-deep px-4 py-3 transition-colors hover:border-brand-orange/40">
                     <span className="text-[11px] font-semibold uppercase tracking-wider text-brand-sage">Date</span>
@@ -725,11 +726,11 @@ function SearchText({
       <span className="block text-[11px] font-semibold uppercase tracking-wider text-brand-charcoal/60">{label}</span>
       <div className="mt-1 flex min-w-0 items-center gap-2">
         <Icon className="h-4 w-4 shrink-0 text-brand-green" />
-        <input
-          type="text"
+        <PlacesAutocompleteInput
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={onChange}
           placeholder={placeholder}
+          ariaLabel={label}
           className="min-w-0 w-full bg-transparent text-sm font-medium text-brand-charcoal outline-none placeholder:text-brand-charcoal/40"
         />
       </div>
@@ -750,11 +751,11 @@ function TextFormField({
       <span className={`text-[11px] font-semibold uppercase tracking-wider ${isDark ? "text-brand-sage" : "text-brand-charcoal/60"}`}>{label}</span>
       <div className="mt-1 flex items-center gap-2">
         <Icon className={`h-4 w-4 shrink-0 ${isDark ? "text-brand-orange" : "text-brand-green"}`} />
-        <input
-          type="text"
+        <PlacesAutocompleteInput
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={onChange}
           placeholder={placeholder}
+          ariaLabel={label}
           className={
             isDark
               ? "w-full bg-transparent text-sm font-medium text-white outline-none placeholder:text-white/40"

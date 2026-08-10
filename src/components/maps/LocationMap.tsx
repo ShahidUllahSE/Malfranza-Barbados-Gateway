@@ -1,5 +1,11 @@
-import { useEffect, useRef } from "react";
-import { loadGoogleMaps, BRAND_MAP_STYLE, BRAND_GREEN } from "@/lib/googleMaps";
+import { useEffect, useRef, useState } from "react";
+import {
+  loadGoogleMaps,
+  BRAND_MAP_STYLE,
+  BRAND_GREEN,
+  hasGoogleMapsBrowserKey,
+  onGoogleMapsAuthFailure,
+} from "@/lib/googleMaps";
 import type { GoogleMapInstance, GoogleMarkerInstance } from "@/lib/googleMaps";
 
 type Props = {
@@ -12,15 +18,22 @@ type Props = {
 /** Interactive Google Map with a brand-green pin at `center`. */
 export function LocationMap({ center, zoom = 15, className, onReady }: Props) {
   const ref = useRef<HTMLDivElement | null>(null);
+  const [error, setError] = useState<string | null>(
+    hasGoogleMapsBrowserKey() ? null : "Maps key missing in .env",
+  );
+
+  useEffect(() => onGoogleMapsAuthFailure((msg) => setError(msg)), []);
 
   useEffect(() => {
     let cancelled = false;
     let map: GoogleMapInstance | null = null;
     let marker: GoogleMarkerInstance | null = null;
+    setError(hasGoogleMapsBrowserKey() ? null : "Maps key missing in .env");
 
     loadGoogleMaps()
-      .then((googleMaps) => {
+      .then(async (googleMaps) => {
         if (cancelled || !ref.current) return;
+        await googleMaps.maps.importLibrary("maps").catch(() => undefined);
         map = new googleMaps.maps.Map(ref.current, {
           center,
           zoom,
@@ -31,7 +44,6 @@ export function LocationMap({ center, zoom = 15, className, onReady }: Props) {
           styles: BRAND_MAP_STYLE,
           backgroundColor: "#F5F1E8",
         });
-        // Custom brand-green pin (SVG).
         const svg = `
           <svg xmlns="http://www.w3.org/2000/svg" width="44" height="56" viewBox="0 0 44 56">
             <defs>
@@ -54,7 +66,12 @@ export function LocationMap({ center, zoom = 15, className, onReady }: Props) {
         });
         onReady?.(map);
       })
-      .catch((e) => console.error("Map load error", e));
+      .catch((e) => {
+        console.error("Map load error", e);
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Could not load Google Map");
+        }
+      });
 
     return () => {
       cancelled = true;
@@ -64,5 +81,14 @@ export function LocationMap({ center, zoom = 15, className, onReady }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [center.lat, center.lng, zoom]);
 
-  return <div ref={ref} className={className} aria-label="Map" />;
+  return (
+    <div className={className ? `relative ${className}` : "relative"}>
+      <div ref={ref} className="h-full min-h-[12rem] w-full" aria-label="Map" />
+      {error && (
+        <div className="absolute inset-0 flex items-center justify-center bg-brand-cream/95 p-4 text-center text-sm text-muted-foreground">
+          {error}
+        </div>
+      )}
+    </div>
+  );
 }

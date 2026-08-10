@@ -42,16 +42,21 @@ export function SiteHeader() {
   const { user, admin, session, signOut, openAuthModal } = useUserAuth();
   const isStaff = session?.kind === "admin";
   const isDriver = session?.kind === "driver";
+  const isAgency = session?.kind === "agency";
   const displayName = isStaff
     ? admin?.email?.split("@")[0] ?? "Staff"
     : isDriver
       ? session.driver.name
-      : user?.name ?? "";
+      : isAgency
+        ? session.agency.agencyName
+        : user?.name ?? "";
   const displayEmail = isStaff
     ? admin?.email ?? ""
     : isDriver
       ? session.driver.email
-      : user?.email ?? "";
+      : isAgency
+        ? session.agency.email
+        : user?.email ?? "";
   const signedIn = !!session;
 
   function handleBookNow() {
@@ -144,6 +149,13 @@ export function SiteHeader() {
                     <Link to="/driver" className="flex items-center gap-2">
                       <LayoutDashboard className="h-4 w-4 text-brand-green" />
                       Driver portal
+                    </Link>
+                  </DropdownMenuItem>
+                ) : isAgency ? (
+                  <DropdownMenuItem asChild className="cursor-pointer rounded-lg px-2 py-2">
+                    <Link to="/agency" className="flex items-center gap-2">
+                      <LayoutDashboard className="h-4 w-4 text-brand-green" />
+                      Agency portal
                     </Link>
                   </DropdownMenuItem>
                 ) : (
@@ -254,6 +266,16 @@ export function SiteHeader() {
                 className="rounded-lg px-3 py-2.5 text-base font-medium text-brand-charcoal hover:bg-brand-cream"
               >
                 Driver portal
+              </Link>
+            )}
+
+            {isAgency && (
+              <Link
+                to="/agency"
+                onClick={() => setOpen(false)}
+                className="rounded-lg px-3 py-2.5 text-base font-medium text-brand-charcoal hover:bg-brand-cream"
+              >
+                Agency portal
               </Link>
             )}
 

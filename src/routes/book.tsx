@@ -30,6 +30,8 @@ import {
   guestFareFromSettings,
 } from "@/lib/bookings";
 import { registerAtCheckout } from "@/lib/user";
+import { capturePayPalOrder, createPayPalOrder } from "@/lib/paypal";
+import { PayPalButtons, PayPalScriptProvider } from "@paypal/react-paypal-js";
 import { APARTMENTS as SEEDED_APTS } from "@/data/apartments";
 import {
   averageNightly,
@@ -479,8 +481,8 @@ function BookWizard() {
     setStep((s) => Math.max(0, s - (roomLocked && s === 2 ? 2 : 1)));
   };
 
-  /* ---- Dummy payment submit ---- */
-  async function handleDummyPay() {
+  /* ---- After successful PayPal capture ---- */
+  async function completeBookingAfterPayment(paymentReference: string) {
     if (!selectedApt) return;
     if (!termsAccepted) {
       toastError("Please accept the booking terms to continue.");
@@ -493,10 +495,6 @@ function BookWizard() {
     }
     setPaying(true);
     try {
-      // Simulate payment latency
-      await new Promise((r) => setTimeout(r, 1200));
-      const txnId = `DEMO-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
-
       const booking = await createApartmentBooking({
         apartmentId: selectedApt.id,
         unitIds: selectedUnits.length > 0 ? selectedUnits.map((unit) => unit.id) : undefined,
@@ -509,7 +507,7 @@ function BookWizard() {
         specialRequests: requests.trim() || undefined,
         agencyCode: agencyCode.trim() ? agencyCode.trim().toUpperCase() : undefined,
         paymentStatus: "paid",
-        paymentReference: txnId,
+        paymentReference,
         taxi: taxiOn
           ? {
               pickup: "Grantley Adams Intl. Airport (BGI)",
@@ -623,6 +621,8 @@ function BookWizard() {
       setPaying(false);
     }
   }
+
+  const paypalClientId = ((import.meta.env.VITE_PAYPAL_CLIENT_ID as string | undefined) || "").trim();
 
   /* ---- Confirmation screen ---- */
   if (confirmation) {
@@ -829,7 +829,8 @@ function BookWizard() {
               <StepPayment
                 total={total}
                 paying={paying}
-                onPay={handleDummyPay}
+                setPaying={setPaying}
+                onPaid={completeBookingAfterPayment}
                 guestName={fullName}
                 termsAccepted={termsAccepted}
                 setTermsAccepted={setTermsAccepted}
@@ -838,6 +839,7 @@ function BookWizard() {
                 guests={guests}
                 checkIn={checkIn}
                 checkOut={checkOut}
+                paypalClientId={paypalClientId}
               />
             )}
           </div>
@@ -867,19 +869,11 @@ function BookWizard() {
                 )}
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={handleDummyPay}
-                disabled={paying || !termsAccepted}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-brand-orange px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-              >
-                {paying ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <CreditCard className="h-3.5 w-3.5" />
-                )}
-                Pay (Demo)
-              </button>
+              <p className="max-w-[55%] text-right text-xs text-muted-foreground">
+                {termsAccepted
+                  ? "Use PayPal above to pay safely"
+                  : "Accept terms, then pay with PayPal above"}
+              </p>
             )}
           </div>
         </div>
@@ -1527,11 +1521,8 @@ function StepDetails(props: {
               autoComplete="off"
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              Agents: enter your Auto-generated code to attribute this booking and earn 10%
-              commission.{" "}
-              <Link to="/agency/signup" className="font-semibold text-brand-green hover:underline">
-                Sign up as a travel agent
-              </Link>
+              Travel agents: enter the code issued by Malfranza admin to attribute this booking
+              and earn 10% commission.
             </p>
           </Field>
         </div>
@@ -1551,14 +1542,13 @@ function StepDetails(props: {
   );
 }
 
-/* ---------------- Step 5: Payment (dummy demo) ---------------- */
-
-type DummyPayMethod = "card" | "transfer" | "arrival";
+/* ---------------- Step 5: Payment (PayPal Sandbox / Live) ---------------- */
 
 function StepPayment(props: {
   total: number;
   paying: boolean;
-  onPay: () => void;
+  setPaying: (v: boolean) => void;
+  onPaid: (paymentReference: string) => void | Promise<void>;
   guestName: string;
   termsAccepted: boolean;
   setTermsAccepted: (v: boolean) => void;
@@ -1567,145 +1557,32 @@ function StepPayment(props: {
   guests: number;
   checkIn: string;
   checkOut: string;
+  paypalClientId: string;
 }) {
-  const { total, paying, onPay, guestName, termsAccepted, setTermsAccepted } = props;
-  const [method, setMethod] = useState<DummyPayMethod>("card");
-  const [cardName, setCardName] = useState(guestName || "");
-  const [cardNumber, setCardNumber] = useState("4242 4242 4242 4242");
-  const [expiry, setExpiry] = useState("12 / 30");
-  const [cvc, setCvc] = useState("123");
-
-  useEffect(() => {
-    if (guestName && !cardName) setCardName(guestName);
-  }, [guestName, cardName]);
+  const {
+    total,
+    paying,
+    setPaying,
+    onPaid,
+    termsAccepted,
+    setTermsAccepted,
+    apt,
+    paypalClientId,
+  } = props;
 
   return (
     <div>
       <h2 className="text-xl font-bold text-brand-green">Payment</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Demo checkout only — no real charges. Use the sample card or switch method, then pay.
+        Pay securely with PayPal. Sandbox test mode — use your personal sandbox buyer account.
       </p>
 
-      <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-sm text-amber-950">
-        <span className="font-semibold">Dummy payment step.</span>{" "}
-        In production this is where live card processing would connect. For now it only
-        simulates a successful charge and creates your booking.
+      <div className="mt-4 rounded-xl border border-sky-200 bg-sky-50 px-3.5 py-3 text-sm text-sky-950">
+        <span className="font-semibold">Sandbox testing.</span> Log in with a{" "}
+        <strong>Personal</strong> sandbox account (e.g.{" "}
+        <span className="font-mono text-xs">…@personal.example.com</span>
+        ). No real money is charged.
       </div>
-
-      <div className="mt-5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Payment method
-        </p>
-        <div className="mt-2 grid gap-2 sm:grid-cols-3">
-          {(
-            [
-              { id: "card" as const, label: "Card", hint: "Visa / Mastercard" },
-              { id: "transfer" as const, label: "Bank transfer", hint: "Demo only" },
-              { id: "arrival" as const, label: "Pay on arrival", hint: "Demo only" },
-            ] as const
-          ).map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => setMethod(m.id)}
-              className={`rounded-xl border px-3 py-3 text-left transition ${
-                method === m.id
-                  ? "border-brand-green bg-brand-green/5 ring-2 ring-brand-green/20"
-                  : "border-border bg-white hover:border-brand-sage"
-              }`}
-            >
-              <p className="text-sm font-semibold text-brand-charcoal">{m.label}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">{m.hint}</p>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {method === "card" && (
-        <div className="mt-5 rounded-2xl border border-border bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-2 text-sm font-medium text-brand-green">
-            <Lock className="h-4 w-4" />
-            Card details (pre-filled demo values)
-          </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Name on card
-              </label>
-              <input
-                value={cardName}
-                onChange={(e) => setCardName(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-border bg-brand-cream/20 px-3 py-2.5 text-sm outline-none focus:border-brand-green"
-                placeholder="Name on card"
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Card number
-              </label>
-              <input
-                value={cardNumber}
-                onChange={(e) => setCardNumber(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-border bg-brand-cream/20 px-3 py-2.5 font-mono text-sm outline-none focus:border-brand-green"
-                placeholder="4242 4242 4242 4242"
-              />
-            </div>
-            <div>
-              <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Expiry
-              </label>
-              <input
-                value={expiry}
-                onChange={(e) => setExpiry(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-border bg-brand-cream/20 px-3 py-2.5 font-mono text-sm outline-none focus:border-brand-green"
-                placeholder="MM / YY"
-              />
-            </div>
-            <div>
-              <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                CVC
-              </label>
-              <input
-                value={cvc}
-                onChange={(e) => setCvc(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-border bg-brand-cream/20 px-3 py-2.5 font-mono text-sm outline-none focus:border-brand-green"
-                placeholder="123"
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {method === "transfer" && (
-        <div className="mt-5 rounded-2xl border border-border bg-white p-5 text-sm shadow-sm">
-          <p className="font-semibold text-brand-charcoal">Demo bank transfer</p>
-          <p className="mt-2 text-muted-foreground">
-            In a live build we would show transfer instructions. For this demo, continue with
-            “Pay” to mark the stay as paid without moving money.
-          </p>
-          <ul className="mt-3 space-y-1 text-brand-charcoal/85">
-            <li>
-              Bank: <span className="font-medium">Malfranza Demo Bank</span>
-            </li>
-            <li>
-              Reference: <span className="font-mono text-xs">MFZ-DEMO</span>
-            </li>
-            <li>
-              Amount: <span className="font-semibold text-brand-green">{money(total)}</span>
-            </li>
-          </ul>
-        </div>
-      )}
-
-      {method === "arrival" && (
-        <div className="mt-5 rounded-2xl border border-border bg-white p-5 text-sm shadow-sm">
-          <p className="font-semibold text-brand-charcoal">Pay on arrival (demo)</p>
-          <p className="mt-2 text-muted-foreground">
-            Your reservation is still created as <strong className="text-brand-charcoal">paid</strong>{" "}
-            in this demo so admin reports work. A live site would mark it as unpaid until check-in.
-          </p>
-        </div>
-      )}
 
       <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-white px-3.5 py-3.5 text-sm text-brand-charcoal">
         <input
@@ -1725,34 +1602,96 @@ function StepPayment(props: {
           >
             booking terms
           </Link>
-          . No card network is contacted in this demo.
+          .
         </span>
       </label>
 
-      <div className="mt-4 flex flex-col gap-3 rounded-2xl border-2 border-brand-green/20 bg-brand-cream/50 p-5 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Amount due
-          </p>
-          <p className="text-2xl font-bold text-brand-green">{money(total)}</p>
-        </div>
-        <button
-          type="button"
-          onClick={onPay}
-          disabled={paying || !termsAccepted}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-brand-orange px-7 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 disabled:opacity-60 sm:w-auto"
-        >
-          {paying ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" /> Processing…
-            </>
-          ) : (
-            <>
-              <CreditCard className="h-4 w-4" />
-              Pay {money(total)} (Demo)
-            </>
+      <div className="mt-4 flex flex-col gap-3 rounded-2xl border-2 border-brand-green/20 bg-brand-cream/50 p-5">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Amount due
+            </p>
+            <p className="text-2xl font-bold text-brand-green">{money(total)}</p>
+          </div>
+          {paying && (
+            <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Confirming payment…
+            </span>
           )}
-        </button>
+        </div>
+
+        {!paypalClientId ? (
+          <p className="text-sm text-red-700">
+            Missing <code className="text-xs">VITE_PAYPAL_CLIENT_ID</code> in frontend{" "}
+            <code className="text-xs">.env</code> — add the Sandbox Client ID and restart Vite.
+          </p>
+        ) : !termsAccepted ? (
+          <p className="text-sm text-muted-foreground">
+            Accept the booking terms above to enable PayPal.
+          </p>
+        ) : (
+          <div className={paying ? "pointer-events-none opacity-60" : undefined}>
+            <PayPalScriptProvider
+              options={{
+                clientId: paypalClientId,
+                currency: "USD",
+                intent: "capture",
+                components: "buttons",
+              }}
+            >
+              <PayPalButtons
+                style={{ layout: "vertical", color: "gold", shape: "rect", label: "paypal" }}
+                disabled={paying || total < 0.5}
+                forceReRender={[total, termsAccepted]}
+                createOrder={async () => {
+                  try {
+                    const order = await createPayPalOrder({
+                      amount: total,
+                      currency: "USD",
+                      description: apt
+                        ? `Malfranza stay — ${apt.name}`
+                        : "Malfranza apartment booking",
+                    });
+                    return order.orderId;
+                  } catch (e: unknown) {
+                    const msg =
+                      e instanceof Error
+                        ? e.message
+                        : "Could not start PayPal checkout";
+                    toastError(msg);
+                    throw e;
+                  }
+                }}
+                onApprove={async (data) => {
+                  try {
+                    setPaying(true);
+                    const capture = await capturePayPalOrder(data.orderID);
+                    await onPaid(capture.captureId || capture.orderId);
+                  } catch (e: unknown) {
+                    setPaying(false);
+                    toastError(e instanceof Error ? e.message : "PayPal capture failed");
+                  }
+                }}
+                onError={(err) => {
+                  console.error("[paypal]", err);
+                  toastError(
+                    "PayPal cancelled or failed. If this keeps happening, re-copy Sandbox Client ID + Secret from developer.paypal.com (Apps & Credentials).",
+                  );
+                  setPaying(false);
+                }}
+                onCancel={() => {
+                  toastError("Payment cancelled");
+                  setPaying(false);
+                }}
+              />
+            </PayPalScriptProvider>
+          </div>
+        )}
+
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Lock className="h-3.5 w-3.5" /> Secured by PayPal · card payment inside PayPal if you prefer
+        </p>
       </div>
     </div>
   );

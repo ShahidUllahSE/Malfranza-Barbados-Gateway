@@ -6,6 +6,7 @@ import {
   Calendar, Watch, User, ArrowRight, CheckCircle2, HeartHandshake, DollarSign,
 } from "lucide-react";
 import taxiHero from "@/assets/ChatGPT Image Jul 2, 2026, 10_48_48 PM.png";
+import { PlacesAutocompleteInput, TaxiRouteMap, type LatLng } from "@/components/maps/PlacesAutocompleteInput";
 import { createTaxiBooking, estimateTaxiFare, fetchTaxiFareSettings, type TaxiBookingResult, type TaxiFareSettings } from "@/lib/bookings";
 import { useUserAuth } from "@/context/UserAuthContext";
 import { clearAdminToken, clearDriverToken, setUserToken } from "@/lib/api";
@@ -61,6 +62,12 @@ function TaxiPage() {
   const [fareSettings, setFareSettings] = useState<TaxiFareSettings | null>(null);
   const [estimate, setEstimate] = useState<{ fare: number; distanceKm?: number } | null>(null);
   const [estimating, setEstimating] = useState(false);
+  const [pickupCoords, setPickupCoords] = useState<LatLng | null>(null);
+  const [dropoffCoords, setDropoffCoords] = useState<LatLng | null>(null);
+  /** Which location field the map click fills — set when user focuses pickup / drop-off. */
+  const [mapTarget, setMapTarget] = useState<"pickup" | "dropoff">("pickup");
+  /** Map expands under the location fields (not off-screen above the form). */
+  const [showLocationMap, setShowLocationMap] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -297,7 +304,7 @@ function TaxiPage() {
 
       {/* BOOKING BAR */}
       <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-10">
-        <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-brand-green p-4 sm:p-6 md:p-8 shadow-card-hover">
+        <div className="relative overflow-visible rounded-3xl border border-white/10 bg-brand-green p-4 sm:p-6 md:p-8 shadow-card-hover">
           <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-brand-orange/20 blur-3xl" aria-hidden="true" />
           <div className="pointer-events-none absolute -left-24 bottom-0 h-56 w-56 rounded-full bg-brand-sage/20 blur-3xl" aria-hidden="true" />
 
@@ -317,8 +324,8 @@ function TaxiPage() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
-              <RideField label="Service Type" icon={Car} className="lg:col-span-2">
+            <form onSubmit={handleSubmit} className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <RideField label="Service Type" icon={Car} className="sm:col-span-2">
                 <select
                   value={form.serviceType}
                   onChange={(e) => setForm({ ...form, serviceType: e.target.value as (typeof SERVICE_TYPES)[number] })}
@@ -327,35 +334,147 @@ function TaxiPage() {
                   {SERVICE_TYPES.map((s) => <option key={s} className="bg-brand-green-deep text-white">{s}</option>)}
                 </select>
               </RideField>
-              <RideField label="Pickup Location" icon={MapPin} className="lg:col-span-2">
-                <input
-                  type="text"
+
+              <RideField
+                label="Pickup Location"
+                icon={MapPin}
+                className={mapTarget === "pickup" ? "ring-1 ring-brand-orange/70 border-brand-orange/50" : ""}
+              >
+                <PlacesAutocompleteInput
                   value={form.pickup}
-                  onChange={(e) => setForm({ ...form, pickup: e.target.value })}
-                  placeholder="e.g. Grantley Adams Airport"
-                  aria-label="Pickup location"
+                  onChange={(pickup) => {
+                    setForm((f) => ({ ...f, pickup }));
+                    setPickupCoords(null);
+                  }}
+                  onPlace={(place) => {
+                    setForm((f) => ({ ...f, pickup: place.address }));
+                    setPickupCoords(place.location ?? null);
+                  }}
+                  onFocus={() => {
+                    setMapTarget("pickup");
+                    setShowLocationMap(true);
+                    window.requestAnimationFrame(() => {
+                      document.getElementById("ride-location-map")?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "nearest",
+                      });
+                    });
+                  }}
+                  placeholder="Type address, or use map below"
+                  ariaLabel="Pickup location"
                   className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/40"
                 />
               </RideField>
-              <RideField label="Drop-off Location" icon={MapPin} className="lg:col-span-2">
-                <input
-                  type="text"
+
+              <RideField
+                label="Drop-off Location"
+                icon={MapPin}
+                className={mapTarget === "dropoff" ? "ring-1 ring-brand-orange/70 border-brand-orange/50" : ""}
+              >
+                <PlacesAutocompleteInput
                   value={form.dropoff}
-                  onChange={(e) => setForm({ ...form, dropoff: e.target.value })}
-                  placeholder="e.g. Oistins, Barbados"
-                  aria-label="Drop-off location"
+                  onChange={(dropoff) => {
+                    setForm((f) => ({ ...f, dropoff }));
+                    setDropoffCoords(null);
+                  }}
+                  onPlace={(place) => {
+                    setForm((f) => ({ ...f, dropoff: place.address }));
+                    setDropoffCoords(place.location ?? null);
+                  }}
+                  onFocus={() => {
+                    setMapTarget("dropoff");
+                    setShowLocationMap(true);
+                    window.requestAnimationFrame(() => {
+                      document.getElementById("ride-location-map")?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "nearest",
+                      });
+                    });
+                  }}
+                  placeholder="Type address, or use map below"
+                  ariaLabel="Drop-off location"
                   className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/40"
                 />
               </RideField>
-              <RideField label="Date" icon={Calendar} className="lg:col-span-2">
+
+              {/* Map sits under the location fields so focusing them always reveals it */}
+              <div id="ride-location-map" className="sm:col-span-2 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-brand-sage">
+                    {mapTarget === "dropoff"
+                      ? "Map · click to set drop-off"
+                      : "Map · click to set pickup"}
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMapTarget("pickup");
+                        setShowLocationMap(true);
+                      }}
+                      className={`rounded-full px-3 py-1 text-[11px] font-semibold transition ${
+                        mapTarget === "pickup"
+                          ? "bg-brand-orange text-white"
+                          : "bg-white/10 text-white/80 hover:bg-white/15"
+                      }`}
+                    >
+                      Pickup pin
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMapTarget("dropoff");
+                        setShowLocationMap(true);
+                      }}
+                      className={`rounded-full px-3 py-1 text-[11px] font-semibold transition ${
+                        mapTarget === "dropoff"
+                          ? "bg-brand-orange text-white"
+                          : "bg-white/10 text-white/80 hover:bg-white/15"
+                      }`}
+                    >
+                      Drop-off pin
+                    </button>
+                  </div>
+                </div>
+                {(showLocationMap || pickupCoords || dropoffCoords || form.pickup || form.dropoff) && (
+                  <TaxiRouteMap
+                    pickup={pickupCoords}
+                    dropoff={dropoffCoords}
+                    activeField={mapTarget}
+                    onMapPick={(role, place) => {
+                      if (role === "pickup") {
+                        setForm((f) => ({ ...f, pickup: place.address }));
+                        setPickupCoords(place.location ?? null);
+                      } else {
+                        setForm((f) => ({ ...f, dropoff: place.address }));
+                        setDropoffCoords(place.location ?? null);
+                      }
+                    }}
+                    className="h-64 border border-white/20 sm:h-72 md:h-80"
+                  />
+                )}
+                {!showLocationMap && !pickupCoords && !dropoffCoords && !form.pickup && !form.dropoff && (
+                  <button
+                    type="button"
+                    onClick={() => setShowLocationMap(true)}
+                    className="flex h-40 w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-white/25 bg-brand-green-deep/80 text-sm text-white/90 transition hover:border-brand-orange/50 hover:bg-brand-green-deep"
+                  >
+                    <MapPin className="h-6 w-6 text-brand-orange" />
+                    <span className="font-semibold">Open map to pick locations</span>
+                    <span className="text-xs text-white/60">or type an address in the fields above</span>
+                  </button>
+                )}
+              </div>
+
+              <RideField label="Date" icon={Calendar}>
                 <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })}
                   className="w-full bg-transparent text-sm text-white outline-none [color-scheme:dark]" />
               </RideField>
-              <RideField label="Time" icon={Watch} className="lg:col-span-2">
+              <RideField label="Time" icon={Watch}>
                 <input type="time" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })}
                   className="w-full bg-transparent text-sm text-white outline-none [color-scheme:dark]" />
               </RideField>
-              <RideField label="Passengers" icon={User} className="lg:col-span-2">
+              <RideField label="Passengers" icon={User}>
                 <select
                   value={form.passengers}
                   onChange={(e) => setForm({ ...form, passengers: Number(e.target.value) })}
@@ -367,11 +486,11 @@ function TaxiPage() {
                 </select>
               </RideField>
 
-              <RideField label="Your Name" icon={User} className="lg:col-span-2">
+              <RideField label="Your Name" icon={User}>
                 <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
                   maxLength={100} placeholder="Jane Doe" className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/40" />
               </RideField>
-              <RideField label="Email" icon={User} className="lg:col-span-2">
+              <RideField label="Email" icon={User}>
                 <input
                   type="email"
                   value={form.email}
@@ -382,12 +501,12 @@ function TaxiPage() {
                   className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/40 read-only:opacity-80"
                 />
               </RideField>
-              <RideField label="Phone" icon={User} className="lg:col-span-2">
+              <RideField label="Phone" icon={User} className="sm:col-span-2">
                 <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
                   maxLength={40} placeholder="+1 246 000 0000" className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/40" />
               </RideField>
 
-              <div className="lg:col-span-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
+              <div className="sm:col-span-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
                 <div className="text-sm text-white/70 font-medium">
                   {estimating ? (
                     <span>Calculating fare…</span>
@@ -411,7 +530,7 @@ function TaxiPage() {
                 </button>
               </div>
 
-              {error && <p className="lg:col-span-6 text-sm text-red-200">{error}</p>}
+              {error && <p className="sm:col-span-2 text-sm text-red-200">{error}</p>}
             </form>
           </div>
         </div>

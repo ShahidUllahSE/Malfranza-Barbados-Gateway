@@ -45,8 +45,7 @@ export function SiteFooter() {
             <li><Link to="/taxi" className="text-white/80 hover:text-white">Taxi Service</Link></li>
             <li><Link to="/amenities" className="text-white/80 hover:text-white">Amenities</Link></li>
             <li><Link to="/contact" className="text-white/80 hover:text-white">Contact</Link></li>
-            <li><Link to="/agency/signup" className="text-white/80 hover:text-white">Sign up as a travel agent</Link></li>
-            <li><Link to="/agency" className="text-white/80 hover:text-white">Agency portal</Link></li>
+            <li><Link to="/agency" className="text-white/80 hover:text-white">Travel agent portal</Link></li>
             <li><Link to="/privacy" className="text-white/80 hover:text-white">Privacy Policy</Link></li>
             <li><Link to="/booking-policy" className="text-white/80 hover:text-white">Booking Policy</Link></li>
             <li><Link to="/terms" className="text-white/80 hover:text-white">Terms &amp; Conditions</Link></li>

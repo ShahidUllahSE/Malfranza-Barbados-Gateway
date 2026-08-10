@@ -422,7 +422,7 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
             ? `Enter the 6-digit code we sent to ${email.trim() || "your email"}.`
             : mode === "signup"
               ? "Create a guest account — we’ll email a code to verify your address."
-              : null);
+              : "One sign-in for guests, travel agents, drivers, and staff.");
 
   return (
     <UserAuthContext.Provider value={value}>

@@ -2,8 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Building2, CircleHelp, Percent, Search, Wallet } from "lucide-react";
+import { Building2, CircleHelp, Plus, Percent, Search, Wallet } from "lucide-react";
 import {
+  createTravelAgencyAdmin,
   fetchAdminAgencyCommission,
   listAdminAgencies,
   setAdminAgencyActive,
@@ -38,6 +39,14 @@ function AdminAgenciesPage() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [search, setSearch] = useState("");
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState({
+    agencyName: "",
+    contactName: "",
+    email: "",
+    phone: "",
+    password: "",
+  });
 
   const commissionQ = useQuery({
     queryKey: ["admin", "agency-commission", fromDate, toDate],
@@ -56,6 +65,26 @@ function AdminAgenciesPage() {
       toast.success("Agency updated");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Update failed"),
+  });
+
+  const create = useMutation({
+    mutationFn: () =>
+      createTravelAgencyAdmin({
+        agencyName: form.agencyName.trim(),
+        contactName: form.contactName.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
+        password: form.password,
+      }),
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: ["admin", "agencies"] });
+      toast.success(
+        `Agency created · code ${result.agency.agencyCode}. Share email/password so they use site Sign in.`,
+      );
+      setForm({ agencyName: "", contactName: "", email: "", phone: "", password: "" });
+      setShowCreate(false);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not create agency"),
   });
 
   const agencies = agenciesQ.data ?? [];
@@ -114,8 +143,105 @@ function AdminAgenciesPage() {
     <div className="space-y-4">
       <AdminPageHeader
         title="Travel agencies"
-        description="See which travel agents registered, their booking codes, and how much commission you owe them."
+        description="Create agents here (admin only). They use the same site Sign in as guests and staff."
+        meta={
+          <button
+            type="button"
+            onClick={() => setShowCreate((v) => !v)}
+            className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-brand-green px-3.5 text-sm font-semibold text-white hover:opacity-90"
+          >
+            <Plus className="h-4 w-4" />
+            {showCreate ? "Close form" : "Add travel agent"}
+          </button>
+        }
       />
+
+      {showCreate && (
+        <form
+          className="rounded-xl border border-border/70 bg-white p-4 shadow-sm"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (form.password.length < 8) {
+              toast.error("Password must be at least 8 characters");
+              return;
+            }
+            create.mutate();
+          }}
+        >
+          <h2 className="text-sm font-semibold text-brand-charcoal">New travel agent</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            A unique booking code is generated automatically. Share the email and password so
+            they can sign in site-wide and open /agency.
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <label className="block text-xs">
+              <span className="font-medium text-muted-foreground">Agency name</span>
+              <input
+                required
+                value={form.agencyName}
+                onChange={(e) => setForm((f) => ({ ...f, agencyName: e.target.value }))}
+                className={`${inputClass} mt-1 w-full`}
+              />
+            </label>
+            <label className="block text-xs">
+              <span className="font-medium text-muted-foreground">Contact name</span>
+              <input
+                required
+                value={form.contactName}
+                onChange={(e) => setForm((f) => ({ ...f, contactName: e.target.value }))}
+                className={`${inputClass} mt-1 w-full`}
+              />
+            </label>
+            <label className="block text-xs">
+              <span className="font-medium text-muted-foreground">Email (login)</span>
+              <input
+                required
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                className={`${inputClass} mt-1 w-full`}
+              />
+            </label>
+            <label className="block text-xs">
+              <span className="font-medium text-muted-foreground">Phone</span>
+              <input
+                required
+                value={form.phone}
+                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                className={`${inputClass} mt-1 w-full`}
+              />
+            </label>
+            <label className="block text-xs sm:col-span-2">
+              <span className="font-medium text-muted-foreground">Initial password</span>
+              <input
+                required
+                type="password"
+                minLength={8}
+                value={form.password}
+                onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                className={`${inputClass} mt-1 w-full`}
+                placeholder="At least 8 characters"
+              />
+            </label>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="submit"
+              disabled={create.isPending}
+              className="rounded-lg bg-brand-green px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
+            >
+              {create.isPending ? "Creating…" : "Create agency"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowCreate(false)}
+              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-brand-charcoal hover:bg-brand-cream"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
 
       {/* Plain-English how it works */}
       <div className="rounded-xl border border-brand-sage/30 bg-white px-4 py-3 shadow-sm">
@@ -127,9 +253,9 @@ function AdminAgenciesPage() {
             <p className="font-semibold">How this works (simple)</p>
             <ol className="mt-1.5 list-decimal space-y-1 pl-4 text-xs leading-relaxed text-muted-foreground sm:text-[13px]">
               <li>
-                An agency signs up on the website and gets a unique code like{" "}
-                <span className="font-mono font-semibold text-brand-green">AG-XXXXXXXX</span>{" "}
-                (created automatically).
+                You create the agent here (admin only). They get a unique code like{" "}
+                <span className="font-mono font-semibold text-brand-green">AG-XXXXXXXX</span> and
+                use the normal site Sign in — no public agent sign-up.
               </li>
               <li>
                 When they book for a guest, that code is entered on the booking form.
@@ -148,7 +274,7 @@ function AdminAgenciesPage() {
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
         <StatCard
           icon={Building2}
-          title="Agencies signed up"
+          title="Agencies on file"
           value={String(agencies.length)}
           note={`${agencies.filter((a: any) => a.isActive).length} currently active`}
         />
@@ -232,7 +358,7 @@ function AdminAgenciesPage() {
             <TableShimmer rows={4} cols={7} />
           </div>
         ) : rows.length === 0 ? (
-          <AdminEmptyState message="No travel agencies registered yet" />
+          <AdminEmptyState message="No travel agencies yet — use “Add travel agent” above." />
         ) : (
           <>
             {/* Mobile list */}

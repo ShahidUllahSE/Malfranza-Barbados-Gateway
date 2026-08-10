@@ -1,7 +1,6 @@
 import {
   apiRequest,
   clearAdminToken,
-  clearAllTokens,
   clearDriverToken,
   clearUserToken,
   setAgencyToken,
@@ -43,14 +42,22 @@ export async function registerTravelAgency(input: {
   email: string;
   phone: string;
   password: string;
-}): Promise<{ agency: AgencyIdentity; token: string }> {
-  const result = await apiRequest<{ agency: AgencyIdentity; token: string }>("/agencies/register", {
+}): Promise<{ agency: AgencyIdentity }> {
+  return apiRequest<{ agency: AgencyIdentity }>("/admin/agencies", {
     method: "POST",
+    auth: true,
     body: JSON.stringify(input),
   });
-  clearAllTokens();
-  setAgencyToken(result.token);
-  return result;
+}
+
+export async function createTravelAgencyAdmin(input: {
+  agencyName: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  password: string;
+}): Promise<{ agency: AgencyIdentity }> {
+  return registerTravelAgency(input);
 }
 
 export async function loginTravelAgency(

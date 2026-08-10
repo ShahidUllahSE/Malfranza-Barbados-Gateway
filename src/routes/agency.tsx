@@ -10,13 +10,10 @@ import {
   Copy,
   ExternalLink,
 } from "lucide-react";
-import { getCurrentAgency, type AgencyIdentity } from "@/lib/api";
 import {
   getMyAgencyCommission,
   listMyAgencyBookings,
-  loginTravelAgency,
   confirmAgencyPasswordReset,
-  requestAgencyPasswordReset,
 } from "@/lib/agency";
 import { StatusPill, AdminEmptyState } from "@/components/admin/AdminBits";
 import { Logo } from "@/components/Logo";
@@ -46,85 +43,73 @@ function money(n: number) {
 function AgencyPortalPage() {
   const navigate = useNavigate();
   const { reset } = Route.useSearch();
-  const { signOut: clearAuthSession, refreshSession } = useUserAuth();
-  const [agency, setAgency] = useState<AgencyIdentity | null>(null);
-  const [status, setStatus] = useState<"checking" | "ok" | "denied">("checking");
-  const [email, setEmail] = useState("");
+  const { session, signOut: clearAuthSession, openAuthModal } = useUserAuth();
+
+  const isAgency = session?.kind === "agency";
+  const agency = isAgency ? session.agency : null;
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  const [mode, setMode] = useState<"login" | "forgot" | "reset">(
-    reset ? "reset" : "login",
-  );
+
+  // Password-reset link from email — handle without separate agency login form
+  const isResetMode = Boolean(reset);
 
   useEffect(() => {
-    if (reset) setMode("reset");
-  }, [reset]);
-
-  useEffect(() => {
-    getCurrentAgency()
-      .then((a) => {
-        setAgency(a);
-        setStatus("ok");
-      })
-      .catch(() => setStatus("denied"));
-  }, []);
+    if (isResetMode || isAgency) return;
+    // One global sign-in for guests, drivers, staff, and travel agents
+    openAuthModal({
+      mode: "signin",
+      redirectTo: "/agency",
+      reason:
+        "Sign in with the email and password provided by Malfranza admin to open your agency portal.",
+    });
+  }, [isAgency, isResetMode, openAuthModal]);
 
   const bookingsQ = useQuery({
     queryKey: ["agency", "bookings"],
     queryFn: listMyAgencyBookings,
-    enabled: status === "ok",
+    enabled: isAgency,
   });
 
   const commissionQ = useQuery({
     queryKey: ["agency", "commission"],
     queryFn: getMyAgencyCommission,
-    enabled: status === "ok",
+    enabled: isAgency,
   });
 
   const commissionsEarned = useMemo(() => {
     return money(commissionQ.data?.commissionOwed ?? 0);
   }, [commissionQ.data]);
 
-  async function onLogin(e: React.FormEvent) {
+  async function onResetPassword(e: React.FormEvent) {
     e.preventDefault();
+    if (!reset) {
+      toast.error("This reset link is invalid. Request a new one from Sign in → Forgot password.");
+      return;
+    }
+    if (password.length < 8) {
+      toast.error("Password must be at least 8 characters");
+      return;
+    }
+    if (password !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
     setBusy(true);
     try {
-      if (mode === "forgot") {
-        const result = await requestAgencyPasswordReset(email.trim());
-        toast.success(result.message || "If that email is registered, a reset link was sent.");
-        setMode("login");
-        return;
-      }
-      if (mode === "reset") {
-        if (!reset) {
-          toast.error("This reset link is invalid. Request a new one.");
-          return;
-        }
-        if (password.length < 8) {
-          toast.error("Password must be at least 8 characters");
-          return;
-        }
-        if (password !== confirmPassword) {
-          toast.error("Passwords do not match");
-          return;
-        }
-        await confirmAgencyPasswordReset({ token: reset, password });
-        toast.success("Password updated — sign in with your new password");
-        setMode("login");
-        setPassword("");
-        setConfirmPassword("");
-        navigate({ to: "/agency", search: {}, replace: true });
-        return;
-      }
-
-      const result = await loginTravelAgency(email.trim(), password);
-      setAgency(result.agency);
-      setStatus("ok");
-      await refreshSession().catch(() => undefined);
-      toast.success("Signed in");
+      await confirmAgencyPasswordReset({ token: reset, password });
+      toast.success("Password updated — use the site Sign in with your new password");
+      setPassword("");
+      setConfirmPassword("");
+      navigate({ to: "/agency", search: {}, replace: true });
+      openAuthModal({
+        mode: "signin",
+        redirectTo: "/agency",
+        reason: "Sign in with your new agency password.",
+      });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Sign in failed");
+      toast.error(err instanceof Error ? err.message : "Could not update password");
     } finally {
       setBusy(false);
     }
@@ -132,9 +117,7 @@ function AgencyPortalPage() {
 
   function signOut() {
     clearAuthSession();
-    setAgency(null);
-    setStatus("denied");
-    navigate({ to: "/agency" });
+    navigate({ to: "/" });
   }
 
   function copyCode() {
@@ -143,15 +126,7 @@ function AgencyPortalPage() {
     toast.success("Agency code copied");
   }
 
-  if (status === "checking") {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-brand-cream">
-        <div className="mfz-shimmer h-10 w-48 rounded-lg" />
-      </div>
-    );
-  }
-
-  if (status === "denied" || !agency) {
+  if (isResetMode && !isAgency) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-brand-cream to-white">
         <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-12">
@@ -164,108 +139,75 @@ function AgencyPortalPage() {
               <span className="text-xs font-semibold uppercase tracking-wide">Agency portal</span>
             </div>
             <h1 className="font-display text-2xl font-bold text-brand-charcoal">
-              {mode === "forgot"
-                ? "Reset agency password"
-                : mode === "reset"
-                  ? "Choose a new password"
-                  : "Travel agent login"}
+              Choose a new password
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              {mode === "forgot"
-                ? "We’ll email a reset link if that address is registered."
-                : mode === "reset"
-                  ? "Set a new password for your agency account."
-                  : "View bookings and commission for your agency code only."}
+              Then sign in with the main Sign in button using this email and password.
             </p>
-            <form className="mt-6 space-y-3" onSubmit={onLogin}>
-              {(mode === "login" || mode === "forgot") && (
-                <label className="block">
-                  <span className="text-xs font-medium">Email</span>
-                  <input
-                    required
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-input px-3 py-2.5 text-sm"
-                  />
-                </label>
-              )}
-              {(mode === "login" || mode === "reset") && (
-                <label className="block">
-                  <span className="text-xs font-medium">
-                    {mode === "reset" ? "New password" : "Password"}
-                  </span>
-                  <input
-                    required
-                    type="password"
-                    minLength={8}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-input px-3 py-2.5 text-sm"
-                  />
-                </label>
-              )}
-              {mode === "reset" && (
-                <label className="block">
-                  <span className="text-xs font-medium">Confirm password</span>
-                  <input
-                    required
-                    type="password"
-                    minLength={8}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-input px-3 py-2.5 text-sm"
-                  />
-                </label>
-              )}
-              {mode === "login" && (
-                <div className="text-right">
-                  <button
-                    type="button"
-                    onClick={() => setMode("forgot")}
-                    className="text-xs font-semibold text-brand-green hover:underline"
-                  >
-                    Forgot password?
-                  </button>
-                </div>
-              )}
+            <form className="mt-6 space-y-3" onSubmit={onResetPassword}>
+              <label className="block">
+                <span className="text-xs font-medium">New password</span>
+                <input
+                  required
+                  type="password"
+                  minLength={8}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-input px-3 py-2.5 text-sm"
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs font-medium">Confirm password</span>
+                <input
+                  required
+                  type="password"
+                  minLength={8}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-input px-3 py-2.5 text-sm"
+                />
+              </label>
               <button
                 type="submit"
                 disabled={busy}
                 className="w-full rounded-xl bg-brand-green px-4 py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
               >
-                {busy
-                  ? "Please wait…"
-                  : mode === "forgot"
-                    ? "Email reset link"
-                    : mode === "reset"
-                      ? "Update password"
-                      : "Sign in"}
+                {busy ? "Please wait…" : "Update password"}
               </button>
             </form>
-            <p className="mt-4 text-center text-xs text-muted-foreground">
-              {mode !== "login" ? (
-                <>
-                  Back to{" "}
-                  <button
-                    type="button"
-                    onClick={() => setMode("login")}
-                    className="font-semibold text-brand-green hover:underline"
-                  >
-                    sign in
-                  </button>
-                </>
-              ) : (
-                <>
-                  New partner?{" "}
-                  <Link to="/agency/signup" className="font-semibold text-brand-green hover:underline">
-                    Sign up as a travel agent
-                  </Link>
-                </>
-              )}
-            </p>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (!isAgency || !agency) {
+    return (
+      <div className="flex min-h-[70vh] flex-col items-center justify-center gap-4 bg-brand-cream px-4 text-center">
+        <Logo className="h-12 w-auto" />
+        <div className="max-w-md">
+          <h1 className="font-display text-2xl font-bold text-brand-charcoal">Agency portal</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Use the site <strong>Sign in</strong> with the travel-agent email and password created
+            by Malfranza admin. There is no separate agent login or public sign-up.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() =>
+            openAuthModal({
+              mode: "signin",
+              redirectTo: "/agency",
+              reason: "Sign in with your agency credentials from Malfranza admin.",
+            })
+          }
+          className="rounded-full bg-brand-green px-6 py-2.5 text-sm font-semibold text-white hover:opacity-90"
+        >
+          Sign in
+        </button>
+        <Link to="/" className="text-sm font-semibold text-brand-green hover:underline">
+          Back to home
+        </Link>
       </div>
     );
   }
@@ -306,7 +248,7 @@ function AgencyPortalPage() {
                 {agency.agencyCode}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Enter this code when booking for a guest. Auto-generated — never reassign manually.
+                Enter this code when booking for a guest. Issued by Malfranza admin.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
