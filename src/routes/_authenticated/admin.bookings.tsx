@@ -8,6 +8,7 @@ import {
   updateApartmentBookingStatus,
   type AptBookingStatus,
 } from "@/lib/admin";
+import { formatShortStayRange } from "@/lib/occupancy";
 import {
   StatusPill,
   AdminTableShell,
@@ -189,10 +190,15 @@ function BookingsPage() {
                     {anyB.unit_name ? ` · ${anyB.unit_name}` : ""}
                   </p>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                    <span>
-                      {b.check_in} → {b.check_out}
+                    <span className="font-medium text-brand-charcoal/80">
+                      {formatShortStayRange(b.check_in, b.check_out)}
                     </span>
                     <span>{b.nights} nights</span>
+                    {(b as any).agency_code && (
+                      <span className="font-mono font-semibold text-brand-green">
+                        {(b as any).agency_code}
+                      </span>
+                    )}
                     <span className="font-semibold text-brand-green">
                       ${Number(b.total_amount).toFixed(2)}
                     </span>
@@ -203,27 +209,16 @@ function BookingsPage() {
             {rows.length === 0 && <AdminEmptyState message="No bookings match your filters" />}
           </div>
 
-          {/* Desktop table — full width, no horizontal scroll */}
-          <AdminTableShell>
-            <colgroup>
-              <col className="w-[12%]" />
-              <col className="w-[16%]" />
-              <col className="w-[15%]" />
-              <col className="w-[15%]" />
-              <col className="w-[5%]" />
-              <col className="w-[6%]" />
-              <col className="w-[7%]" />
-              <col className="w-[8%]" />
-              <col className="w-[9%]" />
-              <col className="w-[7%]" />
-            </colgroup>
+          {/* Desktop table — readable columns with optional horizontal scroll */}
+          <AdminTableShell minWidth="68rem">
             <thead>
               <tr>
                 <AdminTh>Reference</AdminTh>
                 <AdminTh>Guest</AdminTh>
                 <AdminTh>Account</AdminTh>
                 <AdminTh>Apartment</AdminTh>
-                <AdminTh>Dates</AdminTh>
+                <AdminTh>Stay</AdminTh>
+                <AdminTh>Agency</AdminTh>
                 <AdminTh>Nights</AdminTh>
                 <AdminTh>Taxi</AdminTh>
                 <AdminTh>Total</AdminTh>
@@ -241,6 +236,8 @@ function BookingsPage() {
                 ]
                   .filter(Boolean)
                   .join(" ");
+                const stayLabel = formatShortStayRange(b.check_in, b.check_out);
+                const stayTitle = `${b.check_in} → ${b.check_out} (${b.nights} nights)`;
                 return (
                   <AdminTr key={b.id} onClick={() => setOpenId(b.id)}>
                     <AdminTd>
@@ -279,16 +276,35 @@ function BookingsPage() {
                         {aptLabel}
                       </AdminCellText>
                     </AdminTd>
-                    <AdminTd>
-                      <div className="text-[11px] font-medium leading-snug text-brand-charcoal/80">
-                        {b.check_in}
-                      </div>
-                      <div className="text-[11px] leading-snug text-muted-foreground">
-                        → {b.check_out}
-                      </div>
+                    <AdminTd nowrap>
+                      <span
+                        className="text-[13px] font-semibold tabular-nums text-brand-charcoal"
+                        title={stayTitle}
+                      >
+                        {stayLabel}
+                      </span>
                     </AdminTd>
                     <AdminTd>
-                      <span className="inline-flex min-w-[1.5rem] justify-center rounded-md bg-brand-cream/80 px-1.5 py-0.5 text-xs font-semibold text-brand-green">
+                      {anyB.agency_code ? (
+                        <div>
+                          <span className="font-mono text-xs font-bold text-brand-green">
+                            {anyB.agency_code}
+                          </span>
+                          {anyB.agency_name && (
+                            <AdminCellText
+                              className="mt-0.5 text-[11px] text-muted-foreground"
+                              title={anyB.agency_name}
+                            >
+                              {anyB.agency_name}
+                            </AdminCellText>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-300">—</span>
+                      )}
+                    </AdminTd>
+                    <AdminTd>
+                      <span className="inline-flex min-w-[1.75rem] justify-center rounded-md bg-brand-cream/80 px-1.5 py-0.5 text-xs font-semibold text-brand-green">
                         {b.nights}
                       </span>
                     </AdminTd>
@@ -302,7 +318,7 @@ function BookingsPage() {
                       )}
                     </AdminTd>
                     <AdminTd>
-                      <span className="text-[13px] font-bold text-brand-charcoal">
+                      <span className="text-[13px] font-bold tabular-nums text-brand-charcoal">
                         ${Number(b.total_amount).toFixed(0)}
                       </span>
                     </AdminTd>
@@ -317,7 +333,7 @@ function BookingsPage() {
               })}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={10}>
+                  <td colSpan={11}>
                     <AdminEmptyState message="No bookings match your filters" />
                   </td>
                 </tr>
@@ -354,6 +370,23 @@ function BookingsPage() {
                 </Field>
               )}
               <Field label="Guests">{openBooking.guests}</Field>
+              {(openBooking as any).agency_code && (
+                <Field label="Travel agency">
+                  <span className="font-mono font-bold text-brand-green">
+                    {(openBooking as any).agency_code}
+                  </span>
+                  {(openBooking as any).agency_name
+                    ? ` · ${(openBooking as any).agency_name}`
+                    : ""}
+                  {(openBooking as any).commission_amount != null &&
+                    Number((openBooking as any).commission_amount) > 0 && (
+                      <span className="mt-1 block text-xs text-brand-orange">
+                        Commission ${Number((openBooking as any).commission_amount).toFixed(2)} (
+                        {Math.round(Number((openBooking as any).commission_rate ?? 0.1) * 100)}%)
+                      </span>
+                    )}
+                </Field>
+              )}
             </section>
 
             <section className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-4 space-y-3">

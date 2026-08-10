@@ -28,6 +28,7 @@ export type ApartmentOccupancy = {
   slug: string;
   name: string;
   subtitle: string | null;
+  unitsExclusive?: boolean;
   available: boolean;
   occupiedNow: boolean;
   currentBooking: {
@@ -86,6 +87,7 @@ export type ApartmentBookingInput = {
   checkOut: string;
   guests: number;
   specialRequests?: string;
+  agencyCode?: string;
   paymentStatus?: "unpaid" | "paid";
   paymentReference?: string;
   taxi?: {

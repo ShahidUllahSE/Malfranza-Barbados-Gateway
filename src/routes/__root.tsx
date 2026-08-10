@@ -108,7 +108,7 @@ function RootComponent() {
       const rect = el.getBoundingClientRect();
       const vh = window.innerHeight || document.documentElement.clientHeight;
       // Treat anything intersecting the viewport (with a small buffer) as visible.
-      return rect.top < vh + 40 && rect.bottom > -40;
+      return rect.top < vh + 120 && rect.bottom > -120;
     };
 
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -125,8 +125,8 @@ function RootComponent() {
           }
         }
       },
-      // Generous margins so first-paint / tall heroes aren't missed.
-      { threshold: 0.01, rootMargin: "40px 0px 40px 0px" },
+      // Tall pages (policies, stays detail): reveal well before the section is fully on-screen.
+      { threshold: 0, rootMargin: "120px 0px 40% 0px" },
     );
 
     const attach = () => {
@@ -141,15 +141,8 @@ function RootComponent() {
       });
     };
 
-    attach();
-    // Sections often appear after route loaders resolve; re-check on DOM changes.
-    const mo = new MutationObserver(() => {
-      requestAnimationFrame(attach);
-    });
-    mo.observe(document.body, { childList: true, subtree: true });
-
-    // Safety net for anything still invisible but on screen after layout settles.
-    const safetyId = window.setTimeout(() => {
+    // If IO misses a scroll (layout shift / nested sections), force-reveal on scroll/resize.
+    const revealVisible = () => {
       document
         .querySelectorAll<HTMLElement>("main section.reveal:not(.is-revealed)")
         .forEach((el) => {
@@ -158,12 +151,41 @@ function RootComponent() {
             io.unobserve(el);
           }
         });
-    }, 150);
+    };
+
+    attach();
+    // Sections often appear after route loaders resolve; re-check on DOM changes.
+    const mo = new MutationObserver(() => {
+      requestAnimationFrame(attach);
+    });
+    mo.observe(document.body, { childList: true, subtree: true });
+
+    window.addEventListener("scroll", revealVisible, { passive: true });
+    window.addEventListener("resize", revealVisible);
+
+    // Safety nets: first paint + after layout settles + long pages after route change.
+    const safetyIds = [80, 300, 900].map((ms) =>
+      window.setTimeout(() => {
+        revealVisible();
+        // If something is still fully off-screen never gets scrolled past a glitch,
+        // content policy still must read — force remaining after a beat on legal pages.
+        if (ms >= 900 && /\/(privacy|cookies|booking-policy|terms)\b/.test(pathname)) {
+          document
+            .querySelectorAll<HTMLElement>("main section.reveal:not(.is-revealed)")
+            .forEach((el) => {
+              reveal(el);
+              io.unobserve(el);
+            });
+        }
+      }, ms),
+    );
 
     return () => {
       io.disconnect();
       mo.disconnect();
-      window.clearTimeout(safetyId);
+      window.removeEventListener("scroll", revealVisible);
+      window.removeEventListener("resize", revealVisible);
+      safetyIds.forEach((id) => window.clearTimeout(id));
     };
   }, [pathname]);
 

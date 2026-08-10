@@ -9,18 +9,24 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TaxiRouteImport } from './routes/taxi'
 import { Route as StaysRouteImport } from './routes/stays'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as MyBookingsRouteImport } from './routes/my-bookings'
 import { Route as DriverRouteImport } from './routes/driver'
+import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as ContactRouteImport } from './routes/contact'
+import { Route as BookingPolicyRouteImport } from './routes/booking-policy'
 import { Route as BookRouteImport } from './routes/book'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AmenitiesRouteImport } from './routes/amenities'
+import { Route as AgencyRouteImport } from './routes/agency'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as StaysIdRouteImport } from './routes/stays_.$id'
 import { Route as MyBookingsReferenceRouteImport } from './routes/my-bookings_.$reference'
+import { Route as AgencySignupRouteImport } from './routes/agency_.signup'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as AuthenticatedAdminTaxiRouteImport } from './routes/_authenticated/admin.taxi'
@@ -33,6 +39,7 @@ import { Route as AuthenticatedAdminCalendarRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminBookingsRouteImport } from './routes/_authenticated/admin.bookings'
 import { Route as AuthenticatedAdminBeds24RouteImport } from './routes/_authenticated/admin.beds24'
 import { Route as AuthenticatedAdminApartmentsRouteImport } from './routes/_authenticated/admin.apartments'
+import { Route as AuthenticatedAdminAgenciesRouteImport } from './routes/_authenticated/admin.agencies'
 import { Route as AuthenticatedAdminChannelsIndexRouteImport } from './routes/_authenticated/admin.channels.index'
 import { Route as AuthenticatedAdminTaxiIdRouteImport } from './routes/_authenticated/admin.taxi_.$id'
 import { Route as AuthenticatedAdminInsightsSlugRouteImport } from './routes/_authenticated/admin.insights.$slug'
@@ -43,6 +50,11 @@ import { Route as AuthenticatedAdminChannelsDirectRouteImport } from './routes/_
 import { Route as AuthenticatedAdminChannelsBookingRouteImport } from './routes/_authenticated/admin.channels.booking'
 import { Route as AuthenticatedAdminChannelsAirbnbRouteImport } from './routes/_authenticated/admin.channels.airbnb'
 
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TaxiRoute = TaxiRouteImport.update({
   id: '/taxi',
   path: '/taxi',
@@ -51,6 +63,11 @@ const TaxiRoute = TaxiRouteImport.update({
 const StaysRoute = StaysRouteImport.update({
   id: '/stays',
   path: '/stays',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MyBookingsRoute = MyBookingsRouteImport.update({
@@ -63,9 +80,19 @@ const DriverRoute = DriverRouteImport.update({
   path: '/driver',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CookiesRoute = CookiesRouteImport.update({
+  id: '/cookies',
+  path: '/cookies',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ContactRoute = ContactRouteImport.update({
   id: '/contact',
   path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BookingPolicyRoute = BookingPolicyRouteImport.update({
+  id: '/booking-policy',
+  path: '/booking-policy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BookRoute = BookRouteImport.update({
@@ -81,6 +108,11 @@ const AuthRoute = AuthRouteImport.update({
 const AmenitiesRoute = AmenitiesRouteImport.update({
   id: '/amenities',
   path: '/amenities',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgencyRoute = AgencyRouteImport.update({
+  id: '/agency',
+  path: '/agency',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
@@ -100,6 +132,11 @@ const StaysIdRoute = StaysIdRouteImport.update({
 const MyBookingsReferenceRoute = MyBookingsReferenceRouteImport.update({
   id: '/my-bookings_/$reference',
   path: '/my-bookings/$reference',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgencySignupRoute = AgencySignupRouteImport.update({
+  id: '/agency_/signup',
+  path: '/agency/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
@@ -171,6 +208,12 @@ const AuthenticatedAdminApartmentsRoute =
     path: '/apartments',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminAgenciesRoute =
+  AuthenticatedAdminAgenciesRouteImport.update({
+    id: '/agencies',
+    path: '/agencies',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminChannelsIndexRoute =
   AuthenticatedAdminChannelsIndexRouteImport.update({
     id: '/',
@@ -228,17 +271,24 @@ const AuthenticatedAdminChannelsAirbnbRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/agency': typeof AgencyRoute
   '/amenities': typeof AmenitiesRoute
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
+  '/booking-policy': typeof BookingPolicyRoute
   '/contact': typeof ContactRoute
+  '/cookies': typeof CookiesRoute
   '/driver': typeof DriverRoute
   '/my-bookings': typeof MyBookingsRoute
+  '/privacy': typeof PrivacyRoute
   '/stays': typeof StaysRoute
   '/taxi': typeof TaxiRoute
+  '/terms': typeof TermsRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/agency/signup': typeof AgencySignupRoute
   '/my-bookings/$reference': typeof MyBookingsReferenceRoute
   '/stays/$id': typeof StaysIdRoute
+  '/admin/agencies': typeof AuthenticatedAdminAgenciesRoute
   '/admin/apartments': typeof AuthenticatedAdminApartmentsRoute
   '/admin/beds24': typeof AuthenticatedAdminBeds24Route
   '/admin/bookings': typeof AuthenticatedAdminBookingsRoute
@@ -262,16 +312,23 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/agency': typeof AgencyRoute
   '/amenities': typeof AmenitiesRoute
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
+  '/booking-policy': typeof BookingPolicyRoute
   '/contact': typeof ContactRoute
+  '/cookies': typeof CookiesRoute
   '/driver': typeof DriverRoute
   '/my-bookings': typeof MyBookingsRoute
+  '/privacy': typeof PrivacyRoute
   '/stays': typeof StaysRoute
   '/taxi': typeof TaxiRoute
+  '/terms': typeof TermsRoute
+  '/agency/signup': typeof AgencySignupRoute
   '/my-bookings/$reference': typeof MyBookingsReferenceRoute
   '/stays/$id': typeof StaysIdRoute
+  '/admin/agencies': typeof AuthenticatedAdminAgenciesRoute
   '/admin/apartments': typeof AuthenticatedAdminApartmentsRoute
   '/admin/beds24': typeof AuthenticatedAdminBeds24Route
   '/admin/bookings': typeof AuthenticatedAdminBookingsRoute
@@ -296,17 +353,24 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/agency': typeof AgencyRoute
   '/amenities': typeof AmenitiesRoute
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
+  '/booking-policy': typeof BookingPolicyRoute
   '/contact': typeof ContactRoute
+  '/cookies': typeof CookiesRoute
   '/driver': typeof DriverRoute
   '/my-bookings': typeof MyBookingsRoute
+  '/privacy': typeof PrivacyRoute
   '/stays': typeof StaysRoute
   '/taxi': typeof TaxiRoute
+  '/terms': typeof TermsRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/agency_/signup': typeof AgencySignupRoute
   '/my-bookings_/$reference': typeof MyBookingsReferenceRoute
   '/stays_/$id': typeof StaysIdRoute
+  '/_authenticated/admin/agencies': typeof AuthenticatedAdminAgenciesRoute
   '/_authenticated/admin/apartments': typeof AuthenticatedAdminApartmentsRoute
   '/_authenticated/admin/beds24': typeof AuthenticatedAdminBeds24Route
   '/_authenticated/admin/bookings': typeof AuthenticatedAdminBookingsRoute
@@ -332,17 +396,24 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/agency'
     | '/amenities'
     | '/auth'
     | '/book'
+    | '/booking-policy'
     | '/contact'
+    | '/cookies'
     | '/driver'
     | '/my-bookings'
+    | '/privacy'
     | '/stays'
     | '/taxi'
+    | '/terms'
     | '/admin'
+    | '/agency/signup'
     | '/my-bookings/$reference'
     | '/stays/$id'
+    | '/admin/agencies'
     | '/admin/apartments'
     | '/admin/beds24'
     | '/admin/bookings'
@@ -366,16 +437,23 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/agency'
     | '/amenities'
     | '/auth'
     | '/book'
+    | '/booking-policy'
     | '/contact'
+    | '/cookies'
     | '/driver'
     | '/my-bookings'
+    | '/privacy'
     | '/stays'
     | '/taxi'
+    | '/terms'
+    | '/agency/signup'
     | '/my-bookings/$reference'
     | '/stays/$id'
+    | '/admin/agencies'
     | '/admin/apartments'
     | '/admin/beds24'
     | '/admin/bookings'
@@ -399,17 +477,24 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/agency'
     | '/amenities'
     | '/auth'
     | '/book'
+    | '/booking-policy'
     | '/contact'
+    | '/cookies'
     | '/driver'
     | '/my-bookings'
+    | '/privacy'
     | '/stays'
     | '/taxi'
+    | '/terms'
     | '/_authenticated/admin'
+    | '/agency_/signup'
     | '/my-bookings_/$reference'
     | '/stays_/$id'
+    | '/_authenticated/admin/agencies'
     | '/_authenticated/admin/apartments'
     | '/_authenticated/admin/beds24'
     | '/_authenticated/admin/bookings'
@@ -435,20 +520,33 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AgencyRoute: typeof AgencyRoute
   AmenitiesRoute: typeof AmenitiesRoute
   AuthRoute: typeof AuthRoute
   BookRoute: typeof BookRoute
+  BookingPolicyRoute: typeof BookingPolicyRoute
   ContactRoute: typeof ContactRoute
+  CookiesRoute: typeof CookiesRoute
   DriverRoute: typeof DriverRoute
   MyBookingsRoute: typeof MyBookingsRoute
+  PrivacyRoute: typeof PrivacyRoute
   StaysRoute: typeof StaysRoute
   TaxiRoute: typeof TaxiRoute
+  TermsRoute: typeof TermsRoute
+  AgencySignupRoute: typeof AgencySignupRoute
   MyBookingsReferenceRoute: typeof MyBookingsReferenceRoute
   StaysIdRoute: typeof StaysIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/taxi': {
       id: '/taxi'
       path: '/taxi'
@@ -461,6 +559,13 @@ declare module '@tanstack/react-router' {
       path: '/stays'
       fullPath: '/stays'
       preLoaderRoute: typeof StaysRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/my-bookings': {
@@ -477,11 +582,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DriverRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cookies': {
+      id: '/cookies'
+      path: '/cookies'
+      fullPath: '/cookies'
+      preLoaderRoute: typeof CookiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/contact': {
       id: '/contact'
       path: '/contact'
       fullPath: '/contact'
       preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/booking-policy': {
+      id: '/booking-policy'
+      path: '/booking-policy'
+      fullPath: '/booking-policy'
+      preLoaderRoute: typeof BookingPolicyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/book': {
@@ -503,6 +622,13 @@ declare module '@tanstack/react-router' {
       path: '/amenities'
       fullPath: '/amenities'
       preLoaderRoute: typeof AmenitiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agency': {
+      id: '/agency'
+      path: '/agency'
+      fullPath: '/agency'
+      preLoaderRoute: typeof AgencyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -531,6 +657,13 @@ declare module '@tanstack/react-router' {
       path: '/my-bookings/$reference'
       fullPath: '/my-bookings/$reference'
       preLoaderRoute: typeof MyBookingsReferenceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agency_/signup': {
+      id: '/agency_/signup'
+      path: '/agency/signup'
+      fullPath: '/agency/signup'
+      preLoaderRoute: typeof AgencySignupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin': {
@@ -615,6 +748,13 @@ declare module '@tanstack/react-router' {
       path: '/apartments'
       fullPath: '/admin/apartments'
       preLoaderRoute: typeof AuthenticatedAdminApartmentsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/agencies': {
+      id: '/_authenticated/admin/agencies'
+      path: '/agencies'
+      fullPath: '/admin/agencies'
+      preLoaderRoute: typeof AuthenticatedAdminAgenciesRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/channels/': {
@@ -712,6 +852,7 @@ const AuthenticatedAdminChannelsRouteWithChildren =
   )
 
 interface AuthenticatedAdminRouteChildren {
+  AuthenticatedAdminAgenciesRoute: typeof AuthenticatedAdminAgenciesRoute
   AuthenticatedAdminApartmentsRoute: typeof AuthenticatedAdminApartmentsRoute
   AuthenticatedAdminBeds24Route: typeof AuthenticatedAdminBeds24Route
   AuthenticatedAdminBookingsRoute: typeof AuthenticatedAdminBookingsRoute
@@ -729,6 +870,7 @@ interface AuthenticatedAdminRouteChildren {
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
+  AuthenticatedAdminAgenciesRoute: AuthenticatedAdminAgenciesRoute,
   AuthenticatedAdminApartmentsRoute: AuthenticatedAdminApartmentsRoute,
   AuthenticatedAdminBeds24Route: AuthenticatedAdminBeds24Route,
   AuthenticatedAdminBookingsRoute: AuthenticatedAdminBookingsRoute,
@@ -762,14 +904,20 @@ const AuthenticatedRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AgencyRoute: AgencyRoute,
   AmenitiesRoute: AmenitiesRoute,
   AuthRoute: AuthRoute,
   BookRoute: BookRoute,
+  BookingPolicyRoute: BookingPolicyRoute,
   ContactRoute: ContactRoute,
+  CookiesRoute: CookiesRoute,
   DriverRoute: DriverRoute,
   MyBookingsRoute: MyBookingsRoute,
+  PrivacyRoute: PrivacyRoute,
   StaysRoute: StaysRoute,
   TaxiRoute: TaxiRoute,
+  TermsRoute: TermsRoute,
+  AgencySignupRoute: AgencySignupRoute,
   MyBookingsReferenceRoute: MyBookingsReferenceRoute,
   StaysIdRoute: StaysIdRoute,
 }

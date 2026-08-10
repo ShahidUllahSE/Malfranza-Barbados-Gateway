@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2, ImagePlus, Link2, Upload } from "lucide-react";
 import {
   createApartment,
   deleteApartment,
@@ -35,6 +35,7 @@ type AdminApartment = {
   amenities: string[];
   photos: string[];
   is_active: boolean;
+  units_exclusive?: boolean;
   units: ApartmentUnitInput[];
 };
 
@@ -347,8 +348,11 @@ function ApartmentForm({
     (initial?.amenities ?? ["Wi‑Fi", "Air conditioning", "Kitchen"]).join(", "),
   );
   const [photos, setPhotos] = useState<string[]>(initial?.photos ?? []);
+  const [photoUrl, setPhotoUrl] = useState("");
   const [units, setUnits] = useState<ApartmentUnitInput[]>(initial?.units ?? []);
+  const [unitsExclusive, setUnitsExclusive] = useState(initial?.units_exclusive ?? false);
   const [isActive, setIsActive] = useState(initial?.is_active ?? true);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!slugTouched) setSlug(slugify(name));
@@ -394,6 +398,7 @@ function ApartmentForm({
         photos,
         is_active: isActive,
         units,
+        units_exclusive: unitsExclusive,
       };
 
       if (mode === "create") {
@@ -540,21 +545,71 @@ function ApartmentForm({
         />
       </FormField>
       <FormField label="Photos">
-        <div className="space-y-2">
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/avif"
-            disabled={upload.isPending}
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) upload.mutate(file);
-              event.currentTarget.value = "";
-            }}
-            className="block w-full cursor-pointer text-sm"
-          />
+        <div className="space-y-3 rounded-xl border border-brand-sage/40 bg-brand-sage/10 p-3">
+          <p className="text-xs text-muted-foreground">
+            Upload from your device or paste a public image URL.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={upload.isPending}
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-brand-green px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90 disabled:opacity-60"
+            >
+              <Upload className="h-4 w-4" />
+              {upload.isPending ? "Uploading…" : "Add photos"}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/avif"
+              className="sr-only"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) upload.mutate(file);
+                event.currentTarget.value = "";
+              }}
+            />
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <input
+              type="url"
+              value={photoUrl}
+              onChange={(e) => setPhotoUrl(e.target.value)}
+              placeholder="https://… image link"
+              className="h-10 w-full flex-1 rounded-lg border border-input bg-white px-3 text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const url = photoUrl.trim();
+                if (!url) {
+                  toast.error("Paste an image URL first");
+                  return;
+                }
+                if (photos.includes(url)) {
+                  toast.error("That photo is already on the list");
+                  return;
+                }
+                setPhotos((current) => [...current, url]);
+                setPhotoUrl("");
+                toast.success("Photo link added");
+              }}
+              className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 text-sm font-semibold text-brand-orange underline-offset-2 hover:underline"
+            >
+              <Link2 className="h-4 w-4" />
+              Add photo by link
+            </button>
+          </div>
+          {photos.length === 0 && (
+            <div className="flex items-center gap-2 rounded-lg border border-dashed border-brand-sage/50 bg-white/70 px-3 py-4 text-sm text-muted-foreground">
+              <ImagePlus className="h-5 w-5 text-brand-green" />
+              No photos yet — use Add photos or Add photo by link.
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-2">
             {photos.map((photo) => (
-              <div key={photo} className="relative overflow-hidden rounded-lg border">
+              <div key={photo} className="relative overflow-hidden rounded-lg border bg-white">
                 <img src={photo} alt="" className="aspect-video w-full object-cover" />
                 <button
                   type="button"
@@ -568,7 +623,12 @@ function ApartmentForm({
           </div>
         </div>
       </FormField>
-      <UnitEditor units={units} onChange={setUnits} />
+      <UnitEditor
+        units={units}
+        onChange={setUnits}
+        unitsExclusive={unitsExclusive}
+        onUnitsExclusiveChange={setUnitsExclusive}
+      />
       {mode === "edit" && (
         <label className="flex cursor-pointer items-center gap-2 text-sm text-brand-charcoal">
           <input
@@ -617,48 +677,126 @@ function FormField({ label, children }: { label: string; children: React.ReactNo
 function UnitEditor({
   units,
   onChange,
+  unitsExclusive,
+  onUnitsExclusiveChange,
 }: {
   units: ApartmentUnitInput[];
   onChange: (units: ApartmentUnitInput[]) => void;
+  unitsExclusive: boolean;
+  onUnitsExclusiveChange: (value: boolean) => void;
 }) {
   function update(index: number, patch: Partial<ApartmentUnitInput>) {
     onChange(units.map((unit, i) => (i === index ? { ...unit, ...patch } : unit)));
   }
 
+  function ensureLinkedPair() {
+    const has1 = units.some((u) => u.bedrooms === 1 || /one.?bed/i.test(u.name));
+    const has2 = units.some((u) => u.bedrooms === 2 || /two.?bed/i.test(u.name));
+    let next = [...units];
+    if (!has1) {
+      next = [
+        {
+          name: "One-bedroom",
+          description: "Linked config — booking either config blocks the flexible unit.",
+          bedrooms: 1,
+          bathrooms: 1,
+          maxGuests: 2,
+          pricePerNight: 95,
+          isActive: true,
+        },
+        ...next,
+      ];
+    }
+    if (!has2) {
+      next = [
+        ...next,
+        {
+          name: "Two-bedroom",
+          description: "Linked config — booking either config blocks the flexible unit.",
+          bedrooms: 2,
+          bathrooms: 2,
+          maxGuests: 4,
+          pricePerNight: 110,
+          isActive: true,
+        },
+      ];
+    }
+    onChange(next);
+    onUnitsExclusiveChange(true);
+    toast.success("Linked One-bedroom and Two-bedroom configs ready (exclusive)");
+  }
+
   return (
     <div className="rounded-xl border border-brand-sage/40 bg-brand-sage/10 p-3">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <div className="text-sm font-semibold text-brand-charcoal">Bookable units</div>
+          <div className="text-sm font-semibold text-brand-charcoal">Bookable room setups</div>
           <p className="text-xs text-muted-foreground">
-            Optional. Add a 2-bedroom unit and a separate 1-bedroom unit so they book independently.
+            {unitsExclusive
+              ? "Exclusive (parent/child): One-bedroom and Two-bedroom share one physical unit — booking either blocks both."
+              : "Independent units book separately. Use exclusive mode for the flexible 2-BR with a linked 1-BR option."}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() =>
-            onChange([
-              ...units,
-              {
-                name: `Unit ${units.length + 1}`,
-                description: "",
-                bedrooms: 1,
-                bathrooms: 1,
-                maxGuests: 2,
-                pricePerNight: 110,
-                isActive: true,
-              },
-            ])
-          }
-          className="shrink-0 cursor-pointer rounded-lg bg-brand-green px-3 py-1.5 text-xs font-semibold text-white"
-        >
-          Add unit
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={ensureLinkedPair}
+            className="shrink-0 cursor-pointer rounded-lg bg-brand-orange px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
+          >
+            Add linked 1-BR + 2-BR
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              onChange([
+                ...units,
+                {
+                  name: `Unit ${units.length + 1}`,
+                  description: "",
+                  bedrooms: 1,
+                  bathrooms: 1,
+                  maxGuests: 2,
+                  pricePerNight: 110,
+                  isActive: true,
+                },
+              ])
+            }
+            className="shrink-0 cursor-pointer rounded-lg bg-brand-green px-3 py-1.5 text-xs font-semibold text-white"
+          >
+            Add unit
+          </button>
+        </div>
       </div>
+
+      <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg border border-white/80 bg-white/80 px-3 py-2.5 text-sm text-brand-charcoal">
+        <input
+          type="checkbox"
+          className="mt-0.5"
+          checked={unitsExclusive}
+          onChange={(e) => onUnitsExclusiveChange(e.target.checked)}
+        />
+        <span>
+          <span className="font-semibold">Exclusive room modes (linked)</span>
+          <span className="mt-0.5 block text-xs text-muted-foreground">
+            When on, any booking of One-bedroom or Two-bedroom blocks the other for those dates.
+          </span>
+        </span>
+      </label>
 
       <div className="mt-3 space-y-3">
         {units.map((unit, index) => (
           <div key={unit._id ?? index} className="rounded-lg border bg-white p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-brand-green">
+                {unitsExclusive ? "Linked config" : "Independent unit"}{" "}
+                {index + 1}
+                {unit.bedrooms === 1
+                  ? " · One-bedroom"
+                  : unit.bedrooms === 2
+                    ? " · Two-bedroom"
+                    : ""}
+              </span>
+            </div>
             <div className="grid gap-2 sm:grid-cols-2">
               <FormField label="Unit name">
                 <input
@@ -666,7 +804,7 @@ function UnitEditor({
                   value={unit.name}
                   onChange={(e) => update(index, { name: e.target.value })}
                   className="w-full rounded-lg border border-input px-3 py-2 text-sm"
-                  placeholder="Two-Bedroom Unit"
+                  placeholder="One-bedroom"
                 />
               </FormField>
               <FormField label="Price / night">
@@ -722,7 +860,7 @@ function UnitEditor({
                 value={unit.description ?? ""}
                 onChange={(e) => update(index, { description: e.target.value })}
                 className="w-full rounded-lg border border-input px-3 py-2 text-sm"
-                placeholder="These two bedrooms are always booked together."
+                placeholder="Linked with the other bedroom config on this listing."
               />
             </FormField>
             <button
@@ -736,7 +874,15 @@ function UnitEditor({
         ))}
         {units.length === 0 && (
           <p className="rounded-lg bg-white px-3 py-2 text-xs text-muted-foreground">
-            No units: this apartment continues to book as one complete apartment.
+            No units: this apartment books as one listing. For the flexible 2-BR, click{" "}
+            <button
+              type="button"
+              onClick={ensureLinkedPair}
+              className="font-semibold text-brand-orange underline"
+            >
+              Add linked 1-BR + 2-BR
+            </button>
+            .
           </p>
         )}
       </div>

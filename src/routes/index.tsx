@@ -17,7 +17,8 @@ import taxiVan from "@/assets/ChatGPT Image Jul 2, 2026, 10_48_48 PM.png";
 import locationBanner from "@/assets/newimage/Malfranza Apartment Number 1-3.jpg";
 
 const homeSearchSchema = z.object({
-  auth: z.enum(["signin", "signup", "setup"]).optional(),
+  auth: z.enum(["signin", "signup", "setup", "forgot", "reset"]).optional(),
+  token: z.string().optional(),
   redirect: z.string().optional(),
 });
 
@@ -165,7 +166,16 @@ function HomePage() {
   const [ridePassengers, setRidePassengers] = useState(2);
   const [rideError, setRideError] = useState<string | null>(null);
 
+  const stayNights = (() => {
+    if (!checkIn || !checkOut) return 0;
+    const ms =
+      new Date(`${checkOut}T12:00:00`).getTime() - new Date(`${checkIn}T12:00:00`).getTime();
+    return Math.max(0, Math.round(ms / 86400000));
+  })();
+  const belowMinNights = Boolean(checkIn && checkOut && stayNights < 1);
+
   const handleSearch = () => {
+    if (belowMinNights) return;
     navigate({
       to: "/stays",
       search: {
@@ -246,16 +256,62 @@ function HomePage() {
           <div className="relative mt-8 lg:-mb-14 lg:mt-12">
             <div className="rounded-2xl border border-white/40 bg-white/95 p-3 shadow-card backdrop-blur-md sm:p-5">
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-6 lg:items-end">
-                <SearchInput icon={Calendar} label="Check-in" type="date" value={checkIn} min={todayISO(0)} onChange={setCheckIn} />
-                <SearchInput icon={Calendar} label="Check-out" type="date" value={checkOut} min={checkIn} onChange={setCheckOut} />
-                <SearchInput icon={Users} label="Guests" type="number" value={String(searchGuests)} min="1" max="6" onChange={(v) => setSearchGuests(Math.max(1, Math.min(6, parseInt(v || "1", 10))))} />
+                <SearchInput
+                  icon={Calendar}
+                  label="Check-in"
+                  type="date"
+                  value={checkIn}
+                  min={todayISO(0)}
+                  onChange={(v) => {
+                    setCheckIn(v);
+                    if (v && checkOut && checkOut <= v) {
+                      const d = new Date(`${v}T12:00:00`);
+                      d.setDate(d.getDate() + 1);
+                      setCheckOut(d.toISOString().slice(0, 10));
+                    }
+                  }}
+                />
+                <SearchInput
+                  icon={Calendar}
+                  label="Check-out"
+                  type="date"
+                  value={checkOut}
+                  min={(() => {
+                    if (!checkIn) return todayISO(1);
+                    const d = new Date(`${checkIn}T12:00:00`);
+                    d.setDate(d.getDate() + 1);
+                    return d.toISOString().slice(0, 10);
+                  })()}
+                  onChange={setCheckOut}
+                />
+                <div className="flex flex-col gap-1">
+                  <SearchInput
+                    icon={Users}
+                    label="Guests"
+                    type="number"
+                    value={String(searchGuests)}
+                    min="1"
+                    max="6"
+                    onChange={(v) => setSearchGuests(Math.max(1, Math.min(6, parseInt(v || "1", 10))))}
+                  />
+                  {belowMinNights && (
+                    <p className="px-0.5 text-xs text-brand-orange" role="alert">
+                      Minimum stay is 1 night. Choose a check-out date at least one day after check-in.
+                    </p>
+                  )}
+                </div>
                 <SearchSelect icon={Home} label="Type" value={searchType} onChange={(v) => setSearchType(v as typeof searchType)} options={[
                   { value: "any", label: "Any" },
                   { value: "one-bedroom", label: "One-Bedroom" },
                   { value: "two-bedroom", label: "Two-Bedroom" },
                 ]} />
                 <SearchText icon={MapPin} label="Taxi Pickup" value={taxiPickup} onChange={setTaxiPickup} placeholder="Type pickup location" />
-                <button type="button" onClick={handleSearch} className="inline-flex h-[52px] items-center justify-center rounded-xl bg-brand-green px-6 text-sm font-semibold text-white shadow-sm transition-all hover:brightness-110">
+                <button
+                  type="button"
+                  onClick={handleSearch}
+                  disabled={belowMinNights}
+                  className="inline-flex h-[52px] items-center justify-center rounded-xl bg-brand-green px-6 text-sm font-semibold text-white shadow-sm transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                >
                   Search
                 </button>
               </div>

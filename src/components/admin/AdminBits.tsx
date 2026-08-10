@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { AptBookingStatus, TaxiStatus, EnquiryStatus } from "@/lib/admin";
+import { calcMonthOccupancy } from "@/lib/occupancy";
 
 export function Shimmer({ className = "" }: { className?: string }) {
   return <div className={`mfz-shimmer rounded-md ${className}`} aria-hidden="true" />;
@@ -174,19 +175,23 @@ export function AdminPageHeader({
   );
 }
 
-/** Full-width desktop admin table — no horizontal scroll; text truncates inside cells. */
+/**
+ * Desktop admin table shell.
+ * Pass minWidth (e.g. "68rem") when columns need breathing room — enables horizontal scroll.
+ */
 export function AdminTableShell({
   children,
-  /** @deprecated Kept for call-site compatibility; tables always fit the container. */
-  minWidth: _minWidth,
+  minWidth,
 }: {
   children: React.ReactNode;
   minWidth?: string;
 }) {
-  void _minWidth;
   return (
-    <div className="hidden w-full lg:block">
-      <table className="w-full table-fixed border-collapse text-left text-sm">
+    <div className={`hidden w-full lg:block ${minWidth ? "overflow-x-auto" : ""}`}>
+      <table
+        className={`w-full border-collapse text-left text-sm ${minWidth ? "table-auto" : "table-fixed"}`}
+        style={minWidth ? { minWidth } : undefined}
+      >
         {children}
       </table>
     </div>
@@ -365,6 +370,9 @@ type ApartmentRow = {
   subtitle?: string | null;
   type?: string;
   bedrooms?: number;
+  units_exclusive?: boolean;
+  unitsExclusive?: boolean;
+  units?: Array<{ isActive?: boolean }>;
 };
 type BookingRow = {
   id: string;
@@ -523,15 +531,13 @@ export function BookingsCalendar({
   );
 
   const monthStats = (() => {
-    let bookedNights = 0;
-    for (const b of monthStays) {
-      const ci = Math.max(new Date(b.check_in).getTime(), new Date(monthStart).getTime());
-      const co = Math.min(new Date(b.check_out).getTime(), new Date(monthEnd).getTime() + 86400000);
-      bookedNights += Math.max(0, Math.round((co - ci) / 86400000));
-    }
-    const capacity = Math.max(1, active.length) * daysInMonth;
-    const occupancy = Math.min(100, Math.round((bookedNights / capacity) * 100));
-    return { bookedNights, stays: monthStays.length, occupancy };
+    const result = calcMonthOccupancy(bookings, active, year, month);
+    return {
+      bookedNights: result.bookedNights,
+      stays: monthStays.length,
+      occupancy: result.occupancy,
+      availableNights: result.availableNights,
+    };
   })();
 
   function shiftMonth(delta: number) {
@@ -600,12 +606,20 @@ export function BookingsCalendar({
         </div>
       </div>
 
-      {/* Month snapshot */}
+      {/* Month snapshot — calendar-month live calc (not the rolling 30d dashboard figure) */}
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
-        <MiniMetric label="Occupancy" value={`${monthStats.occupancy}%`} />
+        <MiniMetric
+          label="Month occupancy"
+          value={`${monthStats.occupancy}%`}
+        />
         <MiniMetric label="Booked nights" value={monthStats.bookedNights} />
         <MiniMetric label="Active stays" value={monthStats.stays} />
       </div>
+      <p className="text-[11px] text-muted-foreground">
+        {monthStats.bookedNights} booked ÷ {monthStats.availableNights} available room-nights this
+        calendar month (rooms × days). Differs from the dashboard&apos;s rolling 30-day KPI when the
+        month length or bookings differ.
+      </p>
 
       {/* Grid */}
       <div className="overflow-hidden rounded-2xl border border-brand-sage/20 bg-gradient-to-b from-brand-cream/40 to-white shadow-inner">

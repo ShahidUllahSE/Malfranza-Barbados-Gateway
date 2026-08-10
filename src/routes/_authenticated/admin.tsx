@@ -14,6 +14,9 @@ import {
   X,
   Users,
   Cable,
+  PanelLeftClose,
+  PanelLeft,
+  Building2,
 } from "lucide-react";
 import { getCurrentAdmin } from "@/lib/api";
 import { Logo } from "@/components/Logo";
@@ -44,6 +47,7 @@ function isNavGroup(item: NavEntry): item is NavGroup {
 const NAV: NavEntry[] = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/admin/bookings", label: "Bookings", icon: ClipboardList },
+  { to: "/admin/agencies", label: "Agencies", icon: Building2 },
   { to: "/admin/apartments", label: "Apartments", icon: BedDouble },
   { to: "/admin/calendar", label: "Calendar", icon: CalendarDays },
   { to: "/admin/taxi", label: "Taxi Trips", icon: Car },
@@ -71,6 +75,10 @@ function AdminLayout() {
   const [status, setStatus] = useState<"checking" | "ok" | "denied">("checking");
   const [email, setEmail] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("mfz.adminSidebarCollapsed") === "1";
+  });
 
   useEffect(() => {
     getCurrentAdmin()
@@ -82,6 +90,10 @@ function AdminLayout() {
   }, []);
 
   useEffect(() => setMobileOpen(false), [pathname]);
+
+  useEffect(() => {
+    localStorage.setItem("mfz.adminSidebarCollapsed", sidebarCollapsed ? "1" : "0");
+  }, [sidebarCollapsed]);
 
   function signOut() {
     clearAuthSession();
@@ -125,9 +137,19 @@ function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-brand-cream flex">
-      {/* Sidebar - desktop */}
-      <aside className="hidden lg:flex w-64 shrink-0 flex-col bg-brand-green text-white">
-        <SidebarContent pathname={pathname} onSignOut={signOut} email={email} />
+      {/* Sidebar — collapsible on desktop so tables can expand */}
+      <aside
+        className={`hidden lg:flex shrink-0 flex-col bg-brand-green text-white transition-[width] duration-200 ${
+          sidebarCollapsed ? "w-[4.25rem]" : "w-64"
+        }`}
+      >
+        <SidebarContent
+          pathname={pathname}
+          onSignOut={signOut}
+          email={email}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
+        />
       </aside>
 
       {/* Mobile top bar */}
@@ -150,13 +172,18 @@ function AdminLayout() {
         <div className="lg:hidden fixed inset-0 z-30 pt-14">
           <div className="absolute inset-0 bg-black/50" onClick={() => setMobileOpen(false)} />
           <aside className="relative z-10 w-72 h-full bg-brand-green text-white flex flex-col">
-            <SidebarContent pathname={pathname} onSignOut={signOut} email={email} />
+            <SidebarContent
+              pathname={pathname}
+              onSignOut={signOut}
+              email={email}
+              collapsed={false}
+            />
           </aside>
         </div>
       )}
 
       <main className="flex-1 min-w-0 pt-14 lg:pt-0">
-        <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+        <div className="p-4 sm:p-6 lg:p-8 max-w-[100rem] mx-auto">
           <Outlet />
         </div>
       </main>
@@ -168,26 +195,59 @@ function SidebarContent({
   pathname,
   onSignOut,
   email,
+  collapsed = false,
+  onToggleCollapse,
 }: {
   pathname: string;
   onSignOut: () => void;
   email: string;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }) {
   const channelsOpen = pathname.startsWith("/admin/channels") || pathname.startsWith("/admin/beds24");
 
   return (
     <>
-      <div className="p-5 border-b border-white/10 hidden lg:block">
-        <Link to="/admin" className="flex items-center gap-2">
-          <Logo className="h-9 w-auto" />
-          <span className="font-display font-bold text-lg">Admin</span>
-        </Link>
+      <div className={`border-b border-white/10 hidden lg:flex items-center ${collapsed ? "justify-center p-3" : "justify-between p-5"}`}>
+        {!collapsed && (
+          <Link to="/admin" className="flex items-center gap-2 min-w-0">
+            <Logo className="h-9 w-auto shrink-0" />
+            <span className="font-display font-bold text-lg">Admin</span>
+          </Link>
+        )}
+        {onToggleCollapse && (
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            className="rounded-lg p-2 text-white/80 hover:bg-white/10 hover:text-white"
+            title={collapsed ? "Expand menu" : "Collapse menu"}
+            aria-label={collapsed ? "Expand side menu" : "Collapse side menu"}
+          >
+            {collapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+          </button>
+        )}
       </div>
       <nav className="flex-1 overflow-y-auto p-3 space-y-1">
         {NAV.map((item) => {
           if (isNavGroup(item)) {
             const Icon = item.icon;
             const groupActive = item.children.some((c) => pathname.startsWith(c.to));
+            if (collapsed) {
+              return (
+                <Link
+                  key={item.label}
+                  to={item.children[0]!.to as never}
+                  title={item.label}
+                  className={`flex items-center justify-center rounded-lg p-2.5 transition ${
+                    groupActive || channelsOpen
+                      ? "bg-white/15 text-white"
+                      : "text-white/80 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                </Link>
+              );
+            }
             return (
               <div key={item.label} className="pt-1">
                 <div
@@ -226,26 +286,32 @@ function SidebarContent({
             <Link
               key={item.to}
               to={item.to as string}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
+              title={item.label}
+              className={`flex items-center rounded-lg text-sm font-medium transition ${
+                collapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2.5"
+              } ${
                 active
                   ? "bg-white/15 text-white"
                   : "text-white/80 hover:bg-white/10 hover:text-white"
               }`}
             >
-              <Icon className="h-4 w-4" />
-              {item.label}
+              <Icon className="h-4 w-4 shrink-0" />
+              {!collapsed && item.label}
             </Link>
           );
         })}
       </nav>
-      <div className="p-3 border-t border-white/10">
-        <div className="px-3 py-2 text-xs text-white/70 truncate">{email}</div>
+      <div className={`p-3 border-t border-white/10 ${collapsed ? "flex flex-col items-center" : ""}`}>
+        {!collapsed && <div className="px-3 py-2 text-xs text-white/70 truncate w-full">{email}</div>}
         <button
           onClick={onSignOut}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/90 hover:bg-white/10"
+          title="Sign out"
+          className={`flex items-center gap-2 rounded-lg text-sm text-white/90 hover:bg-white/10 ${
+            collapsed ? "p-2.5" : "w-full px-3 py-2"
+          }`}
         >
           <LogOut className="h-4 w-4" />
-          Sign out
+          {!collapsed && "Sign out"}
         </button>
       </div>
     </>

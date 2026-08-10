@@ -59,8 +59,44 @@ export async function loginUser(email: string, password: string): Promise<UserId
   return result.user;
 }
 
+/** Create account at checkout with the guest’s own password (no OTP / no temp password email). */
+export async function registerAtCheckout(input: {
+  name: string;
+  email: string;
+  password: string;
+  phone?: string;
+}): Promise<UserIdentity> {
+  const result = await apiRequest<{ user: UserIdentity; token: string }>("/users/register/checkout", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  clearAdminToken();
+  clearDriverToken();
+  setUserToken(result.token);
+  return result.user;
+}
+
 export function logoutUser(): void {
   clearUserToken();
+}
+
+export async function requestPasswordReset(email: string): Promise<{ message: string }> {
+  await apiRequest("/users/password-reset/request", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+  return { message: "If that email is registered, a reset link has been sent." };
+}
+
+export async function confirmPasswordReset(input: {
+  token: string;
+  password: string;
+}): Promise<{ message: string }> {
+  await apiRequest("/users/password-reset/confirm", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return { message: "Password updated. You can sign in with your new password." };
 }
 
 export function getCurrentUser(): Promise<UserIdentity> {

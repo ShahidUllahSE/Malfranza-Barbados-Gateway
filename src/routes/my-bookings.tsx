@@ -1,13 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import {
-  Calendar,
-  Users,
-  Car,
-  CheckCircle2,
-  Loader2,
-  Plus,
-} from "lucide-react";
+import { Loader2, Plus, ChevronRight } from "lucide-react";
 import { listMyBookings, listMyTaxiBookings } from "@/lib/user";
 import { useUserAuth } from "@/context/UserAuthContext";
 
@@ -39,6 +32,7 @@ type PublicBooking = {
   nights: number;
   guests: number;
   total_amount: number;
+  payment_status?: string;
   status: string;
   taxi_addon: boolean;
   taxi_date: string | null;
@@ -59,6 +53,7 @@ function mapAccountBooking(booking: any): PublicBooking {
     nights: booking.nights,
     guests: booking.guests,
     total_amount: booking.totalAmount,
+    payment_status: booking.paymentStatus,
     status: booking.status,
     taxi_addon: !!booking.taxi,
     taxi_date: booking.taxi?.date ? toDateOnly(booking.taxi.date) : null,
@@ -75,7 +70,7 @@ function toDateOnly(value: string | Date): string {
 
 function fmtDate(iso: string) {
   try {
-    return new Date(iso).toLocaleDateString(undefined, {
+    return new Date(`${iso.slice(0, 10)}T12:00:00`).toLocaleDateString(undefined, {
       month: "short",
       day: "numeric",
       year: "numeric",
@@ -83,6 +78,29 @@ function fmtDate(iso: string) {
   } catch {
     return iso;
   }
+}
+
+function statusLabel(status: string) {
+  return status.replaceAll("_", " ");
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const s = status.toLowerCase();
+  const tone =
+    s === "cancelled"
+      ? "bg-red-50 text-red-700 ring-red-100"
+      : s === "pending"
+        ? "bg-amber-50 text-amber-800 ring-amber-100"
+        : s === "checked_out"
+          ? "bg-slate-100 text-slate-700 ring-slate-200"
+          : "bg-brand-green/10 text-brand-green ring-brand-green/15";
+  return (
+    <span
+      className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ring-1 ${tone}`}
+    >
+      {statusLabel(status)}
+    </span>
+  );
 }
 
 function MyBookingsPage() {
@@ -141,7 +159,7 @@ function MyBookingsPage() {
 
   return (
     <div className="min-h-screen bg-brand-cream/40">
-      <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-brand-green sm:text-3xl lg:text-4xl">
@@ -153,7 +171,7 @@ function MyBookingsPage() {
           </div>
           <Link
             to="/book"
-            className="inline-flex items-center justify-center gap-2 self-start rounded-full bg-brand-orange px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-105"
+            className="inline-flex cursor-pointer items-center justify-center gap-2 self-start rounded-full bg-brand-orange px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-105"
           >
             <Plus className="h-4 w-4" /> New booking
           </Link>
@@ -161,9 +179,13 @@ function MyBookingsPage() {
 
         {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
 
-        <div className="mt-8">
+        <section className="mt-8">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-brand-charcoal/70">
+            Stays
+          </h2>
+
           {loading ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2 rounded-2xl border border-border bg-white p-6 text-sm text-muted-foreground shadow-card">
               <Loader2 className="h-4 w-4 animate-spin" /> Loading your bookings…
             </div>
           ) : bookings.length === 0 ? (
@@ -174,143 +196,243 @@ function MyBookingsPage() {
               </p>
               <Link
                 to="/book"
-                className="mt-5 inline-flex items-center gap-2 rounded-full bg-brand-orange px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:brightness-105"
+                className="mt-5 inline-flex cursor-pointer items-center gap-2 rounded-full bg-brand-orange px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:brightness-105"
               >
                 <Plus className="h-4 w-4" /> Start a booking
               </Link>
             </div>
           ) : (
-            <ul className="grid gap-4">
-              {bookings.map((b) => (
-                <li key={b.booking_reference}>
+            <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-card">
+              {/* Mobile: stacked rows (still tabular structure) */}
+              <div className="divide-y divide-slate-100 md:hidden">
+                {bookings.map((b) => (
                   <Link
+                    key={b.booking_reference}
                     to="/my-bookings/$reference"
                     params={{ reference: b.booking_reference }}
-                    className="block rounded-2xl border border-border bg-white p-5 shadow-card transition hover:border-brand-green/40 hover:shadow-card-hover sm:p-6"
+                    className="block cursor-pointer p-4 transition hover:bg-brand-cream/40"
                   >
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-brand-green/10 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-brand-green">
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          {b.status || "confirmed"}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          Booked {fmtDate(b.created_at)}
-                        </span>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-brand-green">
+                          {b.apartment_name ?? "Stay"}
+                        </p>
+                        <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">
+                          {b.booking_reference}
+                        </p>
                       </div>
-                      <h2 className="mt-2 text-lg font-bold text-brand-green">
-                        {b.apartment_name ?? "Stay"}
-                      </h2>
-                      <p className="mt-0.5 text-xs font-mono text-brand-charcoal/80">
-                        {b.booking_reference}
-                      </p>
+                      <StatusBadge status={b.status || "confirmed"} />
                     </div>
-                    <div className="text-left sm:text-right">
-                      <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                        Total paid
+                    <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                      <div>
+                        <dt className="text-muted-foreground">Check-in</dt>
+                        <dd className="font-medium text-brand-charcoal">{fmtDate(b.check_in)}</dd>
                       </div>
-                      <div className="text-xl font-bold text-brand-green">
-                        ${Number(b.total_amount).toFixed(0)}
+                      <div>
+                        <dt className="text-muted-foreground">Check-out</dt>
+                        <dd className="font-medium text-brand-charcoal">{fmtDate(b.check_out)}</dd>
                       </div>
-                      <p className="mt-1 text-xs font-semibold text-brand-orange">View details →</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 grid gap-3 border-t border-border pt-4 sm:grid-cols-3">
-                    <InfoRow
-                      icon={<Calendar className="h-4 w-4" />}
-                      label="Check-in"
-                      value={fmtDate(b.check_in)}
-                    />
-                    <InfoRow
-                      icon={<Calendar className="h-4 w-4" />}
-                      label="Check-out"
-                      value={fmtDate(b.check_out)}
-                    />
-                    <InfoRow
-                      icon={<Users className="h-4 w-4" />}
-                      label="Guests · Nights"
-                      value={`${b.guests} · ${b.nights}`}
-                    />
-                  </div>
-
-                  <div className="mt-4">
-                    {b.taxi_addon ? (
-                      <div className="flex items-start gap-2 rounded-xl bg-brand-cream/60 px-3 py-2 text-sm text-brand-charcoal">
-                        <Car className="mt-0.5 h-4 w-4 shrink-0 text-brand-orange" />
-                        <div>
-                          <div className="font-semibold text-brand-green">Taxi transfer added</div>
-                          <div className="text-xs text-muted-foreground">
-                            {b.taxi_pickup ?? "Airport pickup"}
-                            {b.taxi_date ? ` · ${fmtDate(b.taxi_date)}` : ""}
-                            {b.taxi_time ? ` at ${b.taxi_time.slice(0, 5)}` : ""}
-                          </div>
-                        </div>
+                      <div>
+                        <dt className="text-muted-foreground">Guests / nights</dt>
+                        <dd className="font-medium text-brand-charcoal">
+                          {b.guests} · {b.nights}
+                        </dd>
                       </div>
-                    ) : (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Car className="h-4 w-4" />
-                        No taxi added
+                      <div>
+                        <dt className="text-muted-foreground">Total</dt>
+                        <dd className="font-bold text-brand-green">
+                          ${Number(b.total_amount).toFixed(0)}
+                        </dd>
                       </div>
-                    )}
-                  </div>
+                      <div className="col-span-2">
+                        <dt className="text-muted-foreground">Taxi</dt>
+                        <dd className="font-medium text-brand-charcoal">
+                          {b.taxi_addon ? "Transfer added" : "No taxi"}
+                        </dd>
+                      </div>
+                    </dl>
+                    <p className="mt-3 flex items-center gap-1 text-xs font-semibold text-brand-orange">
+                      View details <ChevronRight className="h-3.5 w-3.5" />
+                    </p>
                   </Link>
-                </li>
-              ))}
-            </ul>
+                ))}
+              </div>
+
+              {/* Desktop table */}
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full min-w-[48rem] border-collapse text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-[#F7F8F6]">
+                      <Th>Reference</Th>
+                      <Th>Apartment</Th>
+                      <Th>Check-in</Th>
+                      <Th>Check-out</Th>
+                      <Th>Guests</Th>
+                      <Th>Nights</Th>
+                      <Th>Taxi</Th>
+                      <Th>Status</Th>
+                      <Th className="text-right">Total</Th>
+                      <Th className="text-right"> </Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bookings.map((b) => (
+                      <tr
+                        key={b.booking_reference}
+                        className="border-b border-slate-100 transition hover:bg-brand-cream/35"
+                      >
+                        <Td>
+                          <span className="font-mono text-xs font-semibold text-brand-charcoal">
+                            {b.booking_reference}
+                          </span>
+                          <div className="mt-0.5 text-[11px] text-muted-foreground">
+                            Booked {fmtDate(b.created_at)}
+                          </div>
+                        </Td>
+                        <Td>
+                          <span className="font-semibold text-brand-green">
+                            {b.apartment_name ?? "Stay"}
+                          </span>
+                        </Td>
+                        <Td nowrap>{fmtDate(b.check_in)}</Td>
+                        <Td nowrap>{fmtDate(b.check_out)}</Td>
+                        <Td nowrap>{b.guests}</Td>
+                        <Td nowrap>{b.nights}</Td>
+                        <Td nowrap>{b.taxi_addon ? "Yes" : "No"}</Td>
+                        <Td>
+                          <StatusBadge status={b.status || "confirmed"} />
+                        </Td>
+                        <Td nowrap className="text-right font-bold text-brand-green">
+                          ${Number(b.total_amount).toFixed(0)}
+                        </Td>
+                        <Td className="text-right">
+                          <Link
+                            to="/my-bookings/$reference"
+                            params={{ reference: b.booking_reference }}
+                            className="inline-flex cursor-pointer items-center gap-0.5 text-xs font-semibold text-brand-orange hover:underline"
+                          >
+                            Details <ChevronRight className="h-3.5 w-3.5" />
+                          </Link>
+                        </Td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           )}
-        </div>
+        </section>
 
         {taxiTrips.length > 0 && (
-          <div className="mt-10">
-            <h2 className="text-xl font-bold text-brand-green">Taxi trips</h2>
-            <ul className="mt-4 grid gap-4">
-              {taxiTrips.map((trip) => {
-                const driver =
-                  trip.driverId && typeof trip.driverId === "object" ? trip.driverId : null;
-                const eta = trip.durationMinutes ?? 25;
-                return (
-                  <li key={trip.bookingReference} className="rounded-2xl border border-border bg-white p-5 shadow-card">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0">
-                        <p className="text-xs font-mono text-muted-foreground">{trip.bookingReference}</p>
-                        <h3 className="text-lg font-semibold text-brand-charcoal">{trip.serviceType}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {String(trip.pickupDate).slice(0, 10)} at {trip.pickupTime}
-                        </p>
-                        <p className="mt-1 break-words text-sm">
-                          {trip.pickupLocation} → {trip.dropoffLocation}
-                        </p>
-                        <p className="mt-2 text-xs capitalize text-muted-foreground">
-                          Status: {String(trip.status).replaceAll("_", " ")}
-                        </p>
-                        {driver ? (
-                          <div className="mt-3 rounded-xl bg-brand-cream/60 px-3 py-2 text-sm">
-                            <p className="font-semibold text-brand-green">
-                              Driver: {driver.name}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {driver.vehicleLabel || "Malfranza taxi"}
-                              {driver.phone ? ` · ${driver.phone}` : ""}
-                              {" · "}~{eta} min trip
-                            </p>
-                          </div>
-                        ) : (
-                          <p className="mt-3 text-sm text-muted-foreground">
-                            Driver matching in progress…
+          <section className="mt-10">
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-brand-charcoal/70">
+              Taxi trips
+            </h2>
+            <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-card">
+              <div className="divide-y divide-slate-100 md:hidden">
+                {taxiTrips.map((trip) => {
+                  const driver =
+                    trip.driverId && typeof trip.driverId === "object" ? trip.driverId : null;
+                  return (
+                    <div key={trip.bookingReference} className="p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="font-semibold text-brand-charcoal">{trip.serviceType}</p>
+                          <p className="font-mono text-[11px] text-muted-foreground">
+                            {trip.bookingReference}
                           </p>
-                        )}
+                        </div>
+                        <StatusBadge status={String(trip.status)} />
                       </div>
-                      <div className="text-sm font-semibold text-brand-green">
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {String(trip.pickupDate).slice(0, 10)} · {trip.pickupTime}
+                      </p>
+                      <p className="mt-1 text-sm">
+                        {trip.pickupLocation} → {trip.dropoffLocation}
+                      </p>
+                      <p className="mt-2 text-sm font-bold text-brand-green">
                         ${Number(trip.estimatedFare).toFixed(0)}
-                      </div>
+                      </p>
+                      {driver && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Driver: {driver.name}
+                          {driver.vehicleLabel ? ` · ${driver.vehicleLabel}` : ""}
+                        </p>
+                      )}
                     </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+                  );
+                })}
+              </div>
+
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full min-w-[44rem] border-collapse text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-[#F7F8F6]">
+                      <Th>Reference</Th>
+                      <Th>Service</Th>
+                      <Th>When</Th>
+                      <Th>Route</Th>
+                      <Th>Driver</Th>
+                      <Th>Status</Th>
+                      <Th className="text-right">Fare</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {taxiTrips.map((trip) => {
+                      const driver =
+                        trip.driverId && typeof trip.driverId === "object"
+                          ? trip.driverId
+                          : null;
+                      return (
+                        <tr
+                          key={trip.bookingReference}
+                          className="border-b border-slate-100"
+                        >
+                          <Td>
+                            <span className="font-mono text-xs font-semibold">
+                              {trip.bookingReference}
+                            </span>
+                          </Td>
+                          <Td>
+                            <span className="font-medium">{trip.serviceType}</span>
+                          </Td>
+                          <Td nowrap>
+                            {String(trip.pickupDate).slice(0, 10)} · {trip.pickupTime}
+                          </Td>
+                          <Td>
+                            <span className="line-clamp-2 text-xs text-brand-charcoal">
+                              {trip.pickupLocation} → {trip.dropoffLocation}
+                            </span>
+                          </Td>
+                          <Td>
+                            {driver ? (
+                              <span className="text-xs">
+                                {driver.name}
+                                {driver.vehicleLabel ? (
+                                  <span className="text-muted-foreground">
+                                    {" "}
+                                    · {driver.vehicleLabel}
+                                  </span>
+                                ) : null}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Matching…</span>
+                            )}
+                          </Td>
+                          <Td>
+                            <StatusBadge status={String(trip.status)} />
+                          </Td>
+                          <Td nowrap className="text-right font-bold text-brand-green">
+                            ${Number(trip.estimatedFare).toFixed(0)}
+                          </Td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
         )}
 
         <p className="mt-8 text-xs text-muted-foreground">
@@ -321,24 +443,38 @@ function MyBookingsPage() {
   );
 }
 
-function InfoRow({
-  icon,
-  label,
-  value,
+function Th({
+  children,
+  className = "",
 }: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
+  children?: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="flex items-start gap-2">
-      <div className="mt-0.5 text-brand-green">{icon}</div>
-      <div>
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-          {label}
-        </div>
-        <div className="text-sm font-medium text-brand-charcoal">{value}</div>
-      </div>
-    </div>
+    <th
+      className={`px-3 py-3 text-[10px] font-semibold uppercase tracking-[0.06em] text-brand-charcoal/55 first:pl-5 last:pr-5 ${className}`}
+    >
+      {children}
+    </th>
+  );
+}
+
+function Td({
+  children,
+  className = "",
+  nowrap = false,
+}: {
+  children?: React.ReactNode;
+  className?: string;
+  nowrap?: boolean;
+}) {
+  return (
+    <td
+      className={`px-3 py-3.5 align-middle text-brand-charcoal first:pl-5 last:pr-5 ${
+        nowrap ? "whitespace-nowrap" : ""
+      } ${className}`}
+    >
+      {children}
+    </td>
   );
 }

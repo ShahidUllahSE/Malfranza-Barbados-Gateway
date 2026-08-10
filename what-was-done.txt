@@ -1,0 +1,34 @@
+Malfranza — work completed (checkout copy, emails, related)
+==========================================================
+
+Appendix A — Checkout
+- Updated checkout heading: "How would you like to check out?"
+- Guest / account option cards use Janelle's exact wording
+- Confirmation screen: "You're booked!" + Journey A (guest) vs Journey B (create account) copy
+
+Appendix B/C — Emails
+- Rebuilt branded Malfranza email templates (header, signature, Barbados contact, privacy footer)
+- Guest: OTP, temp access password, stay confirm, payment receipt, status/cancel, stay reminder, check-in instructions, taxi confirm/status/reminder, password reset, enquiry received
+- Agency: welcome + code, new booking under code, commission statement helper, password reset
+- Driver: trip assigned, updated, cancelled, tomorrow reminder
+- Admin: new stay / taxi / agency signup / booking change / enquiry / payment received
+- Wired sends on booking create, taxi create, stay/taxi status changes, agency register, password reset
+- Added daily reminder script: npm run reminders:run (backend)
+
+Password reset
+- Guest API + sign-in "Forgot password?" + link flow (?auth=reset&token=...)
+- Agency API + portal forgot/reset (+ ?reset= token from email)
+
+Room names (placeholders)
+- Tropical Escape (Room 1), Island Breeze (Room 2), Palm Retreat (Room 3), Sunset Suite (Room 4)
+- Seeded into DB + frontend fallback apartments list
+
+Other
+- Fixed typecheck (duplicate password-reset helpers removed)
+- Backend + frontend typecheck passes after fixes
+
+How to run reminders (optional daily cron)
+  cd Backend
+  npm run reminders:run
+
+Note: Real emails need SMTP configured in backend .env

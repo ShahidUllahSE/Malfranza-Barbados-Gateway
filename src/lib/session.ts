@@ -2,22 +2,27 @@ import {
   apiRequest,
   clearAdminToken,
   clearAllTokens,
+  clearAgencyToken,
   clearDriverToken,
   clearUserToken,
   getAdminToken,
+  getAgencyToken,
   getCurrentAdmin,
+  getCurrentAgency,
   getCurrentDriver,
   getDriverToken,
   getUserToken,
   setAdminToken,
+  setAgencyToken,
   setDriverToken,
   setUserToken,
   type AdminIdentity,
+  type AgencyIdentity,
   type DriverIdentity,
 } from "@/lib/api";
 import { getCurrentUser, type UserIdentity } from "@/lib/user";
 
-export type SessionKind = "admin" | "user" | "driver";
+export type SessionKind = "admin" | "user" | "driver" | "agency";
 
 export type AuthSession =
   | {
@@ -26,6 +31,7 @@ export type AuthSession =
       admin: AdminIdentity;
       user: null;
       driver: null;
+      agency: null;
     }
   | {
       kind: "driver";
@@ -33,6 +39,15 @@ export type AuthSession =
       driver: DriverIdentity;
       admin: null;
       user: null;
+      agency: null;
+    }
+  | {
+      kind: "agency";
+      role: "agency";
+      agency: AgencyIdentity;
+      admin: null;
+      user: null;
+      driver: null;
     }
   | {
       kind: "user";
@@ -40,6 +55,7 @@ export type AuthSession =
       user: UserIdentity;
       admin: null;
       driver: null;
+      agency: null;
     };
 
 type SessionLoginResponse =
@@ -56,6 +72,12 @@ type SessionLoginResponse =
       driver: DriverIdentity;
     }
   | {
+      kind: "agency";
+      role: "agency";
+      token: string;
+      agency: AgencyIdentity;
+    }
+  | {
       kind: "user";
       role: "user";
       token: string;
@@ -69,19 +91,22 @@ export function applySessionTokens(kind: SessionKind, token: string): void {
   clearAdminToken();
   clearUserToken();
   clearDriverToken();
+  clearAgencyToken();
   if (kind === "admin") setAdminToken(token);
   else if (kind === "driver") setDriverToken(token);
+  else if (kind === "agency") setAgencyToken(token);
   else setUserToken(token);
 }
 
 export function homePathForSession(session: AuthSession): string {
   if (session.kind === "admin") return "/admin";
   if (session.kind === "driver") return "/driver";
+  if (session.kind === "agency") return "/agency";
   return "/my-bookings";
 }
 
 /**
- * Unified sign-in: backend resolves admin/staff vs driver vs guest.
+ * Unified sign-in: backend resolves admin/staff vs driver vs agency vs guest.
  */
 export async function loginSession(email: string, password: string): Promise<AuthSession> {
   const result = await apiRequest<SessionLoginResponse>("/auth/session", {
@@ -98,6 +123,7 @@ export async function loginSession(email: string, password: string): Promise<Aut
       admin: result.admin,
       user: null,
       driver: null,
+      agency: null,
     };
   }
 
@@ -108,6 +134,18 @@ export async function loginSession(email: string, password: string): Promise<Aut
       driver: result.driver,
       admin: null,
       user: null,
+      agency: null,
+    };
+  }
+
+  if (result.kind === "agency") {
+    return {
+      kind: "agency",
+      role: "agency",
+      agency: result.agency,
+      admin: null,
+      user: null,
+      driver: null,
     };
   }
 
@@ -118,17 +156,26 @@ export async function loginSession(email: string, password: string): Promise<Aut
     user,
     admin: null,
     driver: null,
+    agency: null,
   };
 }
 
-/** Restore session from whichever token is present (admin → driver → user). */
+/** Restore session from whichever token is present. */
 export async function restoreSession(): Promise<AuthSession | null> {
   if (getAdminToken()) {
     try {
       const admin = await getCurrentAdmin();
       clearUserToken();
       clearDriverToken();
-      return { kind: "admin", role: admin.role, admin, user: null, driver: null };
+      clearAgencyToken();
+      return {
+        kind: "admin",
+        role: admin.role,
+        admin,
+        user: null,
+        driver: null,
+        agency: null,
+      };
     } catch {
       clearAdminToken();
     }
@@ -139,16 +186,50 @@ export async function restoreSession(): Promise<AuthSession | null> {
       const driver = await getCurrentDriver();
       clearUserToken();
       clearAdminToken();
-      return { kind: "driver", role: "driver", driver, admin: null, user: null };
+      clearAgencyToken();
+      return {
+        kind: "driver",
+        role: "driver",
+        driver,
+        admin: null,
+        user: null,
+        agency: null,
+      };
     } catch {
       clearDriverToken();
+    }
+  }
+
+  if (getAgencyToken()) {
+    try {
+      const agency = await getCurrentAgency();
+      clearUserToken();
+      clearAdminToken();
+      clearDriverToken();
+      return {
+        kind: "agency",
+        role: "agency",
+        agency,
+        admin: null,
+        user: null,
+        driver: null,
+      };
+    } catch {
+      clearAgencyToken();
     }
   }
 
   if (getUserToken()) {
     try {
       const user = await getCurrentUser();
-      return { kind: "user", role: "user", user, admin: null, driver: null };
+      return {
+        kind: "user",
+        role: "user",
+        user,
+        admin: null,
+        driver: null,
+        agency: null,
+      };
     } catch {
       clearUserToken();
     }

@@ -52,6 +52,11 @@ export async function listApartmentBookings() {
     status: booking.status as AptBookingStatus,
     payment_status: booking.paymentStatus,
     payment_reference: booking.paymentReference ?? null,
+    agency_id: booking.agencyId ? String(booking.agencyId) : null,
+    agency_code: booking.agencyCode ?? null,
+    agency_name: booking.agencyName ?? null,
+    commission_rate: booking.commissionRate ?? null,
+    commission_amount: booking.commissionAmount ?? 0,
     taxi_addon: !!booking.taxi,
     taxi_pickup: booking.taxi?.pickup ?? null,
     taxi_dropoff: booking.taxi?.dropoff ?? null,
@@ -227,6 +232,7 @@ export async function createApartment(input: {
   photos: string[];
   is_active?: boolean;
   units?: ApartmentUnitInput[];
+  units_exclusive?: boolean;
 }) {
   const result = await apiRequest<any>("/admin/apartments", {
     method: "POST",
@@ -246,6 +252,7 @@ export async function createApartment(input: {
       photos: input.photos,
       isActive: input.is_active ?? true,
       units: input.units ?? [],
+      unitsExclusive: input.units_exclusive ?? false,
     }),
   });
   return toLegacyApartment(result);
@@ -266,6 +273,7 @@ export async function updateApartment(id: string, patch: Partial<{
   photos: string[];
   is_active: boolean;
   units: ApartmentUnitInput[];
+  units_exclusive: boolean;
 }>) {
   await apiRequest(`/admin/apartments/${id}`, {
     method: "PATCH",
@@ -285,6 +293,7 @@ export async function updateApartment(id: string, patch: Partial<{
       photos: patch.photos,
       isActive: patch.is_active,
       units: patch.units,
+      unitsExclusive: patch.units_exclusive,
     }),
   });
 }
@@ -337,6 +346,7 @@ function toLegacyApartment(apartment: any) {
     amenities: apartment.amenities ?? [],
     photos: apartment.photos ?? [],
     is_active: apartment.isActive,
+    units_exclusive: apartment.unitsExclusive === true,
     units: (apartment.units ?? []).map((unit: any) => ({
       _id: String(unit._id),
       name: unit.name,

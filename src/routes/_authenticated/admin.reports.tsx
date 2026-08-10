@@ -38,6 +38,7 @@ import {
   listEnquiries,
   type AptBookingStatus,
 } from "@/lib/admin";
+import { bookedNightsInRange } from "@/lib/occupancy";
 import {
   AdminPageHeader,
   AdminPanel,
@@ -297,6 +298,7 @@ function ReportsPage() {
       setFromDate("");
       setToDate("");
     }
+    // "custom" keeps whatever dates are currently set
   }
 
   function resetFilters() {
@@ -304,6 +306,11 @@ function ReportsPage() {
     setApartmentId("all");
     setPaymentFilter("all");
     setStatusFilter("active");
+    setFiltersOpen(false);
+  }
+
+  function clearDateRange() {
+    applyPreset("all");
   }
 
   const apartments = aptsQ.data ?? [];
@@ -317,10 +324,11 @@ function ReportsPage() {
     else if (statusFilter !== "all") rows = rows.filter((b) => b.status === statusFilter);
     if (paymentFilter !== "all") rows = rows.filter((b) => b.payment_status === paymentFilter);
     if (apartmentId !== "all") rows = rows.filter((b) => String(b.apartment_id) === apartmentId);
+    // Date range filters by check-in within [from, to] so labels match the rows shown.
     if (fromDate || toDate) {
       const start = fromDate || "0000-01-01";
       const end = toDate || "9999-12-31";
-      rows = rows.filter((b) => b.check_in <= end && b.check_out > start);
+      rows = rows.filter((b) => b.check_in >= start && b.check_in <= end);
     }
     return rows;
   }, [allBookings, statusFilter, paymentFilter, apartmentId, fromDate, toDate]);
@@ -353,13 +361,26 @@ function ReportsPage() {
     [filtered],
   );
 
+  const rangeBounds = useMemo(() => {
+    if (!fromDate && !toDate) return null as null | { start: Date; end: Date };
+    const start = new Date(`${fromDate || "2000-01-01"}T00:00:00`);
+    // Inclusive end date → exclusive next day for night clipping
+    const endDay = toDate || todayISO();
+    const end = new Date(`${endDay}T00:00:00`);
+    end.setDate(end.getDate() + 1);
+    return { start, end };
+  }, [fromDate, toDate]);
+
   const stats = useMemo(() => {
     const paid = activeBookings.filter((b) => b.payment_status === "paid");
     const unpaid = activeBookings.filter((b) => b.payment_status !== "paid");
     const gross = activeBookings.reduce((s, b) => s + Number(b.total_amount), 0);
     const paidRevenue = paid.reduce((s, b) => s + Number(b.total_amount), 0);
     const unpaidRevenue = unpaid.reduce((s, b) => s + Number(b.total_amount), 0);
-    const nights = activeBookings.reduce((s, b) => s + Number(b.nights), 0);
+    const nights = activeBookings.reduce((s, b) => {
+      if (!rangeBounds) return s + Number(b.nights);
+      return s + bookedNightsInRange(b.check_in, b.check_out, rangeBounds.start, rangeBounds.end);
+    }, 0);
     const guests = activeBookings.reduce((s, b) => s + Number(b.guests), 0);
     const taxiFare = filteredTaxis.reduce((s, t) => s + Number(t.estimated_fare), 0);
     return {
@@ -380,7 +401,7 @@ function ReportsPage() {
       newEnquiries: filteredEnquiries.filter((e) => e.status === "new").length,
       paidPct: gross > 0 ? Math.round((paidRevenue / gross) * 100) : 0,
     };
-  }, [activeBookings, filteredTaxis, filteredEnquiries]);
+  }, [activeBookings, filteredTaxis, filteredEnquiries, rangeBounds]);
 
   const monthlyTrend = useMemo(() => {
     const map = new Map<
@@ -485,15 +506,32 @@ function ReportsPage() {
   );
 
   const rangeLabel = (() => {
+    const pretty = (iso: string) => {
+      try {
+        return formatDayLabel(iso);
+      } catch {
+        return iso;
+      }
+    };
+    if (preset === "7d") return "Last 7 days";
+    if (preset === "30d") return "Last 30 days";
+    if (preset === "month") return "This month";
+    if (preset === "year") return "This year";
     if (preset === "all" || (!fromDate && !toDate)) return "All time";
-    if (fromDate && toDate) return `${fromDate} → ${toDate}`;
-    if (fromDate) return `From ${fromDate}`;
-    return `Until ${toDate}`;
+    if (fromDate && toDate) return `${pretty(fromDate)} → ${pretty(toDate)}`;
+    if (fromDate) return `From ${pretty(fromDate)}`;
+    return `Until ${pretty(toDate!)}`;
   })();
 
   const activeFilterChips = (
     [
-      { key: "range", label: rangeLabel, clear: () => applyPreset("30d") },
+      preset !== "all" || fromDate || toDate
+        ? {
+            key: "range",
+            label: rangeLabel,
+            clear: clearDateRange,
+          }
+        : null,
       apartmentId !== "all"
         ? {
             key: "apt",
@@ -551,16 +589,37 @@ function ReportsPage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-semibold text-brand-charcoal">When do you want to look at?</p>
-            <p className="text-xs text-muted-foreground">Totals and charts update instantly.</p>
+            <p className="text-xs text-muted-foreground">
+              Stays are filtered by check-in date. Current range:{" "}
+              <span className="font-medium text-brand-charcoal">{rangeLabel}</span>
+              {fromDate && toDate ? (
+                <span className="text-muted-foreground">
+                  {" "}
+                  ({fromDate} → {toDate})
+                </span>
+              ) : null}
+            </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setFiltersOpen((o) => !o)}
-            className="inline-flex items-center gap-1.5 self-start rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-brand-charcoal hover:bg-brand-cream sm:self-auto"
-          >
-            <Filter className="h-3.5 w-3.5" />
-            {filtersOpen ? "Hide extra filters" : "More filters"}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setFiltersOpen((o) => !o)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-brand-charcoal hover:bg-brand-cream"
+            >
+              <Filter className="h-3.5 w-3.5" />
+              {filtersOpen ? "Hide extra filters" : "More filters"}
+            </button>
+            {(fromDate || toDate || apartmentId !== "all" || paymentFilter !== "all" || statusFilter !== "active") && (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-brand-charcoal hover:bg-brand-cream"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Reset
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="mt-3 flex flex-wrap gap-2">
@@ -571,45 +630,87 @@ function ReportsPage() {
               ["month", "This month"],
               ["year", "This year"],
               ["all", "All time"],
+              ["custom", "Custom range"],
             ] as const
           ).map(([key, label]) => (
-            <FilterChip key={key} active={preset === key} onClick={() => applyPreset(key)}>
+            <FilterChip
+              key={key}
+              active={preset === key}
+              onClick={() => {
+                if (key === "custom") {
+                  setPreset("custom");
+                  if (!fromDate) setFromDate(shiftDays(todayISO(), -29));
+                  if (!toDate) setToDate(todayISO());
+                  setFiltersOpen(true);
+                  return;
+                }
+                applyPreset(key);
+              }}
+            >
               {label}
             </FilterChip>
           ))}
         </div>
 
+        {/* Always-visible custom date range (manual entry) */}
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto]">
+          <label className="block">
+            <span className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <CalendarRange className="h-3.5 w-3.5" /> From
+            </span>
+            <input
+              type="date"
+              value={fromDate}
+              max={toDate || undefined}
+              onChange={(e) => {
+                setPreset("custom");
+                setFromDate(e.target.value);
+              }}
+              className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 text-sm outline-none focus:border-brand-green focus:bg-white focus:ring-2 focus:ring-brand-green/15"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              To
+            </span>
+            <input
+              type="date"
+              value={toDate}
+              min={fromDate || undefined}
+              onChange={(e) => {
+                setPreset("custom");
+                setToDate(e.target.value);
+              }}
+              className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 text-sm outline-none focus:border-brand-green focus:bg-white focus:ring-2 focus:ring-brand-green/15"
+            />
+          </label>
+          <div className="flex items-end gap-2">
+            <button
+              type="button"
+              onClick={clearDateRange}
+              className="h-11 rounded-xl border border-slate-200 px-4 text-xs font-semibold text-brand-charcoal hover:bg-brand-cream"
+            >
+              Clear dates
+            </button>
+          </div>
+        </div>
+
         {filtersOpen && (
           <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <label className="block">
-                <span className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  <CalendarRange className="h-3.5 w-3.5" /> From
-                </span>
-                <input
-                  type="date"
-                  value={fromDate}
-                  onChange={(e) => {
-                    setPreset("custom");
-                    setFromDate(e.target.value);
-                  }}
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 text-sm outline-none focus:border-brand-green focus:bg-white focus:ring-2 focus:ring-brand-green/15"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  To
-                </span>
-                <input
-                  type="date"
-                  value={toDate}
-                  onChange={(e) => {
-                    setPreset("custom");
-                    setToDate(e.target.value);
-                  }}
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 text-sm outline-none focus:border-brand-green focus:bg-white focus:ring-2 focus:ring-brand-green/15"
-                />
-              </label>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Extra filters
+              </p>
+              <button
+                type="button"
+                onClick={() => setFiltersOpen(false)}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-brand-charcoal"
+              >
+                <X className="h-3.5 w-3.5" />
+                Close
+              </button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
               <label className="block">
                 <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Apartment

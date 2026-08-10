@@ -66,9 +66,15 @@ export function parseApiErrorPayload(
   } else if (status === 409 && message.toLowerCase().includes("already exists")) {
     message = "An account with this email already exists. Try signing in instead.";
     fieldErrors.email = message;
-  } else if (status === 401) {
+  } else if (
+    status === 401 &&
+    /invalid email or password|incorrect email or password|invalid credentials/i.test(message)
+  ) {
+    // Only remap real login failures — other 401s (expired token, auth required, etc.) keep server text.
     message = "Incorrect email or password. Please try again.";
     fieldErrors.password = message;
+  } else if (status === 401 && /sign in required|authentication required|access token/i.test(message)) {
+    message = "Please sign in again to continue.";
   }
 
   return new ApiError(message, status, fieldErrors);

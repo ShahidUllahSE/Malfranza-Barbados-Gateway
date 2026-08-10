@@ -16,9 +16,16 @@ import {
   type AuthSession,
 } from "@/lib/session";
 import { toastError, toastSuccess } from "@/lib/toast";
-import { resendSignupOtp, startSignup, verifySignupOtp } from "@/lib/user";
+import {
+  confirmPasswordReset,
+  requestPasswordReset,
+  resendSignupOtp,
+  startSignup,
+  verifySignupOtp,
+  type UserIdentity,
+} from "@/lib/user";
 
-type AuthMode = "signin" | "signup" | "setup";
+type AuthMode = "signin" | "signup" | "setup" | "forgot" | "reset";
 type SignupStep = "form" | "otp";
 
 type OpenAuthOptions = {
@@ -26,6 +33,8 @@ type OpenAuthOptions = {
   reason?: string;
   /** Navigate here after a successful guest sign-in / sign-up */
   redirectTo?: string;
+  /** Password reset token from email link */
+  resetToken?: string;
 };
 
 type UserAuthContextValue = {
@@ -47,12 +56,14 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
   const authSearch = useRouterState({
     select: (s) => {
       const search = s.location.search as {
-        auth?: "signin" | "signup" | "setup";
+        auth?: "signin" | "signup" | "setup" | "forgot" | "reset";
         redirect?: string;
+        token?: string;
       };
       return {
         auth: search.auth,
         redirect: search.redirect,
+        token: search.token,
         pathname: s.location.pathname,
       };
     },
@@ -65,6 +76,8 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [resetToken, setResetToken] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [signupStep, setSignupStep] = useState<SignupStep>("form");
   const [bootstrapKey, setBootstrapKey] = useState("");
@@ -101,6 +114,8 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
     setOtpCode("");
     setAuthReason(options.reason ?? null);
     setRedirectTo(options.redirectTo ?? null);
+    setResetToken(options.resetToken ?? "");
+    setConfirmPassword("");
     clearErrors();
     setOpen(true);
   }, [clearErrors]);
@@ -108,6 +123,8 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
   const closeAuthModal = useCallback(() => {
     setOpen(false);
     setPassword("");
+    setConfirmPassword("");
+    setResetToken("");
     setOtpCode("");
     setSignupStep("form");
     setBootstrapKey("");
@@ -120,6 +137,8 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
     setMode(nextMode);
     setSignupStep("form");
     setOtpCode("");
+    setPassword("");
+    setConfirmPassword("");
     clearErrors();
   }, [clearErrors]);
 
@@ -155,23 +174,48 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
         authSearch.redirect && authSearch.redirect.startsWith("/")
           ? authSearch.redirect
           : undefined,
+      resetToken: authSearch.token,
       reason:
         authSearch.redirect === "/admin"
           ? "Sign in with your staff account to open the admin dashboard."
-          : undefined,
+          : authSearch.auth === "reset"
+            ? "Choose a new password for your Malfranza account."
+            : undefined,
     });
     navigate({
       to: "/",
       search: {},
       replace: true,
     });
-  }, [authSearch.auth, authSearch.redirect, navigate, openAuthModal]);
+  }, [authSearch.auth, authSearch.redirect, authSearch.token, navigate, openAuthModal]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     clearErrors();
 
-    if (mode === "signin" || mode === "setup") {
+    if (mode === "forgot") {
+      if (!email.trim()) {
+        setFieldErrors({ email: "Enter your email" });
+        toastError("Enter the email for your account.");
+        return;
+      }
+    } else if (mode === "reset") {
+      if (!resetToken) {
+        setFormError("This reset link is missing or invalid. Request a new password reset.");
+        toastError("Invalid reset link.");
+        return;
+      }
+      if (password.length < 8) {
+        setFieldErrors({ password: "At least 8 characters" });
+        toastError("Choose a password with at least 8 characters.");
+        return;
+      }
+      if (password !== confirmPassword) {
+        setFieldErrors({ confirmPassword: "Passwords do not match" });
+        toastError("Passwords do not match.");
+        return;
+      }
+    } else if (mode === "signin" || mode === "setup") {
       const clientErrors = validateLoginForm({ email, password });
       if (Object.keys(clientErrors).length > 0) {
         setFieldErrors(clientErrors);
@@ -195,9 +239,31 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
 
     setBusy(true);
     try {
+      if (mode === "forgot") {
+        const result = await requestPasswordReset(email.trim());
+        toastSuccess("Check your email", result.message || "If that email is registered, a reset link is on its way.");
+        switchMode("signin");
+        return;
+      }
+
+      if (mode === "reset") {
+        await confirmPasswordReset({ token: resetToken, password });
+        toastSuccess("Password updated", "You can sign in with your new password.");
+        setResetToken("");
+        switchMode("signin");
+        return;
+      }
+
       if (mode === "setup") {
         const admin = await bootstrapAdmin(email.trim(), password, bootstrapKey);
-        setSession({ kind: "admin", role: admin.role, admin, user: null, driver: null });
+        setSession({
+          kind: "admin",
+          role: admin.role,
+          admin,
+          user: null,
+          driver: null,
+          agency: null,
+        });
         closeAuthModal();
         toastSuccess("Primary admin created", "Opening admin dashboard.");
         navigate({ to: "/admin" });
@@ -222,7 +288,14 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
           code: otpCode.trim(),
         });
         const nextPath = redirectTo;
-        setSession({ kind: "user", role: "user", user: identity, admin: null, driver: null });
+        setSession({
+          kind: "user",
+          role: "user",
+          user: identity,
+          admin: null,
+          driver: null,
+          agency: null,
+        });
         closeAuthModal();
         toastSuccess("Account verified", "You're signed in.");
         if (nextPath) navigateToRedirect(nextPath);
@@ -239,7 +312,9 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
           ? "Opening admin dashboard."
           : next.kind === "driver"
             ? "Opening driver portal."
-            : "You're signed in.",
+            : next.kind === "agency"
+              ? "Opening travel agency portal."
+              : "You're signed in.",
       );
 
       if (next.kind === "admin") {
@@ -250,8 +325,17 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
         navigate({ to: "/driver" });
         return;
       }
+      if (next.kind === "agency") {
+        navigate({ to: "/agency" });
+        return;
+      }
 
-      if (guestRedirect && guestRedirect !== "/admin" && guestRedirect !== "/driver") {
+      if (
+        guestRedirect &&
+        guestRedirect !== "/admin" &&
+        guestRedirect !== "/driver" &&
+        guestRedirect !== "/agency"
+      ) {
         navigateToRedirect(guestRedirect);
       }
     } catch (err) {
@@ -316,21 +400,29 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
   const title =
     mode === "setup"
       ? "Create admin account"
-      : mode === "signup" && signupStep === "otp"
-        ? "Verify your email"
-        : mode === "signup"
-          ? "Create account"
-          : "Sign in";
+      : mode === "forgot"
+        ? "Reset your password"
+        : mode === "reset"
+          ? "Choose a new password"
+          : mode === "signup" && signupStep === "otp"
+            ? "Verify your email"
+            : mode === "signup"
+              ? "Create account"
+              : "Sign in";
 
   const description =
     authReason
     ?? (mode === "setup"
       ? "One-time setup for the primary admin account."
-      : mode === "signup" && signupStep === "otp"
-        ? `Enter the 6-digit code we sent to ${email.trim() || "your email"}.`
-        : mode === "signup"
-          ? "Create a guest account — we’ll email a code to verify your address."
-          : null);
+      : mode === "forgot"
+        ? "We'll email a link to reset your password if that address is registered."
+        : mode === "reset"
+          ? "Enter a new password for your account."
+          : mode === "signup" && signupStep === "otp"
+            ? `Enter the 6-digit code we sent to ${email.trim() || "your email"}.`
+            : mode === "signup"
+              ? "Create a guest account — we’ll email a code to verify your address."
+              : null);
 
   return (
     <UserAuthContext.Provider value={value}>
@@ -352,7 +444,69 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
             )}
 
             <form onSubmit={onSubmit} className="mt-6 space-y-4">
-              {mode === "signup" && signupStep === "otp" ? (
+              {mode === "forgot" ? (
+                <>
+                  <AuthField label="Email" error={fieldErrors.email}>
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        if (fieldErrors.email) setFieldErrors((prev) => ({ ...prev, email: "" }));
+                      }}
+                      className={inputClass(!!fieldErrors.email)}
+                      placeholder="you@example.com"
+                    />
+                  </AuthField>
+                  <button
+                    type="submit"
+                    disabled={busy}
+                    className="w-full cursor-pointer rounded-lg bg-brand-green px-4 py-2.5 text-sm font-semibold text-brand-green-foreground shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {busy ? "Sending…" : "Email reset link"}
+                  </button>
+                </>
+              ) : mode === "reset" ? (
+                <>
+                  <AuthField label="New password" error={fieldErrors.password}>
+                    <input
+                      type="password"
+                      required
+                      minLength={8}
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (fieldErrors.password) setFieldErrors((prev) => ({ ...prev, password: "" }));
+                      }}
+                      className={inputClass(!!fieldErrors.password)}
+                      placeholder="At least 8 characters"
+                    />
+                  </AuthField>
+                  <AuthField label="Confirm password" error={fieldErrors.confirmPassword}>
+                    <input
+                      type="password"
+                      required
+                      minLength={8}
+                      value={confirmPassword}
+                      onChange={(e) => {
+                        setConfirmPassword(e.target.value);
+                        if (fieldErrors.confirmPassword)
+                          setFieldErrors((prev) => ({ ...prev, confirmPassword: "" }));
+                      }}
+                      className={inputClass(!!fieldErrors.confirmPassword)}
+                      placeholder="Re-enter password"
+                    />
+                  </AuthField>
+                  <button
+                    type="submit"
+                    disabled={busy}
+                    className="w-full cursor-pointer rounded-lg bg-brand-green px-4 py-2.5 text-sm font-semibold text-brand-green-foreground shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {busy ? "Saving…" : "Update password"}
+                  </button>
+                </>
+              ) : mode === "signup" && signupStep === "otp" ? (
                 <>
                   <AuthField label="Verification code" error={fieldErrors.code}>
                     <input
@@ -470,6 +624,17 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
                       placeholder="At least 8 characters"
                     />
                   </AuthField>
+                  {mode === "signin" && (
+                    <div className="text-right">
+                      <button
+                        type="button"
+                        onClick={() => switchMode("forgot")}
+                        className="cursor-pointer text-xs font-semibold text-brand-green hover:underline"
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
+                  )}
                   <button
                     type="submit"
                     disabled={busy}
@@ -497,6 +662,17 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
                     className="cursor-pointer font-semibold text-brand-green hover:underline"
                   >
                     Create an account
+                  </button>
+                </>
+              ) : mode === "forgot" || mode === "reset" ? (
+                <>
+                  Remembered it?{" "}
+                  <button
+                    type="button"
+                    onClick={() => switchMode("signin")}
+                    className="cursor-pointer font-semibold text-brand-green hover:underline"
+                  >
+                    Sign in
                   </button>
                 </>
               ) : (

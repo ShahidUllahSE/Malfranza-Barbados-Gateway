@@ -14,6 +14,12 @@ import {
   fetchApartmentOccupancy,
   type ApartmentOccupancy,
 } from "@/lib/bookings";
+import {
+  averageNightly,
+  catalogFromRate,
+  roomTypeFromApartmentType,
+  roomTypeFromBedrooms,
+} from "@/lib/pricing";
 import { AreaMap } from "@/components/maps/AreaMap";
 import { OISTINS_CENTER } from "@/lib/googleMaps";
 import {
@@ -34,13 +40,13 @@ export const Route = createFileRoute("/stays_/$id")({
       return { meta: [{ title: "Apartment not found — Malfranza" }, { name: "robots", content: "noindex" }] };
     }
     const { apt } = loaderData;
-    const title = apt.subtitle ? `${apt.name} · ${apt.subtitle} — Malfranza` : `${apt.name} — Malfranza`;
+    const title = `${apt.name} — Malfranza`;
     return {
       meta: [
         { title },
-        { name: "description", content: apt.description },
+        { name: "description", content: `${apt.name} in Oistins, Barbados. From $${apt.pricePerNight}/night.` },
         { property: "og:title", content: title },
-        { property: "og:description", content: apt.description },
+        { property: "og:description", content: `${apt.name} · From $${apt.pricePerNight}/night` },
         { property: "og:image", content: apt.images[0] },
       ],
     };
@@ -88,6 +94,8 @@ const AMENITY_ICONS: Record<string, LucideIcon> = {
   "Daily Housekeeping": Brush,
   "24/7 Support": Headphones,
   Workspace: Briefcase,
+  Kettle: Coffee,
+  "Washer/Dryer": Shirt,
 };
 
 function amenityIcon(label: string): LucideIcon {
@@ -100,7 +108,7 @@ function ApartmentDetailPage() {
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [guests, setGuests] = useState(Math.min(2, apt.guests));
-  // One or more units can be selected and booked together.
+  // Unit selection: exclusive configs are single-choice (1-BR vs full 2-BR).
   const [selectedUnitIds, setSelectedUnitIds] = useState<string[]>(
     apt.units.length === 1 ? [apt.units[0].id] : [],
   );
@@ -168,12 +176,20 @@ function ApartmentDetailPage() {
 
   const blockedRanges = occupancy?.blockedRanges ?? [];
   const selectedUnits = apt.units.filter((unit) => selectedUnitIds.includes(unit.id));
-  const combinedPrice = selectedUnits.length > 0
-    ? selectedUnits.reduce((sum, unit) => sum + unit.pricePerNight, 0)
-    : apt.pricePerNight;
-  const combinedMaxGuests = selectedUnits.length > 0
-    ? selectedUnits.reduce((sum, unit) => sum + unit.maxGuests, 0)
-    : apt.guests;
+  const pricedType =
+    selectedUnits.length > 0
+      ? roomTypeFromBedrooms(selectedUnits[0]!.bedrooms)
+      : roomTypeFromApartmentType(apt.type);
+  const combinedPrice =
+    checkIn && checkOut
+      ? averageNightly(pricedType, checkIn, checkOut)
+      : catalogFromRate(pricedType);
+  const combinedMaxGuests =
+    selectedUnits.length > 0
+      ? apt.unitsExclusive
+        ? selectedUnits[0]!.maxGuests
+        : selectedUnits.reduce((sum, unit) => sum + unit.maxGuests, 0)
+      : apt.guests;
 
   useEffect(() => {
     setGuests((current) => Math.min(current, combinedMaxGuests));
@@ -188,7 +204,7 @@ function ApartmentDetailPage() {
       return;
     }
     if (new Date(checkOut) <= new Date(checkIn)) {
-      setError("Check-out must be after check-in.");
+      setError("Minimum stay is 1 night. Choose a check-out date at least one day after check-in.");
       return;
     }
     if (!apt.mongoId) {
@@ -196,7 +212,11 @@ function ApartmentDetailPage() {
       return;
     }
     if (apt.units.length > 0 && selectedUnitIds.length === 0) {
-      setError("Please choose which unit(s) you want to book.");
+      setError(
+        apt.unitsExclusive
+          ? "Please choose the one-bedroom or two-bedroom option."
+          : "Please choose which unit(s) you want to book.",
+      );
       return;
     }
     setError(null);
@@ -377,9 +397,6 @@ function ApartmentDetailPage() {
         <div className="min-w-0">
           <h1 className="text-2xl font-bold text-brand-green sm:text-3xl md:text-4xl">
             {apt.name}
-            {apt.subtitle ? (
-              <span className="font-semibold text-brand-sage"> — {apt.subtitle}</span>
-            ) : null}
           </h1>
           <p className="mt-2 inline-flex items-center gap-1.5 text-muted-foreground">
             <MapPin className="h-4 w-4 text-brand-orange" /> Oistins, Christ Church, Barbados
@@ -408,7 +425,10 @@ function ApartmentDetailPage() {
               Pick dates first
             </a>
             <span className="text-center text-sm text-muted-foreground sm:text-left">
-              From <span className="font-semibold text-brand-green">${apt.pricePerNight}</span> / night
+              From <span className="font-semibold text-brand-green">${catalogFromRate(pricedType)}</span> / night
+              <span className="block text-xs sm:inline sm:before:content-['·_']">
+                Peak up to ${pricedType === "two-bedroom" ? 110 : 95}
+              </span>
             </span>
           </div>
           {error && !checkIn && (
@@ -419,9 +439,11 @@ function ApartmentDetailPage() {
             <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
               <p className="text-sm font-semibold text-amber-950">Existing bookings</p>
               <p className="mt-1 text-xs text-amber-900/80">
-                {apt.units.length > 0
-                  ? "A unit can still be available when another unit is booked."
-                  : "These nights are taken. Choose different dates to book this apartment."}
+                {apt.unitsExclusive
+                  ? "This apartment’s one- and two-bedroom options share inventory — booking either blocks both for those dates."
+                  : apt.units.length > 0
+                    ? "A unit can still be available when another unit is booked."
+                    : "These nights are taken. Choose different dates to book this apartment."}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {blockedRanges.map((range) => (
@@ -437,47 +459,37 @@ function ApartmentDetailPage() {
             </div>
           )}
 
-          <p className="mt-6 leading-relaxed text-brand-charcoal whitespace-pre-wrap">{apt.description}</p>
-
           {apt.units.length > 0 && (
             <div className="mt-8">
-              <div className="flex flex-wrap items-end justify-between gap-3">
-                <div>
-                  <h2 className="text-2xl font-bold text-brand-charcoal">Choose your unit(s)</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    These units are inside the same apartment. Book one, or select several to book them together.
-                  </p>
-                </div>
-                {apt.units.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const allSelected = selectedUnitIds.length === apt.units.length;
-                      setSelectedUnitIds(allSelected ? [] : apt.units.map((unit) => unit.id));
-                      setError(null);
-                    }}
-                    className="rounded-full border border-brand-orange px-4 py-2 text-sm font-semibold text-brand-orange transition hover:bg-brand-orange/10"
-                  >
-                    {selectedUnitIds.length === apt.units.length
-                      ? "Clear selection"
-                      : "Book entire apartment"}
-                  </button>
-                )}
+              <div>
+                <h2 className="text-2xl font-bold text-brand-charcoal">
+                  {apt.unitsExclusive ? "Choose configuration" : "Choose your unit(s)"}
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {apt.unitsExclusive
+                    ? "Book as a one-bedroom or as the full two-bedroom — not both on the same dates."
+                    : "These units are inside the same apartment. Book one, or select several to book them together."}
+                </p>
               </div>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 {apt.units.map((unit) => {
                   const selected = selectedUnitIds.includes(unit.id);
                   const occupancyUnit = occupancy?.units?.find((item) => item.id === unit.id);
+                  const unitRate = catalogFromRate(roomTypeFromBedrooms(unit.bedrooms));
                   return (
                     <button
                       key={unit.id}
                       type="button"
                       onClick={() => {
-                        setSelectedUnitIds((current) =>
-                          current.includes(unit.id)
-                            ? current.filter((id) => id !== unit.id)
-                            : [...current, unit.id],
-                        );
+                        if (apt.unitsExclusive) {
+                          setSelectedUnitIds([unit.id]);
+                        } else {
+                          setSelectedUnitIds((current) =>
+                            current.includes(unit.id)
+                              ? current.filter((id) => id !== unit.id)
+                              : [...current, unit.id],
+                          );
+                        }
                         setError(null);
                       }}
                       className={`rounded-2xl border-2 p-4 text-left transition ${
@@ -490,18 +502,15 @@ function ApartmentDetailPage() {
                         <div>
                           <h3 className="font-bold text-brand-green">{unit.name}</h3>
                           <p className="mt-1 text-xs text-muted-foreground">
-                            {unit.bedrooms} bedroom{unit.bedrooms > 1 ? "s" : ""} booked together ·
-                            {" "}{unit.bathrooms} bathroom{unit.bathrooms > 1 ? "s" : ""} · up to{" "}
+                            {unit.bedrooms} bedroom{unit.bedrooms > 1 ? "s" : ""} ·{" "}
+                            {unit.bathrooms} bathroom{unit.bathrooms > 1 ? "s" : ""} · up to{" "}
                             {unit.maxGuests} guests
                           </p>
                         </div>
                         <span className="shrink-0 font-bold text-brand-charcoal">
-                          ${unit.pricePerNight}/night
+                          from ${unitRate}/night
                         </span>
                       </div>
-                      {unit.description && (
-                        <p className="mt-2 text-sm text-muted-foreground">{unit.description}</p>
-                      )}
                       <span
                         className={`mt-3 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
                           occupancyUnit?.occupiedNow
@@ -515,9 +524,9 @@ function ApartmentDetailPage() {
                   );
                 })}
               </div>
-              {selectedUnits.length > 1 && (
+              {!apt.unitsExclusive && selectedUnits.length > 1 && (
                 <div className="mt-3 rounded-xl bg-brand-cream px-4 py-3 text-sm font-semibold text-brand-green">
-                  {selectedUnits.length} units selected · ${combinedPrice}/night combined · up to {combinedMaxGuests} guests
+                  {selectedUnits.length} units selected · up to {combinedMaxGuests} guests
                 </div>
               )}
             </div>
@@ -643,6 +652,27 @@ function BookingCard({
   onCheck: () => void;
   compact?: boolean;
 }) {
+  const stayNights =
+    checkIn && checkOut
+      ? Math.max(
+          0,
+          Math.round(
+            (new Date(`${checkOut}T12:00:00`).getTime() -
+              new Date(`${checkIn}T12:00:00`).getTime()) /
+              86400000,
+          ),
+        )
+      : 0;
+  const belowMinNights = Boolean(checkIn && checkOut && stayNights < 1);
+
+  const onCheckInChange = (value: string) => {
+    setCheckIn(value);
+    if (value && checkOut) {
+      const nextMin = dayAfterISO(value);
+      if (checkOut <= value) setCheckOut(nextMin);
+    }
+  };
+
   return (
     <div className={`rounded-2xl border border-border bg-white shadow-card ${compact ? "p-5" : "p-6"}`}>
       <div className="flex items-baseline gap-2">
@@ -653,8 +683,14 @@ function BookingCard({
 
       <div className="mt-5 overflow-hidden rounded-xl border border-border">
         <div className={`grid ${compact ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-2"}`}>
-          <DateField label="Check-in" value={checkIn} onChange={setCheckIn} />
-          <DateField label="Check-out" value={checkOut} onChange={setCheckOut} borderLeft />
+          <DateField label="Check-in" value={checkIn} onChange={onCheckInChange} />
+          <DateField
+            label="Check-out"
+            value={checkOut}
+            onChange={setCheckOut}
+            min={checkIn ? dayAfterISO(checkIn) : undefined}
+            borderLeft
+          />
         </div>
         <label className="block border-t border-border px-4 py-3">
           <span className="block text-[11px] font-semibold uppercase tracking-wide text-brand-green">Guests</span>
@@ -667,6 +703,11 @@ function BookingCard({
               <option key={n} value={n}>{n} guest{n > 1 ? "s" : ""}</option>
             ))}
           </select>
+          {belowMinNights && (
+            <p className="mt-2 text-sm text-brand-orange" role="alert">
+              Minimum stay is 1 night. Choose a check-out date at least one day after check-in.
+            </p>
+          )}
         </label>
       </div>
 
@@ -675,7 +716,7 @@ function BookingCard({
       <button
         type="button"
         onClick={onCheck}
-        disabled={checking}
+        disabled={checking || belowMinNights}
         className="mt-4 w-full rounded-full bg-brand-orange px-6 py-3.5 font-semibold text-white transition hover:brightness-105 disabled:opacity-60"
       >
         {checking ? "Checking availability…" : "Check Availability"}
@@ -707,6 +748,12 @@ function BookingCard({
   );
 }
 
+function dayAfterISO(iso: string) {
+  const d = new Date(`${iso}T12:00:00`);
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
 function Fact({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
   return (
     <div className="flex items-center gap-2">
@@ -721,11 +768,13 @@ function DateField({
   value,
   onChange,
   borderLeft,
+  min,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   borderLeft?: boolean;
+  min?: string;
 }) {
   return (
     <label className={`block px-4 py-3 ${borderLeft ? "border-t border-border sm:border-l sm:border-t-0" : ""}`}>
@@ -733,6 +782,7 @@ function DateField({
       <input
         type="date"
         value={value}
+        min={min}
         onChange={(e) => onChange(e.target.value)}
         className="mt-1 w-full min-w-0 bg-transparent text-sm outline-none"
       />

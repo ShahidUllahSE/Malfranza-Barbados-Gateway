@@ -21,6 +21,7 @@ import {
   listAllApartments,
   listEnquiries,
 } from "@/lib/admin";
+import { calcRollingOccupancy } from "@/lib/occupancy";
 import {
   StatusPill,
   StatCard,
@@ -78,20 +79,7 @@ function AdminDashboard() {
       .reduce((sum, b) => sum + Number(b.total_amount), 0);
 
     const horizon = 30;
-    const start = new Date();
-    const end = new Date();
-    end.setDate(start.getDate() + horizon);
-    let bookedNights = 0;
-    for (const b of bookings) {
-      if (b.status === "cancelled") continue;
-      const ci = new Date(b.check_in);
-      const co = new Date(b.check_out);
-      const s = ci < start ? start : ci;
-      const e = co > end ? end : co;
-      bookedNights += Math.max(0, Math.round((e.getTime() - s.getTime()) / 86400000));
-    }
-    const activeApts = apts.filter((a) => a.is_active).length || 1;
-    const occupancy = Math.min(100, Math.round((bookedNights / (activeApts * horizon)) * 100));
+    const occ = calcRollingOccupancy(bookings, apts, horizon);
 
     const recent = [...bookings]
       .sort((a, b) => String(b.created_at ?? b.check_in).localeCompare(String(a.created_at ?? a.check_in)))
@@ -107,8 +95,10 @@ function AdminDashboard() {
       newEnquiries,
       paidRevenue,
       monthRevenue,
-      occupancy,
-      activeApts,
+      occupancy: occ.occupancy,
+      activeApts: occ.inventory,
+      bookedNights: occ.bookedNights,
+      availableNights: occ.availableNights,
       recent,
       inHouse: bookings.filter((b) => b.status === "checked_in"),
     };
@@ -178,7 +168,7 @@ function AdminDashboard() {
           icon={Percent}
           label="Occupancy (30d)"
           value={`${stats.occupancy}%`}
-          hint={`${stats.activeApts} active apartment${stats.activeApts === 1 ? "" : "s"}`}
+          hint={`${stats.bookedNights}/${stats.availableNights} room-nights · ${stats.activeApts} unit${stats.activeApts === 1 ? "" : "s"}`}
           tone="sage"
           to="/admin/insights/occupancy"
         />
@@ -247,7 +237,10 @@ function AdminDashboard() {
               <div className="flex items-end justify-between gap-3">
                 <div>
                   <p className="text-3xl font-display font-bold text-brand-green">{stats.occupancy}%</p>
-                  <p className="text-sm text-muted-foreground">30-day occupancy estimate</p>
+                  <p className="text-sm text-muted-foreground">
+                    Next 30 days · {stats.bookedNights} booked of {stats.availableNights} available
+                    room-nights
+                  </p>
                 </div>
                 <Link
                   to="/admin/calendar"

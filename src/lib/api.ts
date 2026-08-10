@@ -6,6 +6,7 @@ const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\
 const TOKEN_KEY = "mfz.adminToken";
 const USER_TOKEN_KEY = "mfz.userToken";
 const DRIVER_TOKEN_KEY = "mfz.driverToken";
+const AGENCY_TOKEN_KEY = "mfz.agencyToken";
 
 type ApiEnvelope<T> = {
   success: boolean;
@@ -52,10 +53,24 @@ export function clearDriverToken(): void {
   if (typeof window !== "undefined") localStorage.removeItem(DRIVER_TOKEN_KEY);
 }
 
+export function getAgencyToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(AGENCY_TOKEN_KEY);
+}
+
+export function setAgencyToken(token: string): void {
+  localStorage.setItem(AGENCY_TOKEN_KEY, token);
+}
+
+export function clearAgencyToken(): void {
+  if (typeof window !== "undefined") localStorage.removeItem(AGENCY_TOKEN_KEY);
+}
+
 export function clearAllTokens(): void {
   clearAdminToken();
   clearUserToken();
   clearDriverToken();
+  clearAgencyToken();
 }
 
 export async function apiRequest<T>(
@@ -64,6 +79,7 @@ export async function apiRequest<T>(
     auth?: boolean;
     userAuth?: boolean;
     driverAuth?: boolean;
+    agencyAuth?: boolean;
     optionalUserAuth?: boolean;
   } = {},
 ): Promise<T> {
@@ -72,11 +88,11 @@ export async function apiRequest<T>(
     headers.set("Content-Type", "application/json");
   }
 
-  const flags = [init.auth, init.userAuth, init.driverAuth].filter(Boolean).length;
+  const flags = [init.auth, init.userAuth, init.driverAuth, init.agencyAuth].filter(Boolean).length;
   if (flags > 1) {
-    throw new Error("Use only one of auth, userAuth, or driverAuth");
+    throw new Error("Use only one of auth, userAuth, driverAuth, or agencyAuth");
   }
-  if (init.optionalUserAuth && (init.userAuth || init.auth || init.driverAuth)) {
+  if (init.optionalUserAuth && (init.userAuth || init.auth || init.driverAuth || init.agencyAuth)) {
     throw new Error("optionalUserAuth cannot be combined with other auth flags");
   }
 
@@ -101,6 +117,12 @@ export async function apiRequest<T>(
     headers.set("Authorization", `Bearer ${token}`);
   }
 
+  if (init.agencyAuth) {
+    const token = getAgencyToken();
+    if (!token) throw new Error("Agency sign in required");
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
     headers,
@@ -116,6 +138,7 @@ export async function apiRequest<T>(
       if (init.auth) clearAdminToken();
       if (init.userAuth) clearUserToken();
       if (init.driverAuth) clearDriverToken();
+      if (init.agencyAuth) clearAgencyToken();
     }
     throw parseApiErrorPayload(payload, response.status);
   }
@@ -139,6 +162,16 @@ export type DriverIdentity = {
   role: "driver";
 };
 
+export type AgencyIdentity = {
+  id: string;
+  email: string;
+  agencyName: string;
+  contactName: string;
+  agencyCode: string;
+  commissionRate: number;
+  role: "agency";
+};
+
 export async function loginAdmin(email: string, password: string): Promise<AdminIdentity> {
   const result = await apiRequest<{ admin: AdminIdentity; token: string }>("/auth/login", {
     method: "POST",
@@ -146,6 +179,7 @@ export async function loginAdmin(email: string, password: string): Promise<Admin
   });
   clearUserToken();
   clearDriverToken();
+  clearAgencyToken();
   setAdminToken(result.token);
   return result.admin;
 }
@@ -161,6 +195,7 @@ export async function bootstrapAdmin(
   });
   clearUserToken();
   clearDriverToken();
+  clearAgencyToken();
   setAdminToken(result.token);
   return result.admin;
 }
@@ -171,4 +206,8 @@ export function getCurrentAdmin(): Promise<AdminIdentity> {
 
 export function getCurrentDriver(): Promise<DriverIdentity> {
   return apiRequest<DriverIdentity>("/drivers/me", { driverAuth: true });
+}
+
+export function getCurrentAgency(): Promise<AgencyIdentity> {
+  return apiRequest<AgencyIdentity>("/agencies/me", { agencyAuth: true });
 }

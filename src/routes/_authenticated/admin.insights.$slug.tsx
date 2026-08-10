@@ -19,6 +19,7 @@ import {
   listAllApartments,
   listEnquiries,
 } from "@/lib/admin";
+import { calcRollingOccupancy, inventorySlots } from "@/lib/occupancy";
 import {
   StatusPill,
   AdminPageHeader,
@@ -206,26 +207,21 @@ function InsightDetailPage() {
           related.push(b);
         }
       }
-      const occupancyPct = Math.min(100, Math.round((nights / horizon) * 100));
+      const slots = inventorySlots(apt);
+      const occupancyPct = Math.min(100, Math.round((nights / Math.max(1, slots * horizon)) * 100));
       return {
         apt,
         nights,
         occupancy: occupancyPct,
+        slots,
         bookings: related,
       };
     });
 
-    let bookedNights = 0;
-    for (const b of bookings) {
-      if (b.status === "cancelled") continue;
-      const ci = new Date(b.check_in);
-      const co = new Date(b.check_out);
-      const s = ci < start ? start : ci;
-      const e = co > end ? end : co;
-      bookedNights += Math.max(0, Math.round((e.getTime() - s.getTime()) / 86400000));
-    }
-    const activeCount = activeApts.length || 1;
-    const occupancy = Math.min(100, Math.round((bookedNights / (activeCount * horizon)) * 100));
+    const occ = calcRollingOccupancy(bookings, apts, horizon);
+    const occupancy = occ.occupancy;
+    const bookedNights = occ.bookedNights;
+    const activeCount = occ.inventory;
 
     const contributing = bookings
       .filter((b) => {
@@ -250,6 +246,7 @@ function InsightDetailPage() {
       newEnquiries,
       occupancy,
       bookedNights,
+      availableNights: occ.availableNights,
       activeCount,
       aptBreakdown,
       contributing,
@@ -446,6 +443,7 @@ function InsightDetailPage() {
         <OccupancyDetail
           occupancy={data.occupancy}
           bookedNights={data.bookedNights}
+          availableNights={data.availableNights}
           horizon={data.horizon}
           activeCount={data.activeCount}
           aptBreakdown={data.aptBreakdown}
@@ -789,6 +787,7 @@ function EnquiryDetailList({ rows }: { rows: Awaited<ReturnType<typeof listEnqui
 function OccupancyDetail({
   occupancy,
   bookedNights,
+  availableNights,
   horizon,
   activeCount,
   aptBreakdown,
@@ -798,6 +797,7 @@ function OccupancyDetail({
 }: {
   occupancy: number;
   bookedNights: number;
+  availableNights: number;
   horizon: number;
   activeCount: number;
   aptBreakdown: Array<{
@@ -812,13 +812,16 @@ function OccupancyDetail({
 }) {
   return (
     <div className="space-y-5">
-      <AdminPanel title="30-day outlook" description="Capacity vs booked nights">
+      <AdminPanel
+        title="30-day outlook"
+        description="Live calc · room-nights booked ÷ (inventory slots × 30 days)"
+      >
         <div className="flex items-end justify-between gap-3">
           <div>
             <p className="text-4xl font-display font-bold text-brand-green">{occupancy}%</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {bookedNights} booked nights · {activeCount} units × {horizon} days ={" "}
-              {activeCount * horizon} capacity nights
+              {bookedNights} booked ÷ {availableNights} available (
+              {activeCount} inventory unit{activeCount === 1 ? "" : "s"} × {horizon} days)
             </p>
           </div>
           <Link

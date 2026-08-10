@@ -3,10 +3,11 @@ import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import {
   Wifi, Snowflake, ChefHat, Tv, Car, Briefcase, Users, BedDouble,
-  ChevronDown, SlidersHorizontal, CheckSquare, Square,
+  ChevronDown, SlidersHorizontal, CheckSquare, Square, Coffee, Shirt,
 } from "lucide-react";
 import { fetchApartments, type Apartment } from "@/data/apartments";
 import { fetchApartmentOccupancy, type ApartmentOccupancy } from "@/lib/bookings";
+import { catalogFromRate, roomTypeFromApartmentType } from "@/lib/pricing";
 import heroImg from "@/assets/newimage/Malfranza Apartment Number 1.jpg";
 
 const staysSearchSchema = z.object({
@@ -44,17 +45,23 @@ const GUEST_RANGES = [
 ] as const;
 
 const AMENITY_OPTIONS = [
-  { key: "Wi-Fi", icon: Wifi },
   { key: "Air Conditioning", icon: Snowflake },
   { key: "Kitchen", icon: ChefHat },
   { key: "Smart TV", icon: Tv },
-  { key: "Parking", icon: Car },
   { key: "Workspace", icon: Briefcase },
+  { key: "Wi-Fi", icon: Wifi },
 ] as const;
 
 const AMENITY_ICON: Record<string, typeof Wifi> = {
-  "Wi-Fi": Wifi, "Air Conditioning": Snowflake, Kitchen: ChefHat, "Smart TV": Tv,
-  Parking: Car, Workspace: Briefcase,
+  "Wi-Fi": Wifi,
+  "Air Conditioning": Snowflake,
+  Kitchen: ChefHat,
+  "Smart TV": Tv,
+  Parking: Car,
+  Workspace: Briefcase,
+  Kettle: Coffee,
+  Microwave: ChefHat,
+  "Washer/Dryer": Shirt,
 };
 
 type Filters = {
@@ -331,7 +338,8 @@ function ApartmentCard({
   searchDates?: { checkIn: string; checkOut: string; guests?: number };
 }) {
   const navigate = useNavigate();
-  const displayed = apt.amenities.slice(0, 4);
+  const displayed = apt.amenities.slice(0, 6);
+  const fromRate = catalogFromRate(roomTypeFromApartmentType(apt.type));
   const ranges = occupancy?.blockedRanges ?? [];
   const unavailableForSearch = searchDates ? occupancy?.available === false : false;
   const occupiedNow = occupancy?.occupiedNow === true;
@@ -354,7 +362,7 @@ function ApartmentCard({
       <div className="relative aspect-[4/3] overflow-hidden bg-brand-cream">
         <img
           src={apt.images[0]}
-          alt={`${apt.name} — ${apt.subtitle}`}
+          alt={apt.name}
           loading="lazy"
           className={`h-full w-full object-cover transition-transform duration-500 hover:scale-105 ${bookDisabled ? "grayscale-[25%]" : ""}`}
         />
@@ -370,11 +378,11 @@ function ApartmentCard({
         )}
       </div>
       <div className="flex flex-1 flex-col p-5">
-        <h3 className="text-lg leading-snug">
-          {apt.name}<br />
-          <span className="text-brand-charcoal">{apt.subtitle}</span>
-        </h3>
-        <p className="mt-2 text-sm leading-relaxed text-brand-charcoal/70">{apt.description}</p>
+        <h3 className="text-lg font-bold leading-snug text-brand-green">{apt.name}</h3>
+        <p className="mt-1 text-sm font-semibold text-brand-charcoal">
+          From ${fromRate}
+          <span className="font-normal text-muted-foreground"> / night</span>
+        </p>
 
         {ranges.length > 0 && (
           <div className="mt-3 space-y-1.5">
@@ -415,13 +423,9 @@ function ApartmentCard({
             <Users className="h-4 w-4 text-brand-green" /> {apt.guests} Guests
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <BedDouble className="h-4 w-4 text-brand-green" /> {apt.beds} {apt.beds === 1 ? "Bed" : "Beds"}
+            <BedDouble className="h-4 w-4 text-brand-green" /> {apt.beds}{" "}
+            {apt.beds === 1 ? "Bedroom" : "Bedrooms"}
           </span>
-          {apt.units.length > 0 && (
-            <span className="inline-flex items-center gap-1.5 font-semibold text-brand-green">
-              {apt.units.length} separate units
-            </span>
-          )}
         </div>
 
         <div className="mt-5 flex flex-col gap-2 sm:grid sm:grid-cols-2">
