@@ -1638,10 +1638,13 @@ function StepPayment(props: {
                 currency: "USD",
                 intent: "capture",
                 components: "buttons",
+                // Sandbox: only PayPal wallet login — hide guest "Pay with card" which traps testers
+                disableFunding: "card,credit,paylater,venmo",
               }}
             >
               <PayPalButtons
-                style={{ layout: "vertical", color: "gold", shape: "rect", label: "paypal" }}
+                fundingSource="paypal"
+                style={{ layout: "vertical", color: "gold", shape: "rect", label: "paypal", tagline: false }}
                 disabled={paying || total < 0.5}
                 forceReRender={[total, termsAccepted]}
                 createOrder={async () => {
@@ -1676,7 +1679,7 @@ function StepPayment(props: {
                 onError={(err) => {
                   console.error("[paypal]", err);
                   toastError(
-                    "PayPal cancelled or failed. If this keeps happening, re-copy Sandbox Client ID + Secret from developer.paypal.com (Apps & Credentials).",
+                    "PayPal cancelled or failed. Open a private window, click Log In, use Personal sandbox email + password (not guest card).",
                   );
                   setPaying(false);
                 }}
@@ -1690,7 +1693,8 @@ function StepPayment(props: {
         )}
 
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Lock className="h-3.5 w-3.5" /> Secured by PayPal · card payment inside PayPal if you prefer
+          <Lock className="h-3.5 w-3.5" /> Sandbox: click PayPal → Log In with{" "}
+          <span className="font-mono">@personal.example.com</span> account (not bank card form)
         </p>
       </div>
     </div>
