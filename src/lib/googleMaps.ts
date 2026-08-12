@@ -12,25 +12,16 @@ function readEnvKey(...names: string[]): string | undefined {
 }
 
 /**
- * Dev / localhost: prefer keys you control (add http://localhost:8080/* in Cloud Console).
- * Production: prefer Lovable connector browser key (referrers set for the hosted domain).
+ * Prefer the project Maps key (VITE_GOOGLE_MAPS_API_KEY) in both dev and production.
+ * Lovable connector key is only a fallback — it often blocks custom domains.
  */
 function pickBrowserKey(): { key: string; source: string } | null {
-  const isDev = Boolean(import.meta.env.DEV);
-
-  const ordered = isDev
-    ? ([
-        "VITE_GOOGLE_MAPS_API_KEY",
-        "VITE_MAP_KEYS",
-        "VITE_GOOGLE_MAPS_BROWSER_KEY",
-        "VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY",
-      ] as const)
-    : ([
-        "VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY",
-        "VITE_GOOGLE_MAPS_BROWSER_KEY",
-        "VITE_GOOGLE_MAPS_API_KEY",
-        "VITE_MAP_KEYS",
-      ] as const);
+  const ordered = [
+    "VITE_GOOGLE_MAPS_API_KEY",
+    "VITE_MAP_KEYS",
+    "VITE_GOOGLE_MAPS_BROWSER_KEY",
+    "VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY",
+  ] as const;
 
   for (const name of ordered) {
     const key = readEnvKey(name);
@@ -197,7 +188,7 @@ export function loadGoogleMaps(): Promise<GoogleMapsApi> {
     // Global hook used by the Maps JS API when the key is rejected.
     (window as unknown as { gm_authFailure?: () => void }).gm_authFailure = () => {
       const msg =
-        "Google Maps blocked this site URL (RefererNotAllowedMapError). In Google Cloud Console → APIs & Services → Credentials → your browser key → Application restrictions → HTTP referrers, add: http://localhost:8080/* and your production domain /*. Enable Maps JavaScript API and Places API (New).";
+        "Google Maps blocked this site URL (RefererNotAllowedMapError). In Google Cloud Console → APIs & Services → Credentials → your browser key → Application restrictions → HTTP referrers, add: http://localhost:8080/*, https://malfranzarentals.com/*, and https://www.malfranzarentals.com/*. Enable Maps JavaScript API and Places API (New).";
       console.error("[maps]", msg);
       notifyAuthFailure(msg);
     };
