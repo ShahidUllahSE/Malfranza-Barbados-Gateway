@@ -92,6 +92,19 @@ function DriverPortalPage() {
       }
     }
 
+    for (const oldId of knownTripIds.current) {
+      if (ids.has(oldId)) continue;
+      const stillThere = trips.find((t) => String(t._id) === oldId);
+      if (stillThere?.status === "completed") continue;
+      toast.message("Trip updated", {
+        description: stillThere?.status === "cancelled"
+          ? "A ride on your schedule was cancelled."
+          : "A ride was cancelled or reassigned.",
+        duration: 10_000,
+      });
+      notifyBrowser("Malfranza trip update", "A ride was cancelled or reassigned.");
+    }
+
     knownTripIds.current = ids;
   });
 

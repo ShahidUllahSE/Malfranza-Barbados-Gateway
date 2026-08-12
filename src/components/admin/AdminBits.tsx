@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import type { AptBookingStatus, TaxiStatus, EnquiryStatus } from "@/lib/admin";
+import type { AdminTaxiBooking, AptBookingStatus, TaxiStatus, EnquiryStatus } from "@/lib/admin";
 import { calcMonthOccupancy } from "@/lib/occupancy";
 
 export function Shimmer({ className = "" }: { className?: string }) {
@@ -34,7 +34,7 @@ export function StatCard({
   };
 
   if (loading) {
-    return (
+  return (
       <div className="rounded-2xl border border-border/60 bg-white p-4 shadow-card sm:p-5">
         <div className="flex items-start gap-3">
           <Shimmer className="h-11 w-11 shrink-0 rounded-xl" />
@@ -623,7 +623,7 @@ export function BookingsCalendar({
 
       {/* Grid */}
       <div className="overflow-hidden rounded-2xl border border-brand-sage/20 bg-gradient-to-b from-brand-cream/40 to-white shadow-inner">
-        <div className="overflow-x-auto">
+      <div className="overflow-x-auto">
           <div
             className="min-w-[720px]"
             style={{
@@ -693,20 +693,20 @@ export function BookingsCalendar({
               const typeLabel = a.type ? TYPE_LABEL[a.type] ?? a.type : null;
               const rowBg = rowIdx % 2 === 0 ? "bg-white" : "bg-[#FBFAf7]";
               return (
-                <FragmentRow key={a.id}>
+              <FragmentRow key={a.id}>
                   <div
                     className={`sticky left-0 z-10 border-r border-brand-sage/15 px-3 py-2.5 ${rowBg}`}
                   >
                     <p className="truncate text-sm font-semibold leading-tight text-brand-charcoal" title={a.name}>
-                      {a.name}
+                  {a.name}
                     </p>
                     <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
                       {[typeLabel, a.subtitle, a.bedrooms != null ? `${a.bedrooms} br` : null]
                         .filter(Boolean)
                         .join(" · ") || "Stay"}
                     </p>
-                  </div>
-                  {days.map((d) => {
+                </div>
+                {days.map((d) => {
                     const cell = cellFor(a.id, d);
                     const weekend = isWeekend(d);
                     const isToday = d === todayDay;
@@ -878,7 +878,7 @@ export function BookingsCalendar({
                           </p>
                         </div>
                         <StatusPill status={b.status} />
-                      </div>
+        </div>
                       <p className="mt-2 text-sm leading-snug text-brand-charcoal/85">
                         {formatNiceDate(b.check_in)} → {formatNiceDate(b.check_out)} ·{" "}
                         <span className="font-semibold">{b.nights} night{b.nights === 1 ? "" : "s"}</span>
@@ -895,6 +895,214 @@ export function BookingsCalendar({
             </ul>
           )}
         </section>
+      </div>
+    </div>
+  );
+}
+
+export function TaxiScheduleCalendar({
+  trips,
+  drivers = [],
+  loading = false,
+}: {
+  trips: AdminTaxiBooking[];
+  drivers?: Array<{ id: string; name: string; vehicleLabel?: string | null }>;
+  loading?: boolean;
+}) {
+  const now = new Date();
+  const [cursor, setCursor] = useState({ year: now.getFullYear(), month: now.getMonth() });
+  const { year, month } = cursor;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  const monthLabel = new Date(year, month, 1).toLocaleString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+  const isCurrentMonth = year === now.getFullYear() && month === now.getMonth();
+  const todayDay = isCurrentMonth ? now.getDate() : -1;
+  const [selectedDay, setSelectedDay] = useState(isCurrentMonth ? now.getDate() : 1);
+
+  const activeTrips = trips.filter((t) => t.status !== "cancelled" && t.status !== "completed");
+
+  const vehicles = Array.from(
+    new Map(
+      [
+        ...drivers.map((d) => ({
+          id: d.id,
+          name: d.name,
+          label: d.vehicleLabel || d.name,
+        })),
+        ...activeTrips
+          .filter((t) => t.driver)
+          .map((t) => ({
+            id: t.driver!.id,
+            name: t.driver!.name,
+            label: t.driver!.vehicleLabel || t.driver!.name,
+          })),
+      ].map((row) => [row.id, row]),
+    ).values(),
+  );
+
+  const unassigned = activeTrips.filter((t) => !t.driver);
+  const rows = [
+    ...vehicles,
+    ...(unassigned.length ? [{ id: "unassigned", name: "Unassigned", label: "Unassigned" }] : []),
+  ];
+
+  function isoDay(day: number) {
+    return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
+
+  function tripsFor(rowId: string, day: number) {
+    const d = isoDay(day);
+    return activeTrips.filter((t) => {
+      if (t.pickup_date !== d) return false;
+      if (rowId === "unassigned") return !t.driver;
+      return t.driver?.id === rowId;
+    });
+  }
+
+  function shiftMonth(delta: number) {
+    const next = new Date(year, month + delta, 1);
+    const nextCursor = { year: next.getFullYear(), month: next.getMonth() };
+    const nextIsCurrent = nextCursor.year === now.getFullYear() && nextCursor.month === now.getMonth();
+    setCursor(nextCursor);
+    setSelectedDay(nextIsCurrent ? now.getDate() : 1);
+  }
+
+  const selectedIso = isoDay(Math.min(Math.max(1, selectedDay), daysInMonth));
+  const dayTrips = activeTrips
+    .filter((t) => t.pickup_date === selectedIso)
+    .sort((a, b) => a.pickup_time.localeCompare(b.pickup_time));
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Shimmer className="h-10 w-48" />
+        <Shimmer className="h-56 w-full rounded-2xl" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => shiftMonth(-1)}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white"
+            aria-label="Previous month"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <h2 className="min-w-[10rem] text-center font-display text-lg font-bold text-brand-charcoal">
+            {monthLabel}
+          </h2>
+          <button
+            type="button"
+            onClick={() => shiftMonth(1)}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white"
+            aria-label="Next month"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          {activeTrips.length} scheduled trip{activeTrips.length === 1 ? "" : "s"} this month
+        </p>
+      </div>
+
+      {rows.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-muted-foreground">
+          No taxi trips on the schedule yet.
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full border-separate border-spacing-0 text-xs">
+            <thead>
+              <tr>
+                <th className="sticky left-0 z-10 bg-white px-2 py-2 text-left font-semibold text-brand-charcoal">
+                  Vehicle
+                </th>
+                {days.map((day) => (
+                  <th key={day} className="px-0.5 py-1 text-center font-medium text-muted-foreground">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDay(day)}
+                      className={`min-w-[1.6rem] rounded-md px-1 py-0.5 ${
+                        day === selectedDay ? "bg-brand-green text-white" : day === todayDay ? "bg-brand-cream" : ""
+                      }`}
+                    >
+                      {day}
+                    </button>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.id}>
+                  <td className="sticky left-0 z-10 bg-white px-2 py-1.5 font-semibold text-brand-charcoal">
+                    {row.label}
+                  </td>
+                  {days.map((day) => {
+                    const cellTrips = tripsFor(row.id, day);
+                    return (
+                      <td key={day} className="px-0.5 py-1">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDay(day)}
+                          className={`flex h-7 w-full items-center justify-center rounded-md text-[10px] font-bold ${
+                            cellTrips.length
+                              ? "bg-amber-500 text-white"
+                              : "border border-slate-200/80 bg-slate-50/80"
+                          }`}
+                          title={cellTrips.map((t) => `${t.pickup_time} ${t.customer_name}`).join(", ")}
+                        >
+                          {cellTrips.length ? cellTrips.length : ""}
+                        </button>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className="rounded-2xl border border-border bg-white p-4">
+        <h3 className="font-display font-bold text-brand-charcoal">
+          {new Date(`${selectedIso}T12:00:00`).toLocaleDateString("en-US", {
+            weekday: "long",
+            month: "short",
+            day: "numeric",
+          })}
+        </h3>
+        {dayTrips.length === 0 ? (
+          <p className="mt-2 text-sm text-muted-foreground">No taxi trips this day.</p>
+        ) : (
+          <ul className="mt-3 space-y-2">
+            {dayTrips.map((t) => (
+              <li key={t.id}>
+                <Link
+                  to="/admin/taxi/$id"
+                  params={{ id: t.id }}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-2.5 text-sm hover:bg-amber-50"
+                >
+                  <span className="font-semibold text-brand-charcoal">
+                    {t.pickup_time} · {t.driver?.vehicleLabel || t.driver?.name || "Unassigned"}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {t.customer_name} · {t.passengers} guest{t.passengers === 1 ? "" : "s"}
+                  </span>
+                  <StatusPill status={t.status} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );

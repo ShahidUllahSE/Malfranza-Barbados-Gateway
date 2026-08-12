@@ -320,7 +320,7 @@ function DriverForm({
   const [phone, setPhone] = useState(initial?.phone ?? "");
   const [password, setPassword] = useState("");
   const [vehicleLabel, setVehicleLabel] = useState(initial?.vehicleLabel ?? "");
-  const [passengerCapacity, setPassengerCapacity] = useState(initial?.passengerCapacity ?? 7);
+  const [passengerCapacity, setPassengerCapacity] = useState(initial?.passengerCapacity ?? 4);
   const [isActive, setIsActive] = useState(initial?.isActive ?? true);
   const [isAvailable, setIsAvailable] = useState(initial?.isAvailable ?? true);
 
@@ -393,7 +393,7 @@ function DriverForm({
           value={vehicleLabel}
           onChange={(e) => setVehicleLabel(e.target.value)}
           className={inputClass}
-          placeholder="7-seater van"
+          placeholder="4-seater car"
         />
       </Field>
       <Field label="Passenger capacity">
@@ -402,7 +402,7 @@ function DriverForm({
           onChange={(e) => setPassengerCapacity(Number(e.target.value))}
           className={inputClass}
         >
-          {[7, 10, 4, 5, 6, 8, 12, 14].map((n) => (
+          {[4, 5, 6, 7, 8, 10, 12, 14].map((n) => (
             <option key={n} value={n}>
               {n} passengers
             </option>

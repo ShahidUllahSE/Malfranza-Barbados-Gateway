@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { getCurrentAdmin } from "@/lib/api";
 import { Logo } from "@/components/Logo";
+import { AdminNotificationBell } from "@/components/admin/AdminNotificationBell";
 import { useUserAuth } from "@/context/UserAuthContext";
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -158,13 +159,16 @@ function AdminLayout() {
           <Logo className="h-7 w-auto" />
           <span className="font-display font-bold">Admin</span>
         </Link>
-        <button
-          onClick={() => setMobileOpen((v) => !v)}
-          aria-label="Toggle menu"
-          className="p-2"
-        >
-          {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        <div className="flex items-center gap-1">
+          <AdminNotificationBell tone="dark" />
+          <button
+            onClick={() => setMobileOpen((v) => !v)}
+            aria-label="Toggle menu"
+            className="p-2"
+          >
+            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile drawer */}
@@ -183,6 +187,9 @@ function AdminLayout() {
       )}
 
       <main className="flex-1 min-w-0 pt-14 lg:pt-0">
+        <div className="hidden lg:flex items-center justify-end border-b border-slate-200/80 bg-white/70 px-6 py-2.5 backdrop-blur">
+          <AdminNotificationBell />
+        </div>
         <div className="p-4 sm:p-6 lg:p-8 max-w-[100rem] mx-auto">
           <Outlet />
         </div>

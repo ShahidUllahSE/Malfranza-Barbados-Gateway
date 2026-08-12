@@ -175,6 +175,7 @@ export type TaxiBookingResult = {
     vehicleLabel: string | null;
     passengerCapacity?: number | null;
   } | null;
+  vehicleUpgraded?: boolean;
 };
 
 export type PublicTaxiVehicle = {
@@ -185,10 +186,13 @@ export type PublicTaxiVehicle = {
   isAvailable: boolean;
   fitsParty: boolean;
   fare: number;
+  bookedSlots?: Array<{ date: string; time: string }>;
 };
 
 export type PublicTaxiVehiclesResult = {
   fare: number;
+  guestFare?: number;
+  passengers?: number;
   distanceKm: number | null;
   durationMinutes: number | null;
   currency: string;
@@ -198,6 +202,7 @@ export type PublicTaxiVehiclesResult = {
 export async function fetchTaxiVehicles(input: {
   passengers: number;
   pickupDate?: string;
+  pickupTime?: string;
   pickupLocation?: string;
   dropoffLocation?: string;
 }): Promise<PublicTaxiVehiclesResult> {
@@ -205,6 +210,7 @@ export async function fetchTaxiVehicles(input: {
     passengers: String(input.passengers),
   });
   if (input.pickupDate) params.set("pickupDate", input.pickupDate);
+  if (input.pickupTime) params.set("pickupTime", input.pickupTime);
   if (input.pickupLocation) params.set("pickupLocation", input.pickupLocation);
   if (input.dropoffLocation) params.set("dropoffLocation", input.dropoffLocation);
   return apiRequest<PublicTaxiVehiclesResult>(`/taxi/vehicles?${params.toString()}`);
@@ -229,19 +235,34 @@ export type TaxiFareEstimate = {
 };
 
 export type TaxiFareSettings = {
-  fareFor1Guest: number;
-  fareFor2Guests: number;
-  fareFor3Guests: number;
-  fareFor4PlusGuests: number;
+  fareFor1to4: number;
+  fareFor5to7: number;
+  fareFor8to10: number;
+  fareFor1Guest?: number;
+  fareFor2Guests?: number;
+  fareFor3Guests?: number;
+  fareFor4PlusGuests?: number;
   perKmUsd: number;
   minimumFareUsd: number;
 };
 
 export function guestFareFromSettings(settings: TaxiFareSettings, passengers: number): number {
-  if (passengers <= 1) return settings.fareFor1Guest;
-  if (passengers === 2) return settings.fareFor2Guests;
-  if (passengers === 3) return settings.fareFor3Guests;
-  return settings.fareFor4PlusGuests;
+  const fare1to4 = settings.fareFor1to4 ?? settings.fareFor1Guest ?? 25;
+  const fare5to7 = settings.fareFor5to7 ?? settings.fareFor3Guests ?? 35;
+  const fare8to10 = settings.fareFor8to10 ?? settings.fareFor4PlusGuests ?? 45;
+  if (passengers <= 4) return fare1to4;
+  if (passengers <= 7) return fare5to7;
+  return fare8to10;
+}
+
+export function calculateGuestTaxiFare(
+  settings: TaxiFareSettings,
+  passengers: number,
+  distanceKm: number | null | undefined,
+): number {
+  const guestFare = guestFareFromSettings(settings, passengers);
+  const distanceCharge = Math.max(0, Number(distanceKm) || 0) * settings.perKmUsd;
+  return Math.max(settings.minimumFareUsd, Math.round(guestFare + distanceCharge));
 }
 
 export async function fetchTaxiFareSettings(): Promise<TaxiFareSettings> {

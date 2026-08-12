@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
   BRAND_GREEN,
@@ -28,6 +28,7 @@ type AutocompleteProps = {
   className?: string;
   ariaLabel?: string;
   regionCode?: string;
+  trailing?: ReactNode;
 };
 
 export type MapPickRole = "pickup" | "dropoff";
@@ -92,7 +93,8 @@ export function PlacesAutocompleteInput({
   placeholder,
   className,
   ariaLabel,
-  regionCode = "bb",
+  regionCode,
+  trailing,
 }: AutocompleteProps) {
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -228,10 +230,8 @@ export function PlacesAutocompleteInput({
         try {
           if (modeRef.current === "new" && placesLibRef.current?.AutocompleteSuggestion) {
             const AutocompleteSuggestion = placesLibRef.current.AutocompleteSuggestion;
-            const request: Record<string, unknown> = {
-              input: q,
-              includedRegionCodes: [regionCode.toLowerCase()],
-            };
+            const request: Record<string, unknown> = { input: q };
+            if (regionCode) request.includedRegionCodes = [regionCode.toLowerCase()];
             const { suggestions: raw } =
               await AutocompleteSuggestion.fetchAutocompleteSuggestions(request);
             const items: SuggestionItem[] = (raw ?? [])
@@ -260,10 +260,8 @@ export function PlacesAutocompleteInput({
           }
 
           if (!serviceRef.current) return;
-          const req: Record<string, unknown> = {
-            input: q,
-            componentRestrictions: { country: regionCode.toLowerCase() },
-          };
+          const req: Record<string, unknown> = { input: q };
+          if (regionCode) req.componentRestrictions = { country: regionCode.toLowerCase() };
           if (sessionRef.current) req.sessionToken = sessionRef.current;
 
           serviceRef.current.getPlacePredictions(
@@ -402,40 +400,43 @@ export function PlacesAutocompleteInput({
 
   return (
     <div ref={wrapRef} className="relative w-full min-w-0">
-      <input
-        ref={inputRef}
-        type="text"
-        value={value}
-        onChange={(e) => {
-          onChange(e.target.value);
-          fetchPredictions(e.target.value);
-        }}
-        onFocus={() => {
-          onFocus?.();
-          updateMenuPos();
-          if (suggestions.length) setOpen(true);
-        }}
-        onBlur={() => onBlur?.()}
-        onKeyDown={(e) => {
-          if (!open) return;
-          if (e.key === "ArrowDown") {
-            e.preventDefault();
-            setHighlight((h) => Math.min(h + 1, suggestions.length - 1));
-          } else if (e.key === "ArrowUp") {
-            e.preventDefault();
-            setHighlight((h) => Math.max(h - 1, 0));
-          } else if (e.key === "Enter" && suggestions[highlight]) {
-            e.preventDefault();
-            pick(suggestions[highlight]!);
-          } else if (e.key === "Escape") setOpen(false);
-        }}
-        placeholder={
-          !ready && !failMsg ? "Loading places…" : placeholder || "Search Barbados address"
-        }
-        aria-label={ariaLabel}
-        className={className}
-        autoComplete="off"
-      />
+      <div className="flex min-w-0 items-center gap-2">
+        <input
+          ref={inputRef}
+          type="text"
+          value={value}
+          onChange={(e) => {
+            onChange(e.target.value);
+            fetchPredictions(e.target.value);
+          }}
+          onFocus={() => {
+            onFocus?.();
+            updateMenuPos();
+            if (suggestions.length) setOpen(true);
+          }}
+          onBlur={() => onBlur?.()}
+          onKeyDown={(e) => {
+            if (!open) return;
+            if (e.key === "ArrowDown") {
+              e.preventDefault();
+              setHighlight((h) => Math.min(h + 1, suggestions.length - 1));
+            } else if (e.key === "ArrowUp") {
+              e.preventDefault();
+              setHighlight((h) => Math.max(h - 1, 0));
+            } else if (e.key === "Enter" && suggestions[highlight]) {
+              e.preventDefault();
+              pick(suggestions[highlight]!);
+            } else if (e.key === "Escape") setOpen(false);
+          }}
+          placeholder={
+            !ready && !failMsg ? "Loading places…" : placeholder || "Search Barbados address"
+          }
+          aria-label={ariaLabel}
+          className={`min-w-0 flex-1 ${className ?? ""}`}
+          autoComplete="off"
+        />
+        {trailing}
+      </div>
       {failMsg && (
         <p className="mt-1 text-[10px] leading-snug text-amber-200/95" role="status">
           {failMsg}

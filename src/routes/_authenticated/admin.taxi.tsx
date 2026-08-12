@@ -71,7 +71,7 @@ function TaxiPage() {
     <div className="space-y-5">
       <AdminPageHeader
         title="Taxi Trips"
-        description="Open a trip for full details and driver progress. Free drivers are auto-assigned."
+        description="Open a trip for full details and driver progress. Free vehicles are assigned when available; you can reassign anytime."
         meta={
           !q.isLoading && (
             <div className="rounded-full bg-white px-3.5 py-1.5 text-xs font-semibold text-brand-green ring-1 ring-brand-sage/30 shadow-sm">

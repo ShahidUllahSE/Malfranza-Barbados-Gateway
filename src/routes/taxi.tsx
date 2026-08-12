@@ -2,12 +2,13 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { z } from "zod";
 import {
-  Clock, Sparkles, ShieldCheck, Plane, Car, Users, MapPin, Compass,
+  Clock, Sparkles, ShieldCheck, Plane, Car, Users, MapPin, Compass, Map,
   Calendar, Watch, User, ArrowRight, CheckCircle2, HeartHandshake, DollarSign,
 } from "lucide-react";
 import taxiHero from "@/assets/ChatGPT Image Jul 2, 2026, 10_48_48 PM.png";
 import { PlacesAutocompleteInput, TaxiRouteMap, type LatLng } from "@/components/maps/PlacesAutocompleteInput";
 import {
+  calculateGuestTaxiFare,
   createTaxiBooking,
   fetchTaxiFareSettings,
   fetchTaxiVehicles,
@@ -50,6 +51,29 @@ const SERVICE_TYPES = [
   "Hourly / Custom",
 ] as const;
 
+function todayLocal() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function openMapFor(
+  role: "pickup" | "dropoff",
+  setMapTarget: (role: "pickup" | "dropoff") => void,
+  setShowLocationMap: (open: boolean) => void,
+) {
+  setMapTarget(role);
+  setShowLocationMap(true);
+  window.requestAnimationFrame(() => {
+    document.getElementById("ride-location-map")?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+    });
+  });
+}
+
 function TaxiPage() {
   const search = Route.useSearch();
   const { user, refreshSession } = useUserAuth();
@@ -57,7 +81,7 @@ function TaxiPage() {
     serviceType: search.serviceType ?? SERVICE_TYPES[0],
     pickup: search.pickup ?? "",
     dropoff: search.dropoff ?? "",
-    date: search.date ?? "",
+    date: search.date ?? todayLocal(),
     time: search.time ?? "",
     passengers: search.passengers ?? 1,
     name: "",
@@ -75,8 +99,8 @@ function TaxiPage() {
   const [dropoffCoords, setDropoffCoords] = useState<LatLng | null>(null);
   /** Which location field the map click fills — set when user focuses pickup / drop-off. */
   const [mapTarget, setMapTarget] = useState<"pickup" | "dropoff">("pickup");
-  /** Map expands under the location fields (not off-screen above the form). */
-  const [showLocationMap, setShowLocationMap] = useState(true);
+  /** Map opens when the user taps Choose from map (inDrive-style). */
+  const [showLocationMap, setShowLocationMap] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -104,66 +128,70 @@ function TaxiPage() {
   }, [user]);
 
   useEffect(() => {
-    const pickup = (search.pickup ?? "").trim();
-    const dropoff = (search.dropoff ?? "").trim();
-    if (!pickup || !dropoff || !search.date || !search.time) return;
+    const pickup = form.pickup.trim();
+    const dropoff = form.dropoff.trim();
+    if (pickup.length < 2 || dropoff.length < 2 || !form.date || !form.time) {
+      setVehicleResult(null);
+      setSelectedVehicle(null);
+      return;
+    }
     let cancelled = false;
-    setSearching(true);
-    fetchTaxiVehicles({
-      passengers: search.passengers ?? 1,
-      pickupDate: search.date,
-      pickupLocation: pickup,
-      dropoffLocation: dropoff,
-    })
-      .then((result) => {
-        if (!cancelled) setVehicleResult(result);
+    const timer = window.setTimeout(() => {
+      setSearching(true);
+      fetchTaxiVehicles({
+        passengers: form.passengers,
+        pickupDate: form.date || undefined,
+        pickupTime: form.time || undefined,
+        pickupLocation: pickup,
+        dropoffLocation: dropoff,
       })
-      .catch(() => {
-        if (!cancelled) setVehicleResult(null);
-      })
-      .finally(() => {
-        if (!cancelled) setSearching(false);
-      });
+        .then((result) => {
+          if (cancelled) return;
+          setVehicleResult(result);
+          setSelectedVehicle(null);
+          setError(null);
+        })
+        .catch((err) => {
+          if (cancelled) return;
+          setVehicleResult(null);
+          setError(err instanceof Error ? err.message : "Couldn't load available vehicles.");
+        })
+        .finally(() => {
+          if (!cancelled) setSearching(false);
+        });
+    }, 500);
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
-  }, [search.pickup, search.dropoff, search.date, search.time, search.passengers]);
+  }, [form.pickup, form.dropoff, form.passengers, form.date, form.time]);
 
   const handleFindVehicles = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.pickup.trim() || !form.dropoff.trim() || !form.date || !form.time) {
-      setError("Please fill in pickup, drop-off, date and time.");
+    if (!form.pickup.trim() || !form.dropoff.trim()) {
+      setError("Enter a pickup and drop-off — type an address or choose from the map.");
       return;
     }
-    setError(null);
-    setSearching(true);
-    setSelectedVehicle(null);
-    try {
-      const result = await fetchTaxiVehicles({
-        passengers: form.passengers,
-        pickupDate: form.date,
-        pickupLocation: form.pickup.trim(),
-        dropoffLocation: form.dropoff.trim(),
-      });
-      setVehicleResult(result);
-      window.requestAnimationFrame(() => {
-        document.getElementById("available-vehicles")?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      });
-    } catch (err) {
-      setVehicleResult(null);
-      setError(err instanceof Error ? err.message : "Couldn't load available vehicles.");
-    } finally {
-      setSearching(false);
+    if (!form.date || !form.time) {
+      setError("Choose a pickup date and time to see which vans are free.");
+      return;
     }
+    window.requestAnimationFrame(() => {
+      document.getElementById("available-vehicles")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedVehicle) {
       setError("Please choose a vehicle first.");
+      return;
+    }
+    if (!form.date || !form.time) {
+      setError("Please add pickup date and time before booking.");
       return;
     }
     if (!form.name.trim() || !form.email.trim() || !form.phone.trim()) {
@@ -248,6 +276,11 @@ function TaxiPage() {
                 value={`~${etaMins} min`}
               />
             </dl>
+            {confirmation.vehicleUpgraded ? (
+              <p className="mt-4 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+                Your smaller vehicle was busy, so we upgraded you to the larger van at no extra cost.
+              </p>
+            ) : null}
             <p className="mt-4 rounded-xl bg-white/80 px-3 py-2 text-sm text-brand-charcoal">
               Pickup is scheduled for <strong>{form.time}</strong> on <strong>{form.date}</strong>.
               Expect about <strong>~{etaMins} minutes</strong> travel time for this route.
@@ -350,34 +383,24 @@ function TaxiPage() {
           <div className="relative">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
-                <h2 className="text-2xl font-bold text-white">Search available rides</h2>
+                <h2 className="text-2xl font-bold text-white">Enter your route</h2>
                 <p className="text-sm text-brand-sage mt-1">
-                  Enter your trip — we’ll show every van with the regulated fare and how many guests it seats.
+                  Type an address or choose from the map. Fare is based on how many guests you enter.
                 </p>
               </div>
             </div>
 
             {!user && (
               <div className="relative mt-5 rounded-2xl border border-white/15 bg-white/10 p-4 text-sm text-white/90">
-                No account needed — fill in your details below and we’ll email you a temporary password to track your ride.
+                No account needed. Enter your route, pick a van, then add your details — we’ll email a temporary password.
               </div>
             )}
 
             <form onSubmit={handleFindVehicles} className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <RideField label="Service Type" icon={Car} className="sm:col-span-2">
-                <select
-                  value={form.serviceType}
-                  onChange={(e) => setForm({ ...form, serviceType: e.target.value as (typeof SERVICE_TYPES)[number] })}
-                  className="w-full bg-transparent text-sm text-white outline-none [color-scheme:dark]"
-                >
-                  {SERVICE_TYPES.map((s) => <option key={s} className="bg-brand-green-deep text-white">{s}</option>)}
-                </select>
-              </RideField>
-
               <RideField
-                label="Pickup Location"
+                label="From"
                 icon={MapPin}
-                className={mapTarget === "pickup" ? "ring-1 ring-brand-orange/70 border-brand-orange/50" : ""}
+                className={`sm:col-span-2 ${mapTarget === "pickup" && showLocationMap ? "ring-1 ring-brand-orange/70 border-brand-orange/50" : ""}`}
               >
                 <PlacesAutocompleteInput
                   value={form.pickup}
@@ -388,27 +411,25 @@ function TaxiPage() {
                   onPlace={(place) => {
                     setForm((f) => ({ ...f, pickup: place.address }));
                     setPickupCoords(place.location ?? null);
+                    setMapTarget("dropoff");
                   }}
-                  onFocus={() => {
-                    setMapTarget("pickup");
-                    setShowLocationMap(true);
-                    window.requestAnimationFrame(() => {
-                      document.getElementById("ride-location-map")?.scrollIntoView({
-                        behavior: "smooth",
-                        block: "nearest",
-                      });
-                    });
-                  }}
-                  placeholder="Type address, or use map below"
-                  ariaLabel="Pickup location"
-                  className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/40"
+                  onFocus={() => setMapTarget("pickup")}
+                  placeholder="Type pickup address"
+                  ariaLabel="From"
+                  className="bg-transparent text-sm text-white outline-none placeholder:text-white/40"
+                  trailing={
+                    <ChooseFromMapButton
+                      active={mapTarget === "pickup" && showLocationMap}
+                      onClick={() => openMapFor("pickup", setMapTarget, setShowLocationMap)}
+                    />
+                  }
                 />
               </RideField>
 
               <RideField
-                label="Drop-off Location"
+                label="To"
                 icon={MapPin}
-                className={mapTarget === "dropoff" ? "ring-1 ring-brand-orange/70 border-brand-orange/50" : ""}
+                className={`sm:col-span-2 ${mapTarget === "dropoff" && showLocationMap ? "ring-1 ring-brand-orange/70 border-brand-orange/50" : ""}`}
               >
                 <PlacesAutocompleteInput
                   value={form.dropoff}
@@ -420,62 +441,73 @@ function TaxiPage() {
                     setForm((f) => ({ ...f, dropoff: place.address }));
                     setDropoffCoords(place.location ?? null);
                   }}
-                  onFocus={() => {
-                    setMapTarget("dropoff");
-                    setShowLocationMap(true);
-                    window.requestAnimationFrame(() => {
-                      document.getElementById("ride-location-map")?.scrollIntoView({
-                        behavior: "smooth",
-                        block: "nearest",
-                      });
-                    });
-                  }}
-                  placeholder="Type address, or use map below"
-                  ariaLabel="Drop-off location"
-                  className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/40"
+                  onFocus={() => setMapTarget("dropoff")}
+                  placeholder="Type drop-off address"
+                  ariaLabel="To"
+                  className="bg-transparent text-sm text-white outline-none placeholder:text-white/40"
+                  trailing={
+                    <ChooseFromMapButton
+                      active={mapTarget === "dropoff" && showLocationMap}
+                      onClick={() => openMapFor("dropoff", setMapTarget, setShowLocationMap)}
+                    />
+                  }
                 />
               </RideField>
 
-              {/* Map sits under the location fields so focusing them always reveals it */}
-              <div id="ride-location-map" className="sm:col-span-2 space-y-2">
-                <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-brand-sage">
-                    {mapTarget === "dropoff"
-                      ? "Map · click to set drop-off"
-                      : "Map · click to set pickup"}
-                  </p>
-                  <div className="flex gap-2">
+              <div className="sm:col-span-2 rounded-2xl border border-white/15 bg-white/5 p-3 sm:p-4">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-brand-sage">
+                  Schedule your ride
+                </p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <RideField label="Pickup date" icon={Calendar}>
+                    <input
+                      type="date"
+                      required
+                      min={todayLocal()}
+                      value={form.date}
+                      onChange={(e) => setForm({ ...form, date: e.target.value })}
+                      className="w-full bg-transparent text-sm text-white outline-none [color-scheme:dark]"
+                    />
+                  </RideField>
+                  <RideField label="Pickup time" icon={Watch}>
+                    <input
+                      type="time"
+                      required
+                      value={form.time}
+                      onChange={(e) => setForm({ ...form, time: e.target.value })}
+                      className="w-full bg-transparent text-sm text-white outline-none [color-scheme:dark]"
+                    />
+                  </RideField>
+                  <RideField label="Passengers" icon={User}>
+                    <select
+                      value={form.passengers}
+                      onChange={(e) => setForm({ ...form, passengers: Number(e.target.value) })}
+                      className="w-full bg-transparent text-sm text-white outline-none [color-scheme:dark]"
+                    >
+                      {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+                        <option key={n} value={n} className="bg-brand-green-deep text-white">{n} passenger{n > 1 ? "s" : ""}</option>
+                      ))}
+                    </select>
+                  </RideField>
+                </div>
+              </div>
+
+              {showLocationMap && (
+                <div id="ride-location-map" className="sm:col-span-2 space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-brand-sage">
+                      {mapTarget === "dropoff"
+                        ? "Tap the map to set drop-off"
+                        : "Tap the map to set pickup"}
+                    </p>
                     <button
                       type="button"
-                      onClick={() => {
-                        setMapTarget("pickup");
-                        setShowLocationMap(true);
-                      }}
-                      className={`rounded-full px-3 py-1 text-[11px] font-semibold transition ${
-                        mapTarget === "pickup"
-                          ? "bg-brand-orange text-white"
-                          : "bg-white/10 text-white/80 hover:bg-white/15"
-                      }`}
+                      onClick={() => setShowLocationMap(false)}
+                      className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/80 hover:bg-white/15"
                     >
-                      Pickup pin
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMapTarget("dropoff");
-                        setShowLocationMap(true);
-                      }}
-                      className={`rounded-full px-3 py-1 text-[11px] font-semibold transition ${
-                        mapTarget === "dropoff"
-                          ? "bg-brand-orange text-white"
-                          : "bg-white/10 text-white/80 hover:bg-white/15"
-                      }`}
-                    >
-                      Drop-off pin
+                      Hide map
                     </button>
                   </div>
-                </div>
-                {(showLocationMap || pickupCoords || dropoffCoords || form.pickup || form.dropoff) && (
                   <TaxiRouteMap
                     pickup={pickupCoords}
                     dropoff={dropoffCoords}
@@ -484,6 +516,7 @@ function TaxiPage() {
                       if (role === "pickup") {
                         setForm((f) => ({ ...f, pickup: place.address }));
                         setPickupCoords(place.location ?? null);
+                        setMapTarget("dropoff");
                       } else {
                         setForm((f) => ({ ...f, dropoff: place.address }));
                         setDropoffCoords(place.location ?? null);
@@ -491,46 +524,29 @@ function TaxiPage() {
                     }}
                     className="h-64 border border-white/20 sm:h-72 md:h-80"
                   />
-                )}
-                {!showLocationMap && !pickupCoords && !dropoffCoords && !form.pickup && !form.dropoff && (
-                  <button
-                    type="button"
-                    onClick={() => setShowLocationMap(true)}
-                    className="flex h-40 w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-white/25 bg-brand-green-deep/80 text-sm text-white/90 transition hover:border-brand-orange/50 hover:bg-brand-green-deep"
-                  >
-                    <MapPin className="h-6 w-6 text-brand-orange" />
-                    <span className="font-semibold">Open map to pick locations</span>
-                    <span className="text-xs text-white/60">or type an address in the fields above</span>
-                  </button>
-                )}
-              </div>
+                </div>
+              )}
 
-              <RideField label="Date" icon={Calendar}>
-                <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })}
-                  className="w-full bg-transparent text-sm text-white outline-none [color-scheme:dark]" />
-              </RideField>
-              <RideField label="Time" icon={Watch}>
-                <input type="time" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })}
-                  className="w-full bg-transparent text-sm text-white outline-none [color-scheme:dark]" />
-              </RideField>
-              <RideField label="Passengers" icon={User}>
+              <RideField label="Service Type" icon={Car} className="sm:col-span-2">
                 <select
-                  value={form.passengers}
-                  onChange={(e) => setForm({ ...form, passengers: Number(e.target.value) })}
+                  value={form.serviceType}
+                  onChange={(e) => setForm({ ...form, serviceType: e.target.value as (typeof SERVICE_TYPES)[number] })}
                   className="w-full bg-transparent text-sm text-white outline-none [color-scheme:dark]"
                 >
-                  {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
-                    <option key={n} value={n} className="bg-brand-green-deep text-white">{n} passenger{n > 1 ? "s" : ""}</option>
-                  ))}
+                  {SERVICE_TYPES.map((s) => <option key={s} className="bg-brand-green-deep text-white">{s}</option>)}
                 </select>
               </RideField>
 
               <div className="sm:col-span-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
                 <p className="text-sm text-white/70 font-medium">
-                  Fixed Malfranza fares on every van — same price, pick the size you need.
+                  {searching
+                    ? "Loading our vans…"
+                    : fareSettings
+                      ? `Fare for ${form.passengers} guest${form.passengers === 1 ? "" : "s"}: $${calculateGuestTaxiFare(fareSettings, form.passengers, vehicleResult?.distanceKm)}`
+                      : "Enter guests — the fare updates from the guest rate card."}
                 </p>
-                <button type="submit" disabled={searching} className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-orange px-7 py-3.5 font-semibold text-white shadow-lg shadow-brand-orange/20 hover:-translate-y-0.5 hover:brightness-105 transition disabled:opacity-60">
-                  {searching ? "Finding vehicles…" : <>Find available vehicles <ArrowRight className="h-4 w-4" /></>}
+                <button type="submit" className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-orange px-7 py-3.5 font-semibold text-white shadow-lg shadow-brand-orange/20 hover:-translate-y-0.5 hover:brightness-105 transition">
+                  See available vehicles <ArrowRight className="h-4 w-4" />
                 </button>
               </div>
 
@@ -547,6 +563,8 @@ function TaxiPage() {
               <h2 className="text-xl font-bold text-brand-charcoal sm:text-2xl">Available vehicles</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 {form.pickup} → {form.dropoff}
+                {form.date ? ` · ${fmtRideDate(form.date)}` : ""}
+                {form.time ? ` · ${form.time}` : ""}
                 {vehicleResult.distanceKm != null ? ` · ~${vehicleResult.distanceKm} km` : ""}
                 {vehicleResult.durationMinutes != null ? ` · ~${vehicleResult.durationMinutes} min` : ""}
                 {" · "}
@@ -554,7 +572,13 @@ function TaxiPage() {
               </p>
             </div>
             <div className="rounded-full bg-brand-cream px-4 py-2 text-sm font-semibold text-brand-green">
-              Regulated fare ${Number(vehicleResult.fare).toFixed(0)} {vehicleResult.currency}
+              {form.passengers} guest{form.passengers === 1 ? "" : "s"} · $
+              {Number(
+                fareSettings
+                  ? calculateGuestTaxiFare(fareSettings, form.passengers, vehicleResult.distanceKm)
+                  : vehicleResult.fare,
+              ).toFixed(0)}{" "}
+              {vehicleResult.currency}
             </div>
           </div>
 
@@ -567,8 +591,14 @@ function TaxiPage() {
               {vehicleResult.vehicles.map((vehicle) => (
                 <VehicleOfferCard
                   key={vehicle.id}
-                  vehicle={vehicle}
+                  vehicle={{
+                    ...vehicle,
+                    fare: fareSettings
+                      ? calculateGuestTaxiFare(fareSettings, form.passengers, vehicleResult.distanceKm)
+                      : vehicle.fare,
+                  }}
                   currency={vehicleResult.currency}
+                  passengers={form.passengers}
                   selected={selectedVehicle?.id === vehicle.id}
                   onSelect={() => {
                     if (vehicle.isAvailable && vehicle.fitsParty) {
@@ -596,7 +626,14 @@ function TaxiPage() {
               <h3 className="text-lg font-bold text-brand-charcoal">Confirm your ride</h3>
               <p className="mt-1 text-sm text-muted-foreground">
                 {selectedVehicle.vehicleLabel} · up to {selectedVehicle.passengerCapacity} guests · $
-                {Number(selectedVehicle.fare).toFixed(0)} {vehicleResult.currency}
+                {Number(
+                  fareSettings
+                    ? calculateGuestTaxiFare(fareSettings, form.passengers, vehicleResult.distanceKm)
+                    : selectedVehicle.fare,
+                ).toFixed(0)}{" "}
+                {vehicleResult.currency}
+                {` · ${form.passengers} guest${form.passengers === 1 ? "" : "s"}`}
+                {form.date && form.time ? ` · ${fmtRideDate(form.date)} at ${form.time}` : ""}
               </p>
 
               <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -662,24 +699,30 @@ function TaxiPage() {
           <div className="rounded-2xl border border-border bg-white p-5 shadow-card sm:p-6">
             <h2 className="text-lg font-bold text-brand-green sm:text-xl">Fares by guests</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Base rates set by Malfranza
+              Regulated Malfranza rates — the ride price is this guest fare
               {fareSettings.perKmUsd > 0
-                ? ` · plus $${fareSettings.perKmUsd}/km for your route`
-                : " · flat guest pricing"}
-              . Minimum fare ${fareSettings.minimumFareUsd}.
+                ? ` plus $${fareSettings.perKmUsd}/km for the route`
+                : ", same on every van"}
+              .
             </p>
-            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
               {[
-                { label: "1 guest", value: fareSettings.fareFor1Guest },
-                { label: "2 guests", value: fareSettings.fareFor2Guests },
-                { label: "3 guests", value: fareSettings.fareFor3Guests },
-                { label: "4+ guests", value: fareSettings.fareFor4PlusGuests },
+                { label: "1–4 guests", value: fareSettings.fareFor1to4 ?? fareSettings.fareFor1Guest ?? 25, active: form.passengers <= 4 },
+                { label: "5–7 guests", value: fareSettings.fareFor5to7 ?? fareSettings.fareFor3Guests ?? 35, active: form.passengers >= 5 && form.passengers <= 7 },
+                { label: "8–10 guests", value: fareSettings.fareFor8to10 ?? fareSettings.fareFor4PlusGuests ?? 45, active: form.passengers >= 8 },
               ].map((tier) => (
-                <div key={tier.label} className="rounded-xl bg-brand-cream/80 px-3 py-3 text-center">
-                  <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                <div
+                  key={tier.label}
+                  className={`rounded-xl px-3 py-3 text-center ${
+                    tier.active ? "bg-brand-green text-white" : "bg-brand-cream/80"
+                  }`}
+                >
+                  <div className={`text-xs font-medium uppercase tracking-wide ${tier.active ? "text-white/80" : "text-muted-foreground"}`}>
                     {tier.label}
                   </div>
-                  <div className="mt-1 text-xl font-bold text-brand-green">${tier.value}</div>
+                  <div className={`mt-1 text-xl font-bold ${tier.active ? "text-white" : "text-brand-green"}`}>
+                    ${tier.value}
+                  </div>
                 </div>
               ))}
             </div>
@@ -751,65 +794,143 @@ function TrustPill({ icon: Icon, label }: { icon: React.ComponentType<{ classNam
   );
 }
 
+function fmtRideDate(iso: string) {
+  try {
+    return new Date(`${iso}T12:00:00`).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return iso;
+  }
+}
+
 function VehicleOfferCard({
   vehicle,
   currency,
+  passengers,
   selected,
   onSelect,
 }: {
   vehicle: PublicTaxiVehicle;
   currency: string;
+  passengers: number;
   selected: boolean;
   onSelect: () => void;
 }) {
+  const booked = !vehicle.isAvailable;
   const selectable = vehicle.isAvailable && vehicle.fitsParty;
+  const slots = vehicle.bookedSlots ?? [];
   const status = !vehicle.fitsParty
     ? "Too small for your party"
-    : !vehicle.isAvailable
-      ? "Booked for this date"
+    : booked
+      ? "Booked"
       : "Available now";
 
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      disabled={!selectable}
-      className={`flex w-full items-center gap-4 rounded-2xl border bg-white p-4 text-left shadow-card transition sm:p-5 ${
+    <article
+      className={`rounded-2xl border bg-white p-4 shadow-card sm:p-5 ${
         selected
           ? "border-brand-orange ring-2 ring-brand-orange/30"
-          : selectable
-            ? "border-border hover:border-brand-green/40 hover:shadow-[var(--shadow-card-hover)]"
-            : "cursor-not-allowed border-border opacity-55"
+          : "border-border"
+      } ${booked ? "opacity-90" : ""}`}
+    >
+      <div className="flex items-start gap-4">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-brand-cream text-brand-green sm:h-16 sm:w-16">
+          <Car className="h-7 w-7 sm:h-8 sm:w-8" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="font-bold text-brand-charcoal">{vehicle.vehicleLabel}</p>
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                booked
+                  ? "bg-brand-charcoal text-white"
+                  : selectable
+                    ? "bg-emerald-100 text-emerald-800"
+                    : "bg-slate-200 text-slate-700"
+              }`}
+            >
+              {status}
+            </span>
+          </div>
+          <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Users className="h-3.5 w-3.5" />
+            Up to {vehicle.passengerCapacity} passengers
+          </p>
+
+          {slots.length > 0 && (
+            <div className="mt-3 space-y-1.5">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Booked slots
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {slots.slice(0, 4).map((slot) => (
+                  <span
+                    key={`${slot.date}-${slot.time}`}
+                    className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-900"
+                  >
+                    {fmtRideDate(slot.date)} · {slot.time}
+                  </span>
+                ))}
+                {slots.length > 4 && (
+                  <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                    +{slots.length - 4} more
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="shrink-0 text-right">
+          <p className="text-xl font-bold text-brand-green sm:text-2xl">
+            ${Number(vehicle.fare).toFixed(0)}
+          </p>
+          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            {currency} · {passengers} guest{passengers === 1 ? "" : "s"}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4">
+        {booked || !selectable ? (
+          <span className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-slate-200 text-sm font-semibold text-slate-600">
+            {booked ? "Booked" : "Unavailable"}
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={onSelect}
+            className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-brand-orange text-sm font-semibold text-white shadow-sm transition-all hover:brightness-110"
+          >
+            {selected ? "Selected" : "Select van"}
+          </button>
+        )}
+      </div>
+    </article>
+  );
+}
+
+function ChooseFromMapButton({
+  active,
+  onClick,
+}: {
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title="Choose from map"
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wide transition ${
+        active
+          ? "bg-brand-orange text-white"
+          : "bg-white/10 text-white/85 hover:bg-white/15"
       }`}
     >
-      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-brand-cream text-brand-green sm:h-16 sm:w-16">
-        <Car className="h-7 w-7 sm:h-8 sm:w-8" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="font-bold text-brand-charcoal">{vehicle.vehicleLabel}</p>
-          <span
-            className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-              selectable ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-700"
-            }`}
-          >
-            {status}
-          </span>
-        </div>
-        <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
-          <Users className="h-3.5 w-3.5" />
-          Up to {vehicle.passengerCapacity} passengers
-        </p>
-        <p className="mt-0.5 text-xs text-muted-foreground">{vehicle.name}</p>
-      </div>
-      <div className="shrink-0 text-right">
-        <p className="text-xl font-bold text-brand-green sm:text-2xl">
-          ${Number(vehicle.fare).toFixed(0)}
-        </p>
-        <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          {currency} · fixed
-        </p>
-      </div>
+      <Map className="h-3.5 w-3.5" />
+      <span className="hidden sm:inline">Map</span>
     </button>
   );
 }

@@ -14,12 +14,11 @@ export const Route = createFileRoute("/_authenticated/admin/settings")({
 });
 
 const EMPTY: TaxiFareSettings = {
-  fareFor1Guest: 25,
-  fareFor2Guests: 30,
-  fareFor3Guests: 35,
-  fareFor4PlusGuests: 45,
-  perKmUsd: 2.5,
-  minimumFareUsd: 20,
+  fareFor1to4: 25,
+  fareFor5to7: 35,
+  fareFor8to10: 45,
+  perKmUsd: 0,
+  minimumFareUsd: 25,
 };
 
 function SettingsPage() {
@@ -38,7 +37,15 @@ function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    if (settingsQ.data) setForm(settingsQ.data);
+    if (!settingsQ.data) return;
+    const data = settingsQ.data;
+    setForm({
+      fareFor1to4: data.fareFor1to4 ?? data.fareFor1Guest ?? 25,
+      fareFor5to7: data.fareFor5to7 ?? data.fareFor3Guests ?? 35,
+      fareFor8to10: data.fareFor8to10 ?? data.fareFor4PlusGuests ?? 45,
+      perKmUsd: data.perKmUsd,
+      minimumFareUsd: data.minimumFareUsd,
+    });
   }, [settingsQ.data]);
 
   const save = useMutation({
@@ -77,8 +84,8 @@ function SettingsPage() {
       <div className="max-w-2xl rounded-2xl bg-white p-5 shadow-card sm:p-6">
         <h2 className="font-display font-bold text-brand-charcoal">Taxi fares by guests</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Set the base fare for 1, 2, 3, or 4+ passengers. An optional per-km charge is added on top
-          for the route distance. Guests see these amounts in estimates and bookings.
+          Set the regulated fare for 1–4, 5–7, or 8–10 passengers. An optional per-km charge is added
+          for the route. Guests see these amounts on every van.
         </p>
 
         {settingsQ.isLoading ? (
@@ -93,26 +100,21 @@ function SettingsPage() {
               save.mutate();
             }}
           >
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-3">
               <MoneyField
-                label="1 guest"
-                value={form.fareFor1Guest}
-                onChange={(v) => setNumber("fareFor1Guest", v)}
+                label="1–4 guests"
+                value={form.fareFor1to4}
+                onChange={(v) => setNumber("fareFor1to4", v)}
               />
               <MoneyField
-                label="2 guests"
-                value={form.fareFor2Guests}
-                onChange={(v) => setNumber("fareFor2Guests", v)}
+                label="5–7 guests"
+                value={form.fareFor5to7}
+                onChange={(v) => setNumber("fareFor5to7", v)}
               />
               <MoneyField
-                label="3 guests"
-                value={form.fareFor3Guests}
-                onChange={(v) => setNumber("fareFor3Guests", v)}
-              />
-              <MoneyField
-                label="4 or more guests"
-                value={form.fareFor4PlusGuests}
-                onChange={(v) => setNumber("fareFor4PlusGuests", v)}
+                label="8–10 guests"
+                value={form.fareFor8to10}
+                onChange={(v) => setNumber("fareFor8to10", v)}
               />
             </div>
 
@@ -139,8 +141,8 @@ function SettingsPage() {
                 minimum fare.
               </p>
               <p className="mt-2 text-muted-foreground">
-                Example with current values: 2 guests · 10 km → ${form.fareFor2Guests} + 10 × $
-                {form.perKmUsd} = ${Math.max(form.minimumFareUsd, Math.round(form.fareFor2Guests + 10 * form.perKmUsd))}
+                Example with current values: 2 guests · 10 km → ${form.fareFor1to4} + 10 × $
+                {form.perKmUsd} = ${Math.max(form.minimumFareUsd, Math.round(form.fareFor1to4 + 10 * form.perKmUsd))}
               </p>
             </div>
 
