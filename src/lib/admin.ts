@@ -8,6 +8,11 @@ export type TaxiStatus =
   | "en_route"
   | "completed"
   | "cancelled";
+
+/** Guest van hold stores a driverId; a person is assigned only after admin assign. */
+export function taxiHasAssignedDriver(status: TaxiStatus) {
+  return status === "assigned" || status === "en_route" || status === "completed";
+}
 export type EnquiryStatus = "new" | "responded" | "closed";
 
 export async function checkIsAdmin(): Promise<boolean> {

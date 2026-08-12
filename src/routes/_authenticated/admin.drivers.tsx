@@ -2,7 +2,16 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  CircleOff,
+  Eye,
+  MoreVertical,
+  Pencil,
+  Plus,
+  Power,
+  Trash2,
+  UserCheck,
+} from "lucide-react";
 import {
   createDriver,
   deleteDriver,
@@ -10,7 +19,14 @@ import {
   updateDriver,
   type AdminDriver,
 } from "@/lib/drivers";
-import { AdminTableShell, AdminTd, AdminTh } from "@/components/admin/AdminBits";
+import { AdminPageHeader, AdminTableShell, AdminTd, AdminTh } from "@/components/admin/AdminBits";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Drawer } from "./admin.bookings";
 
 export const Route = createFileRoute("/_authenticated/admin/drivers")({
@@ -62,22 +78,20 @@ function DriversPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-brand-charcoal sm:text-3xl">Drivers</h1>
-          <p className="text-sm text-muted-foreground">
-            Create, edit, activate, or delete taxi drivers and portal access.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setCreating(true)}
-          className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-green px-4 text-sm font-semibold text-white hover:opacity-90"
-        >
-          <Plus className="h-4 w-4" />
-          Add driver
-        </button>
-      </div>
+      <AdminPageHeader
+        title="Drivers"
+        description="Create, edit, activate, or delete taxi drivers and portal access."
+        meta={
+          <button
+            type="button"
+            onClick={() => setCreating(true)}
+            className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-green px-4 text-sm font-semibold text-white hover:opacity-90"
+          >
+            <Plus className="h-4 w-4" />
+            Add driver
+          </button>
+        }
+      />
 
       <div className="overflow-hidden rounded-2xl bg-white shadow-card">
         {/* Mobile */}
@@ -100,35 +114,24 @@ function DriversPage() {
                     </p>
                   )}
                 </Link>
-                <div className="flex shrink-0 flex-col items-end gap-1">
-                  <StatusBadge active={driver.isActive} onLabel="Active" offLabel="Inactive" />
-                  <StatusBadge
-                    active={driver.isAvailable}
-                    onLabel="Available"
-                    offLabel="Unavailable"
-                    tone="blue"
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                  <div className="flex flex-col items-end gap-1">
+                    <StatusBadge active={driver.isActive} onLabel="Active" offLabel="Inactive" />
+                    <StatusBadge
+                      active={driver.isAvailable}
+                      onLabel="Available"
+                      offLabel="Unavailable"
+                      tone="blue"
+                    />
+                  </div>
+                  <DriverActions
+                    driver={driver}
+                    onEdit={() => setEditing(driver)}
+                    onToggleAvailable={() => toggleAvailable.mutate(driver)}
+                    onToggleActive={() => toggleActive.mutate(driver)}
+                    onDelete={() => setDeleting(driver)}
                   />
                 </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Link
-                  to="/admin/drivers/$id"
-                  params={{ id: driver.id }}
-                  className="inline-flex items-center gap-1 rounded-lg bg-brand-sage/30 px-2.5 py-1.5 text-xs font-semibold text-brand-green hover:bg-brand-sage/50"
-                >
-                  Details
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </Link>
-                <RowAction onClick={() => setEditing(driver)}>Edit</RowAction>
-                <RowAction onClick={() => toggleAvailable.mutate(driver)}>
-                  {driver.isAvailable ? "Set unavailable" : "Set available"}
-                </RowAction>
-                <RowAction muted onClick={() => toggleActive.mutate(driver)}>
-                  {driver.isActive ? "Deactivate" : "Activate"}
-                </RowAction>
-                <RowAction danger onClick={() => setDeleting(driver)}>
-                  Delete
-                </RowAction>
               </div>
             </div>
           ))}
@@ -150,12 +153,14 @@ function DriversPage() {
               <AdminTh className="w-[8%]">Seats</AdminTh>
               <AdminTh className="w-[10%]">Status</AdminTh>
               <AdminTh className="w-[12%]">Availability</AdminTh>
-              <AdminTh className="w-[22%]">Actions</AdminTh>
+              <AdminTh className="w-[8%]">
+                <span className="block text-right">Actions</span>
+              </AdminTh>
             </tr>
           </thead>
           <tbody>
             {rows.map((driver) => (
-              <tr key={driver.id} className="group border-t border-slate-100">
+              <tr key={driver.id} className="group border-t border-slate-100 hover:bg-brand-cream/40">
                 <AdminTd className="font-medium">
                   <Link
                     to="/admin/drivers/$id"
@@ -193,34 +198,14 @@ function DriversPage() {
                     tone="blue"
                   />
                 </AdminTd>
-                <AdminTd>
-                  <div className="flex flex-wrap items-center gap-1">
-                    <Link
-                      to="/admin/drivers/$id"
-                      params={{ id: driver.id }}
-                      className="rounded-lg bg-brand-sage/30 px-2.5 py-1.5 text-xs font-semibold text-brand-green hover:bg-brand-sage/50"
-                    >
-                      Details
-                    </Link>
-                    <RowAction onClick={() => setEditing(driver)}>
-                      <span className="inline-flex items-center gap-1">
-                        <Pencil className="h-3 w-3" />
-                        Edit
-                      </span>
-                    </RowAction>
-                    <RowAction onClick={() => toggleAvailable.mutate(driver)}>
-                      {driver.isAvailable ? "Unavailable" : "Available"}
-                    </RowAction>
-                    <RowAction muted onClick={() => toggleActive.mutate(driver)}>
-                      {driver.isActive ? "Deactivate" : "Activate"}
-                    </RowAction>
-                    <RowAction danger onClick={() => setDeleting(driver)}>
-                      <span className="inline-flex items-center gap-1">
-                        <Trash2 className="h-3 w-3" />
-                        Delete
-                      </span>
-                    </RowAction>
-                  </div>
+                <AdminTd nowrap>
+                  <DriverActions
+                    driver={driver}
+                    onEdit={() => setEditing(driver)}
+                    onToggleAvailable={() => toggleAvailable.mutate(driver)}
+                    onToggleActive={() => toggleActive.mutate(driver)}
+                    onDelete={() => setDeleting(driver)}
+                  />
                 </AdminTd>
               </tr>
             ))}
@@ -486,31 +471,72 @@ function StatusBadge({
   );
 }
 
-function RowAction({
-  children,
-  onClick,
-  muted,
-  danger,
+function DriverActions({
+  driver,
+  onEdit,
+  onToggleAvailable,
+  onToggleActive,
+  onDelete,
 }: {
-  children: React.ReactNode;
-  onClick: () => void;
-  muted?: boolean;
-  danger?: boolean;
+  driver: AdminDriver;
+  onEdit: () => void;
+  onToggleAvailable: () => void;
+  onToggleActive: () => void;
+  onDelete: () => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-semibold transition ${
-        danger
-          ? "border border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
-          : muted
-            ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
-            : "bg-brand-green text-white hover:opacity-90"
-      }`}
-    >
-      {children}
-    </button>
+    <div className="flex items-center justify-end gap-0.5">
+      <button
+        type="button"
+        onClick={onEdit}
+        className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-brand-green hover:bg-brand-sage/40"
+        title="Edit"
+        aria-label={`Edit ${driver.name}`}
+      >
+        <Pencil className="h-4 w-4" />
+      </button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-brand-charcoal"
+            title="More actions"
+            aria-label={`More actions for ${driver.name}`}
+          >
+            <MoreVertical className="h-4 w-4" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52 rounded-xl p-1.5">
+          <DropdownMenuItem asChild className="cursor-pointer rounded-lg">
+            <Link to="/admin/drivers/$id" params={{ id: driver.id }}>
+              <Eye className="h-4 w-4" />
+              View details
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem className="cursor-pointer rounded-lg" onSelect={onEdit}>
+            <Pencil className="h-4 w-4" />
+            Edit
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem className="cursor-pointer rounded-lg" onSelect={onToggleAvailable}>
+            {driver.isAvailable ? <CircleOff className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
+            {driver.isAvailable ? "Mark unavailable" : "Mark available"}
+          </DropdownMenuItem>
+          <DropdownMenuItem className="cursor-pointer rounded-lg" onSelect={onToggleActive}>
+            <Power className="h-4 w-4" />
+            {driver.isActive ? "Deactivate" : "Activate"}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="cursor-pointer rounded-lg text-red-600 focus:bg-red-50 focus:text-red-700"
+            onSelect={onDelete}
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }
 

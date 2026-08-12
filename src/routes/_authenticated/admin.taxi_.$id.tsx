@@ -16,10 +16,11 @@ import {
 import {
   assignTaxiDriver,
   getTaxiBooking,
+  taxiHasAssignedDriver,
   updateTaxiBookingStatus,
   type TaxiStatus,
 } from "@/lib/admin";
-import { getDriverDetail, listAvailableDrivers } from "@/lib/drivers";
+import { getDriverDetail, listDrivers } from "@/lib/drivers";
 import { ActionBtn } from "./admin.bookings";
 import { AdminTableShell, AdminTd, AdminTh, StatusPill } from "@/components/admin/AdminBits";
 
@@ -38,7 +39,9 @@ function TaxiTripDetailPage() {
   });
 
   const trip = tripQ.data;
-  const driverId = trip?.driver?.id;
+  const driverAssigned = trip ? taxiHasAssignedDriver(trip.status) : false;
+  const assignedDriver = driverAssigned ? trip?.driver ?? null : null;
+  const driverId = assignedDriver?.id;
 
   const driverQ = useQuery({
     queryKey: ["admin", "drivers", driverId, "trip-detail"],
@@ -47,13 +50,8 @@ function TaxiTripDetailPage() {
   });
 
   const driversQ = useQuery({
-    queryKey: ["admin", "drivers-available", trip?.pickup_date, trip?.pickup_time],
-    queryFn: () =>
-      listAvailableDrivers(
-        trip?.pickup_date && trip?.pickup_time
-          ? { pickupDate: trip.pickup_date, pickupTime: trip.pickup_time }
-          : undefined,
-      ),
+    queryKey: ["admin", "drivers"],
+    queryFn: listDrivers,
     enabled: !!trip && ["pending", "confirmed", "assigned"].includes(trip.status),
   });
 
@@ -162,39 +160,45 @@ function TaxiTripDetailPage() {
                   Confirm booking
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Confirm this ride yourself, or assign a driver who is free for this hour. The guest
-                  is emailed either way; the driver is emailed and notified if you assign one.
+                  The guest already chose the vehicle. Confirm the booking yourself, or pick a driver
+                  from the list and assign them. The guest is emailed either way; the driver is
+                  notified only if you assign one.
                 </p>
               </div>
+              {trip.driver?.vehicleLabel && (
+                <div className="rounded-lg border border-border bg-white px-3 py-2.5 text-sm">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Vehicle chosen by guest
+                  </div>
+                  <p className="mt-0.5 font-semibold text-brand-charcoal">
+                    {trip.driver.vehicleLabel}
+                    {trip.passengers ? ` · ${trip.passengers} guest${trip.passengers === 1 ? "" : "s"}` : ""}
+                  </p>
+                </div>
+              )}
               <select
                 value={assignDriverId}
                 onChange={(e) => setAssignDriverId(e.target.value)}
                 className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm"
               >
-                <option value="">Select an available driver (optional)…</option>
+                <option value="">Select a driver…</option>
                 {(driversQ.data ?? [])
-                  .filter((d) => !trip.passengers || (d.passengerCapacity ?? 4) >= trip.passengers)
+                  .filter((d) => d.isActive)
                   .map((d) => (
                     <option key={d.id} value={d.id}>
                       {d.name}
-                      {d.vehicleLabel ? ` · ${d.vehicleLabel}` : ""}
-                      {d.passengerCapacity ? ` · ${d.passengerCapacity} seats` : ""}
+                      {d.phone ? ` · ${d.phone}` : ""}
                     </option>
                   ))}
               </select>
               {driversQ.isLoading && (
-                <p className="text-xs text-muted-foreground">Loading drivers free for this hour…</p>
-              )}
-              {!driversQ.isLoading && (driversQ.data ?? []).length === 0 && (
-                <p className="text-xs text-muted-foreground">
-                  No drivers are free for this hour. You can still confirm, then assign later.
-                </p>
+                <p className="text-xs text-muted-foreground">Loading drivers…</p>
               )}
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <ActionBtn
                   onClick={() => {
                     if (!assignDriverId) {
-                      toast.error("Select a driver first, or confirm without assigning");
+                      toast.error("Select a driver from the list, or confirm without assigning");
                       return;
                     }
                     assignMut.mutate(assignDriverId);
@@ -212,21 +216,20 @@ function TaxiTripDetailPage() {
           {(trip.status === "confirmed" || trip.status === "assigned") && (
             <div className="mt-5 space-y-2 rounded-xl border border-slate-200 p-3">
               <div className="text-xs font-semibold uppercase tracking-wide text-brand-green">
-                {trip.driver ? "Reassign driver" : "Assign driver"}
+                {driverAssigned ? "Reassign driver" : "Assign driver"}
               </div>
               <select
                 value={assignDriverId}
                 onChange={(e) => setAssignDriverId(e.target.value)}
                 className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm"
               >
-                <option value="">Select available driver…</option>
+                <option value="">Select a driver…</option>
                 {(driversQ.data ?? [])
-                  .filter((d) => !trip.passengers || (d.passengerCapacity ?? 4) >= trip.passengers)
+                  .filter((d) => d.isActive)
                   .map((d) => (
                     <option key={d.id} value={d.id}>
                       {d.name}
-                      {d.vehicleLabel ? ` · ${d.vehicleLabel}` : ""}
-                      {d.passengerCapacity ? ` · ${d.passengerCapacity} seats` : ""}
+                      {d.phone ? ` · ${d.phone}` : ""}
                     </option>
                   ))}
               </select>
@@ -261,9 +264,10 @@ function TaxiTripDetailPage() {
 
         <section className="rounded-2xl bg-white p-5 shadow-card">
           <h2 className="font-display text-lg font-bold text-brand-charcoal">Assigned driver</h2>
-          {!trip.driver ? (
+          {!assignedDriver ? (
             <p className="mt-3 text-sm text-muted-foreground">
-              No driver assigned yet. Use the assign panel to pick an available driver.
+              No driver assigned yet. The guest chose a vehicle; pick a driver from the list to assign
+              them, or confirm without assigning.
             </p>
           ) : (
             <div className="mt-4 space-y-4">
@@ -273,19 +277,19 @@ function TaxiTripDetailPage() {
                     <User className="h-5 w-5" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-display text-xl font-bold text-brand-charcoal">{trip.driver.name}</p>
+                    <p className="font-display text-xl font-bold text-brand-charcoal">{assignedDriver.name}</p>
                     <p className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground">
                       <Phone className="h-3.5 w-3.5" />
-                      {trip.driver.phone}
+                      {assignedDriver.phone}
                     </p>
-                    {trip.driver.vehicleLabel && (
-                      <p className="text-sm text-muted-foreground">{trip.driver.vehicleLabel}</p>
+                    {assignedDriver.vehicleLabel && (
+                      <p className="text-sm text-muted-foreground">{assignedDriver.vehicleLabel}</p>
                     )}
                   </div>
                 </div>
                 <Link
                   to="/admin/drivers/$id"
-                  params={{ id: trip.driver.id }}
+                  params={{ id: assignedDriver.id }}
                   className="mt-4 inline-flex w-full items-center justify-center gap-1 rounded-lg bg-brand-green px-3 py-2.5 text-sm font-semibold text-white hover:opacity-90"
                 >
                   Open full driver progress
@@ -310,12 +314,12 @@ function TaxiTripDetailPage() {
         </section>
       </div>
 
-      {trip.driver && (
+      {assignedDriver && (
         <section className="overflow-hidden rounded-2xl bg-white shadow-card">
           <div className="flex flex-col gap-2 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 className="font-display text-lg font-bold text-brand-charcoal">
-                {trip.driver.name}&apos;s ride progress
+                {assignedDriver.name}&apos;s ride progress
               </h2>
               <p className="text-sm text-muted-foreground">
                 Recent rides for this driver. Open the full page for day/date/status filters.
@@ -323,7 +327,7 @@ function TaxiTripDetailPage() {
             </div>
             <Link
               to="/admin/drivers/$id"
-              params={{ id: trip.driver.id }}
+              params={{ id: assignedDriver.id }}
               className="inline-flex items-center gap-1 text-sm font-semibold text-brand-green hover:opacity-80"
             >
               View all rides & filters

@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Search, X } from "lucide-react";
-import { listTaxiBookings, type TaxiStatus } from "@/lib/admin";
+import { listTaxiBookings, taxiHasAssignedDriver, type TaxiStatus } from "@/lib/admin";
 import {
   StatusPill,
   AdminTableShell,
@@ -57,7 +57,7 @@ function TaxiPage() {
         (b) =>
           b.customer_name.toLowerCase().includes(s) ||
           b.booking_reference.toLowerCase().includes(s) ||
-          (b.driver?.name ?? "").toLowerCase().includes(s),
+          (taxiHasAssignedDriver(b.status) ? b.driver?.name ?? "" : "").toLowerCase().includes(s),
       );
     }
     return items;
@@ -141,7 +141,7 @@ function TaxiPage() {
                   <StatusPill status={b.status} />
                 </div>
                 <p className="text-sm text-brand-charcoal">{b.service_type}</p>
-                {b.driver ? (
+                {taxiHasAssignedDriver(b.status) && b.driver ? (
                   <p className="text-xs font-medium text-brand-green">Driver: {b.driver.name}</p>
                 ) : (
                   <p className="text-xs text-muted-foreground">Unassigned</p>
@@ -181,7 +181,7 @@ function TaxiPage() {
                     </div>
                   </AdminTd>
                   <AdminTd className="text-xs">
-                    {b.driver ? (
+                    {taxiHasAssignedDriver(b.status) && b.driver ? (
                       <Link
                         to="/admin/drivers/$id"
                         params={{ id: b.driver.id }}
