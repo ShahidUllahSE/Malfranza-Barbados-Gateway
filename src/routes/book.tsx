@@ -677,6 +677,10 @@ function BookWizard() {
             pickupFee={pickupFee}
             bundleDiscount={bundleDiscount}
             total={total}
+            step={step}
+            canContinue={canContinue}
+            accountBusy={accountBusy}
+            onContinue={() => void goNext()}
             className="order-first lg:order-last"
           />
 
@@ -1706,9 +1710,18 @@ function StepPayment(props: {
 function BookingSummary(props: {
   apt: Apartment | null; unitNames?: string[]; checkIn: string; checkOut: string; nights: number; guests: number;
   roomTotal: number; taxiOn: boolean; pickupFee: number; bundleDiscount: number; total: number;
+  step: number;
+  canContinue: boolean;
+  accountBusy: boolean;
+  onContinue: () => void;
   className?: string;
 }) {
-  const { apt, unitNames, checkIn, checkOut, nights, guests, roomTotal, taxiOn, pickupFee, bundleDiscount, total, className } = props;
+  const {
+    apt, unitNames, checkIn, checkOut, nights, guests, roomTotal, taxiOn, pickupFee, bundleDiscount, total,
+    step, canContinue, accountBusy, onContinue, className,
+  } = props;
+  const continueLabel = step === 3 ? "Continue to payment" : "Continue";
+
   return (
     <aside className={`h-fit rounded-2xl border border-border bg-white p-5 shadow-card lg:sticky lg:top-6 ${className ?? ""}`}>
       <h3 className="text-base font-bold text-brand-green">Booking summary</h3>
@@ -1754,6 +1767,29 @@ function BookingSummary(props: {
         <span className="text-sm font-semibold text-brand-charcoal">Total</span>
         <span className="text-xl font-bold text-brand-green">{money(total)}</span>
       </div>
+
+      {step < 4 && (
+        <button
+          type="button"
+          onClick={onContinue}
+          disabled={!canContinue || accountBusy}
+          className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-brand-orange px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {accountBusy ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <>
+              {continueLabel}
+              <ArrowRight className="h-4 w-4" />
+            </>
+          )}
+        </button>
+      )}
+      {step === 4 && (
+        <p className="mt-4 text-center text-xs text-muted-foreground">
+          Complete payment with PayPal in the form.
+        </p>
+      )}
     </aside>
   );
 }

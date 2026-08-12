@@ -12,6 +12,7 @@ import {
   uploadApartmentImage,
   type ApartmentUnitInput,
 } from "@/lib/admin";
+import { uniquePhotoUrls } from "@/lib/photos";
 import { Drawer } from "./admin.bookings";
 
 export const Route = createFileRoute("/_authenticated/admin/apartments")({
@@ -347,7 +348,7 @@ function ApartmentForm({
   const [amenities, setAmenities] = useState(
     (initial?.amenities ?? ["Wi‑Fi", "Air conditioning", "Kitchen"]).join(", "),
   );
-  const [photos, setPhotos] = useState<string[]>(initial?.photos ?? []);
+  const [photos, setPhotos] = useState<string[]>(() => uniquePhotoUrls(initial?.photos ?? []));
   const [photoUrl, setPhotoUrl] = useState("");
   const [units, setUnits] = useState<ApartmentUnitInput[]>(initial?.units ?? []);
   const [unitsExclusive, setUnitsExclusive] = useState(initial?.units_exclusive ?? false);
@@ -375,7 +376,7 @@ function ApartmentForm({
   const upload = useMutation({
     mutationFn: uploadApartmentImage,
     onSuccess: (image) => {
-      setPhotos((current) => [...current, image.url]);
+      setPhotos((current) => uniquePhotoUrls([...current, image.url]));
       toast.success("Image uploaded");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Upload failed"),
@@ -395,7 +396,7 @@ function ApartmentForm({
         bathrooms: Number(bathrooms),
         size_sqm: sizeSqM ? Number(sizeSqM) : undefined,
         amenities: amenities.split(",").map((s) => s.trim()).filter(Boolean),
-        photos,
+        photos: uniquePhotoUrls(photos),
         is_active: isActive,
         units,
         units_exclusive: unitsExclusive,
@@ -587,11 +588,12 @@ function ApartmentForm({
                   toast.error("Paste an image URL first");
                   return;
                 }
-                if (photos.includes(url)) {
+                const next = uniquePhotoUrls([...photos, url]);
+                if (next.length === photos.length) {
                   toast.error("That photo is already on the list");
                   return;
                 }
-                setPhotos((current) => [...current, url]);
+                setPhotos(next);
                 setPhotoUrl("");
                 toast.success("Photo link added");
               }}

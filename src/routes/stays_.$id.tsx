@@ -9,6 +9,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { fetchApartment } from "@/data/apartments";
+import { uniquePhotoUrls } from "@/lib/photos";
 import {
   checkApartmentAvailability,
   fetchApartmentOccupancy,
@@ -115,10 +116,12 @@ function ApartmentDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [occupancy, setOccupancy] = useState<ApartmentOccupancy | null>(null);
-  /** Main preview index in the grid (also seeds the full viewer). */
-  const [previewIndex, setPreviewIndex] = useState(0);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
+
+  useEffect(() => {
+    setViewerIndex(0);
+  }, [apt.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -135,23 +138,19 @@ function ApartmentDetailPage() {
     };
   }, [apt.id]);
 
+  /** Strict unique list — one image once for this apartment. */
   const photos = useMemo(
-    () => (apt.images.length > 0 ? apt.images : ["/placeholder.svg"]),
+    () => uniquePhotoUrls(apt.images.length > 0 ? apt.images : ["/placeholder.svg"]),
     [apt.images],
   );
 
-  /** Up to 5 slots for the grid; repeats only if fewer unique photos. */
-  const gallery = useMemo(() => {
-    if (photos.length >= 5) return photos.slice(0, 5);
-    const filled = [...photos];
-    while (filled.length < 5) filled.push(photos[filled.length % photos.length]!);
-    return filled;
-  }, [photos]);
+  /** Rest of the grid after the hero — never re-shows photos[0]. */
+  const sidePhotos = useMemo(() => photos.slice(1, 5), [photos]);
 
   const openViewer = (index: number) => {
+    if (photos.length === 0) return;
     const next = ((index % photos.length) + photos.length) % photos.length;
     setViewerIndex(next);
-    setPreviewIndex(next % gallery.length);
     setViewerOpen(true);
   };
 
@@ -269,12 +268,12 @@ function ApartmentDetailPage() {
           <div className="relative aspect-[4/3] md:aspect-auto md:h-[420px] lg:h-[520px]">
             <button
               type="button"
-              onClick={() => openViewer(previewIndex)}
+              onClick={() => openViewer(0)}
               className="h-full w-full cursor-zoom-in"
               aria-label={`View ${apt.name} photos`}
             >
               <img
-                src={photos[previewIndex] ?? photos[0]}
+                src={photos[0]}
                 alt={`${apt.name} main view`}
                 className="h-full w-full object-cover transition duration-300 hover:brightness-95"
               />
@@ -288,26 +287,30 @@ function ApartmentDetailPage() {
             </button>
           </div>
           <div className="hidden grid-cols-2 gap-3 sm:grid md:h-[420px] lg:h-[520px]">
-            {[1, 2, 3, 4].map((i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => openViewer(i % photos.length)}
-                className="relative cursor-zoom-in overflow-hidden"
-                aria-label={`View photo ${i + 1}`}
-              >
-                <img
-                  src={gallery[i]}
-                  alt={`${apt.name} photo ${i + 1}`}
-                  className="aspect-square h-full w-full object-cover transition duration-300 hover:brightness-95 md:aspect-auto"
-                />
-                {i === 4 && photos.length > 1 && (
-                  <span className="absolute bottom-3 right-3 inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-2 text-xs font-medium text-brand-green shadow-card sm:px-4 sm:text-sm">
-                    <Images className="h-4 w-4" /> {photos.length} photos
-                  </span>
-                )}
-              </button>
-            ))}
+            {sidePhotos.map((src, i) => {
+              const photoIndex = i + 1;
+              const isLastSlot = i === sidePhotos.length - 1;
+              return (
+                <button
+                  key={src}
+                  type="button"
+                  onClick={() => openViewer(photoIndex)}
+                  className="relative cursor-zoom-in overflow-hidden"
+                  aria-label={`View photo ${photoIndex + 1}`}
+                >
+                  <img
+                    src={src}
+                    alt={`${apt.name} photo ${photoIndex + 1}`}
+                    className="aspect-square h-full w-full object-cover transition duration-300 hover:brightness-95 md:aspect-auto"
+                  />
+                  {isLastSlot && photos.length > sidePhotos.length + 1 && (
+                    <span className="absolute bottom-3 right-3 inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-2 text-xs font-medium text-brand-green shadow-card sm:px-4 sm:text-sm">
+                      <Images className="h-4 w-4" /> {photos.length} photos
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -373,7 +376,7 @@ function ApartmentDetailPage() {
               <div className="flex gap-2 overflow-x-auto px-4 py-3 sm:justify-center sm:px-5">
                 {photos.map((src, i) => (
                   <button
-                    key={`${src}-${i}`}
+                    key={src}
                     type="button"
                     onClick={() => setViewerIndex(i)}
                     className={`h-14 w-20 shrink-0 overflow-hidden rounded-md ring-2 transition ${

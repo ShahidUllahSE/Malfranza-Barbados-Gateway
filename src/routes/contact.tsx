@@ -6,7 +6,7 @@ import {
   Phone, MessageCircle, Mail, MapPin, Lock, ChevronRight, ArrowRight,
   Plus, Minus,
 } from "lucide-react";
-import stayGarden from "@/assets/newimage/Malfranza Apartment Number 1-2.jpg";
+import stayGarden from "@/assets/rooms/apartment-1_tropical-escape/tropical-escape-02.jpg";
 import { createEnquiry } from "@/lib/bookings";
 import { getCurrentUser } from "@/lib/user";
 import { LocationMap } from "@/components/maps/LocationMap";

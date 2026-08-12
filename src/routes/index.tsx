@@ -6,15 +6,15 @@ import {
   CheckCircle2, ShieldCheck, Sparkles, ArrowRight,
 } from "lucide-react";
 import { APARTMENTS, fetchApartments, type Apartment } from "@/data/apartments";
-import heroImg from "@/assets/newimage/Malfranza Apartment Number 1.jpg";
-import stayKitchen from "@/assets/newimage/Malfranza Apartment Number 1-5.jpg";
-import stay2br from "@/assets/newimage/Malfranza A AND B.jpg";
-import stayBathroom from "@/assets/newimage/Malfranza Apartment Number 2-5.jpg";
-import stayGarden from "@/assets/newimage/Malfranza Apartment Number 1-2.jpg";
-import stayTropical from "@/assets/newimage/Malfranza Apartment Number 3.jpg";
-import stay1br from "@/assets/newimage/Malfranza Apartment Number 2.jpg";
+import heroImg from "@/assets/rooms/apartment-1_tropical-escape/tropical-escape-02.jpg";
+import stayKitchen from "@/assets/rooms/apartment-1_tropical-escape/tropical-escape-05.jpg";
+import stay2br from "@/assets/rooms/apartment-a-and-b_sunset-suite/sunset-suite-01-malfranza-a-and-b-9.jpg";
+import stayBathroom from "@/assets/rooms/apartment-2_island-breeze/island-breeze-06.jpg";
+import stayGarden from "@/assets/rooms/apartment-1_tropical-escape/tropical-escape-02.jpg";
+import stayTropical from "@/assets/rooms/apartment-3_palm-retreat/palm-retreat-01.jpg";
+import stay1br from "@/assets/rooms/apartment-2_island-breeze/island-breeze-01.jpg";
 import taxiVan from "@/assets/ChatGPT Image Jul 2, 2026, 10_48_48 PM.png";
-import locationBanner from "@/assets/newimage/Malfranza Apartment Number 1-3.jpg";
+import locationBanner from "@/assets/rooms/apartment-4_golden-serenity/golden-serenity-01.jpg";
 import { PlacesAutocompleteInput } from "@/components/maps/PlacesAutocompleteInput";
 
 const homeSearchSchema = z.object({

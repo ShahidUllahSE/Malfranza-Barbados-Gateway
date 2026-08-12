@@ -1,4 +1,5 @@
 import { apiRequest } from "@/lib/api";
+import { uniquePhotoUrls } from "@/lib/photos";
 import {
   catalogFromRate,
   roomTypeFromApartmentType,
@@ -35,7 +36,37 @@ export type ApartmentUnit = {
   isActive: boolean;
 };
 
-/** Real property photos from src/assets/newimage (kept until final image swap). */
+/** Prefer curated rooms/* set (6 unique per listing); fallback to legacy newimage names. */
+const ROOM_IMAGE_MODULES = import.meta.glob(
+  "../assets/rooms/**/*.{jpg,jpeg,JPG,JPEG,png,PNG,webp,WEBP}",
+  { eager: true, import: "default" },
+) as Record<string, string>;
+
+const ROOM1_IMAGE_MODULES = import.meta.glob(
+  "../assets/room1/**/*.{jpg,jpeg,JPG,JPEG,png,PNG,webp,WEBP}",
+  { eager: true, import: "default" },
+) as Record<string, string>;
+
+const ROOM2_IMAGE_MODULES = import.meta.glob(
+  "../assets/room2/**/*.{jpg,jpeg,JPG,JPEG,png,PNG,webp,WEBP}",
+  { eager: true, import: "default" },
+) as Record<string, string>;
+
+const ROOM3_IMAGE_MODULES = import.meta.glob(
+  "../assets/room3/**/*.{jpg,jpeg,JPG,JPEG,png,PNG,webp,WEBP}",
+  { eager: true, import: "default" },
+) as Record<string, string>;
+
+const ROOM4_IMAGE_MODULES = import.meta.glob(
+  "../assets/room4/**/*.{jpg,jpeg,JPG,JPEG,png,PNG,webp,WEBP}",
+  { eager: true, import: "default" },
+) as Record<string, string>;
+
+const ROOM_AB_IMAGE_MODULES = import.meta.glob(
+  "../assets/Malfranza A and B/**/*.{jpg,jpeg,JPG,JPEG,png,PNG,webp,WEBP}",
+  { eager: true, import: "default" },
+) as Record<string, string>;
+
 const NEW_IMAGE_MODULES = import.meta.glob(
   "../assets/newimage/*.{jpg,jpeg,JPG,JPEG,png,PNG}",
   { eager: true, import: "default" },
@@ -45,44 +76,98 @@ function naturalName(path: string) {
   return path.split("/").pop() ?? path;
 }
 
-function galleryFor(match: string): string[] {
-  const needle = match.toLowerCase();
-  return Object.entries(NEW_IMAGE_MODULES)
-    .filter(([path]) => naturalName(path).toLowerCase().includes(needle))
+function galleryFromModules(
+  modules: Record<string, string>,
+  match: string | RegExp,
+  limit = 8,
+): string[] {
+  const needle = typeof match === "string" ? match.toLowerCase() : match;
+  const urls = Object.entries(modules)
+    .filter(([p]) => {
+      const n = naturalName(p).toLowerCase();
+      const full = p.toLowerCase();
+      if (typeof needle === "string") return n.includes(needle) || full.includes(needle);
+      return needle.test(n) || needle.test(full);
+    })
     .sort(([a], [b]) =>
       naturalName(a).localeCompare(naturalName(b), undefined, {
         numeric: true,
         sensitivity: "base",
       }),
     )
-    .map(([, url]) => url)
-    .slice(0, 6);
+    .map(([, url]) => url);
+  return uniquePhotoUrls(urls).slice(0, limit);
 }
 
-const AMENITIES_1BR = [
+function galleryFor(match: string): string[] {
+  const room = galleryFromModules(ROOM_IMAGE_MODULES, match, 8);
+  if (room.length > 0) return room;
+
+  const m = match.toLowerCase();
+  if (m.includes("tropical") || m.includes("apartment-1")) {
+    const room1 = galleryFromModules(ROOM1_IMAGE_MODULES, "room1", 8);
+    if (room1.length > 0) return room1;
+  }
+  if (m.includes("island") || m.includes("apartment-2")) {
+    const room2 = galleryFromModules(ROOM2_IMAGE_MODULES, "room2", 8);
+    if (room2.length > 0) return room2;
+  }
+  if (m.includes("palm") || m.includes("apartment-3")) {
+    const room3 = galleryFromModules(ROOM3_IMAGE_MODULES, "room3", 8);
+    if (room3.length > 0) return room3;
+  }
+  if (m.includes("golden") || m.includes("apartment-4") || m.includes("serenity")) {
+    const room4 = galleryFromModules(ROOM4_IMAGE_MODULES, "room4", 8);
+    if (room4.length > 0) return room4;
+  }
+  if (m.includes("sunset") || m.includes("a-and-b") || m.includes("a and b")) {
+    const ab = galleryFromModules(ROOM_AB_IMAGE_MODULES, "malfranza a and b", 8);
+    if (ab.length === 0) {
+      // path match on full module key
+      const fromPath = Object.entries(ROOM_AB_IMAGE_MODULES)
+        .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
+        .map(([, url]) => url);
+      return uniquePhotoUrls(fromPath).slice(0, 8);
+    }
+    return ab;
+  }
+
+  // Do not fall back to shared newimage dumps for master rooms
+  if (
+    m.includes("tropical") ||
+    m.includes("island") ||
+    m.includes("palm") ||
+    m.includes("golden") ||
+    m.includes("sunset")
+  ) {
+    return [];
+  }
+  return galleryFromModules(NEW_IMAGE_MODULES, match, 8);
+}
+
+const SHARED_AMENITIES = [
   "Air Conditioning",
-  "Kitchen",
   "Smart TV",
-  "Workspace",
-  "Kettle",
+  "Fridge",
   "Microwave",
-  "Wi-Fi",
+  "Kettle",
+  "Kitchen",
+  "Coffee Machine",
+  "Toaster",
+  "Iron",
+  "Fire Extinguisher",
+  "High Speed Starlink Internet",
 ] as const;
 
-const AMENITIES_2BR = [
-  "Air Conditioning",
-  "Kitchen",
-  "Smart TV",
-  "Workspace",
-  "Kettle",
-  "Microwave",
-  "Washer/Dryer",
-  "Wi-Fi",
-] as const;
+const AMENITIES_1BR = [...SHARED_AMENITIES, "Washing Machine"] as const;
+const AMENITIES_2BR = [...SHARED_AMENITIES] as const;
 
 /**
- * Seed / fallback listings — 3×1-BR + 1×2-BR (exclusive one/two-bedroom configs).
+ * Master Room Schedule fallback — names fixed for when room photos arrive.
  * Live data still comes from the API when available.
+ *
+ * Room 1 Tropical Escape · Room 2 Island Breeze · Room 3 Palm Retreat
+ * Room 4 Golden Serenity · Room A&B Sunset Suite
  */
 export const APARTMENTS: Apartment[] = [
   {
@@ -90,14 +175,15 @@ export const APARTMENTS: Apartment[] = [
     mongoId: "",
     name: "Tropical Escape",
     subtitle: "Room 1",
-    description: "",
+    description:
+      "Tropical Escape — one-bedroom self-catering apartment at Malfranza, Oistins.",
     type: "one-bedroom",
     guests: 2,
     beds: 1,
     baths: 1,
     sizeSqM: 55,
     pricePerNight: catalogFromRate("one-bedroom"),
-    images: galleryFor("apartment number 1"),
+    images: galleryFor("tropical-escape"),
     amenities: [...AMENITIES_1BR],
     unitsExclusive: false,
     units: [],
@@ -107,14 +193,15 @@ export const APARTMENTS: Apartment[] = [
     mongoId: "",
     name: "Island Breeze",
     subtitle: "Room 2",
-    description: "",
+    description:
+      "Island Breeze — one-bedroom self-catering apartment at Malfranza, Oistins.",
     type: "one-bedroom",
     guests: 2,
     beds: 1,
     baths: 1,
     sizeSqM: 54,
     pricePerNight: catalogFromRate("one-bedroom"),
-    images: galleryFor("apartment number 2"),
+    images: galleryFor("island-breeze"),
     amenities: [...AMENITIES_1BR],
     unitsExclusive: false,
     units: [],
@@ -124,14 +211,15 @@ export const APARTMENTS: Apartment[] = [
     mongoId: "",
     name: "Palm Retreat",
     subtitle: "Room 3",
-    description: "",
+    description:
+      "Palm Retreat — one-bedroom self-catering apartment at Malfranza, Oistins.",
     type: "one-bedroom",
     guests: 2,
     beds: 1,
     baths: 1,
     sizeSqM: 52,
     pricePerNight: catalogFromRate("one-bedroom"),
-    images: galleryFor("apartment number 3"),
+    images: galleryFor("palm-retreat"),
     amenities: [...AMENITIES_1BR],
     unitsExclusive: false,
     units: [],
@@ -139,41 +227,38 @@ export const APARTMENTS: Apartment[] = [
   {
     id: "apartment-4",
     mongoId: "",
-    name: "Sunset Suite",
+    name: "Golden Serenity",
     subtitle: "Room 4",
-    description: "",
+    description:
+      "Golden Serenity — two-bedroom apartment at Malfranza, Oistins.",
     type: "two-bedroom",
     guests: 4,
     beds: 2,
     baths: 2,
     sizeSqM: 90,
     pricePerNight: catalogFromRate("two-bedroom"),
-    // Reuse A&B gallery until dedicated Apt 4 photos are provided
-    images: galleryFor("a and b").length > 0 ? galleryFor("a and b") : galleryFor("apartment number 1"),
+    images: galleryFor("golden-serenity"),
     amenities: [...AMENITIES_2BR],
-    unitsExclusive: true,
-    units: [
-      {
-        id: "one-bedroom",
-        name: "One-bedroom",
-        description: "",
-        bedrooms: 1,
-        bathrooms: 1,
-        maxGuests: 2,
-        pricePerNight: catalogFromRate("one-bedroom"),
-        isActive: true,
-      },
-      {
-        id: "two-bedroom",
-        name: "Two-bedroom",
-        description: "",
-        bedrooms: 2,
-        bathrooms: 2,
-        maxGuests: 4,
-        pricePerNight: catalogFromRate("two-bedroom"),
-        isActive: true,
-      },
-    ],
+    unitsExclusive: false,
+    units: [],
+  },
+  {
+    id: "apartment-a-and-b",
+    mongoId: "",
+    name: "Sunset Suite",
+    subtitle: "Room A & B",
+    description:
+      "Sunset Suite — two-bedroom residence (Room A & B) at Malfranza, Oistins.",
+    type: "two-bedroom",
+    guests: 4,
+    beds: 2,
+    baths: 2,
+    sizeSqM: 95,
+    pricePerNight: catalogFromRate("two-bedroom"),
+    images: galleryFor("sunset-suite"),
+    amenities: [...AMENITIES_2BR],
+    unitsExclusive: false,
+    units: [],
   },
 ];
 
@@ -200,17 +285,12 @@ export async function fetchApartment(slug: string): Promise<Apartment | undefine
   }
 }
 
+/** Drop empty/placeholder URLs and collapse exact URL duplicates. */
+// uniquePhotoUrls imported from @/lib/photos
+
 function mapApiApartment(record: any): Apartment {
   const fallback = getApartment(record.slug);
-  const photos: string[] = Array.isArray(record.photos)
-    ? record.photos.filter(
-        (p: unknown) =>
-          typeof p === "string" &&
-          p.trim().length > 0 &&
-          !p.includes("placeholder") &&
-          !p.includes("ChatGPT Image"),
-      )
-    : [];
+  const photos = uniquePhotoUrls(record.photos);
   const units: ApartmentUnit[] = Array.isArray(record.units)
     ? record.units
         .filter((unit: any) => unit.isActive !== false)
@@ -233,9 +313,9 @@ function mapApiApartment(record: any): Apartment {
   return {
     id: record.slug,
     mongoId: String(record._id ?? ""),
-    name: record.name,
-    subtitle: "",
-    description: "",
+    name: record.name ?? fallback?.name ?? record.slug,
+    subtitle: record.subtitle ?? fallback?.subtitle ?? "",
+    description: record.description ?? fallback?.description ?? "",
     type: record.type,
     guests: record.maxGuests,
     beds: record.bedrooms,
@@ -245,7 +325,7 @@ function mapApiApartment(record: any): Apartment {
       units.length > 0
         ? Math.min(...units.map((u) => u.pricePerNight))
         : catalogFromRate(roomType),
-    images: (seedImages.length > 0 ? seedImages : photos).slice(0, 6),
+    images: uniquePhotoUrls(photos.length > 0 ? photos : seedImages).slice(0, 8),
     amenities: Array.isArray(record.amenities)
       ? record.amenities
       : (fallback?.amenities ?? []),

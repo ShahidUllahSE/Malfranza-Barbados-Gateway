@@ -8,7 +8,7 @@ import {
 import { fetchApartments, type Apartment } from "@/data/apartments";
 import { fetchApartmentOccupancy, type ApartmentOccupancy } from "@/lib/bookings";
 import { catalogFromRate, roomTypeFromApartmentType } from "@/lib/pricing";
-import heroImg from "@/assets/newimage/Malfranza Apartment Number 1.jpg";
+import heroImg from "@/assets/rooms/apartment-1_tropical-escape/tropical-escape-02.jpg";
 
 const staysSearchSchema = z.object({
   checkIn: z.string().optional(),
