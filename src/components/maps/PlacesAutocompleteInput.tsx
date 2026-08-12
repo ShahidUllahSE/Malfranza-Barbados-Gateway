@@ -80,8 +80,8 @@ type SuggestionItem = {
 };
 
 /**
- * Places suggestions (Barbados). Dropdown is portaled to document.body so parent
- * overflow:hidden cards never clip it.
+ * Places suggestions (worldwide — no country lock). Dropdown is portaled to document.body
+ * so parent overflow:hidden cards never clip it.
  * Uses Places API (New) AutocompleteSuggestion when available; falls back to classic service.
  */
 export function PlacesAutocompleteInput({
@@ -429,7 +429,7 @@ export function PlacesAutocompleteInput({
             } else if (e.key === "Escape") setOpen(false);
           }}
           placeholder={
-            !ready && !failMsg ? "Loading places…" : placeholder || "Search Barbados address"
+            !ready && !failMsg ? "Loading places…" : placeholder || "Search any address"
           }
           aria-label={ariaLabel}
           className={`min-w-0 flex-1 ${className ?? ""}`}
@@ -731,7 +731,7 @@ export async function geocodeAddress(address: string): Promise<LatLng | null> {
     if (!g?.maps?.Geocoder) return null;
     return await new Promise((resolve) => {
       const geocoder = new g.maps.Geocoder();
-      geocoder.geocode({ address: `${address}, Barbados` }, (results, status) => {
+      geocoder.geocode({ address }, (results, status) => {
         if (status !== "OK" || !results?.[0]?.geometry?.location) {
           resolve(null);
           return;

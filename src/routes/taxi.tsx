@@ -145,6 +145,13 @@ function TaxiPage() {
         pickupLocation: pickup,
         dropoffLocation: dropoff,
       })
+        .catch(() =>
+          fetchTaxiVehicles({
+            passengers: form.passengers,
+            pickupDate: form.date || undefined,
+            pickupTime: form.time || undefined,
+          }),
+        )
         .then((result) => {
           if (cancelled) return;
           setVehicleResult(result);
@@ -154,7 +161,12 @@ function TaxiPage() {
         .catch((err) => {
           if (cancelled) return;
           setVehicleResult(null);
-          setError(err instanceof Error ? err.message : "Couldn't load available vehicles.");
+          const message = err instanceof Error ? err.message : "Couldn't load available vehicles.";
+          if (/route|location/i.test(message)) {
+            setError(null);
+            return;
+          }
+          setError(message);
         })
         .finally(() => {
           if (!cancelled) setSearching(false);
