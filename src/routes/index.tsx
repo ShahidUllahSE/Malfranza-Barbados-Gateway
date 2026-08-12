@@ -583,9 +583,9 @@ function HomePage() {
                     <input
                       type="number"
                       min={1}
-                      max={14}
+                      max={10}
                       value={ridePassengers}
-                      onChange={(e) => setRidePassengers(Math.max(1, Math.min(14, parseInt(e.target.value || "1", 10))))}
+                      onChange={(e) => setRidePassengers(Math.max(1, Math.min(10, parseInt(e.target.value || "1", 10))))}
                       className="w-full bg-transparent text-sm font-medium text-white outline-none"
                     />
                   </div>

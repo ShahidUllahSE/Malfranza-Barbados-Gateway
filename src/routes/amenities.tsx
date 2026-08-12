@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
-  Wifi, Wind, ChefHat, Tv, Bath, Car, WashingMachine, Route as RouteIcon,
+  Wifi, Snowflake, ChefHat, Tv, Bath, Car, WashingMachine, Route as RouteIcon,
   KeyRound, ShoppingBag, CheckCircle2, Sparkles, Zap, MapPin,
+  Refrigerator, Microwave, Coffee, Shirt, Flame, CookingPot,
 } from "lucide-react";
 import stayKitchen from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_20 PM.png";
 import stay1br from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_34 PM.png";
@@ -12,7 +13,7 @@ export const Route = createFileRoute("/amenities")({
   head: () => ({
     meta: [
       { title: "Amenities — Malfranza Apartments & Taxi" },
-      { name: "description", content: "Everything you need for a comfortable stay in Barbados — Wi-Fi, AC, full kitchen, parking, laundry and more." },
+      { name: "description", content: "Everything you need for a comfortable stay in Barbados — Starlink internet, AC, full kitchen, Smart TV, parking, laundry and more." },
       { property: "og:title", content: "Amenities — Malfranza Apartments" },
       { property: "og:description", content: "Thoughtfully equipped apartments with modern amenities for an easy, relaxing stay." },
       { property: "og:image", content: stayKitchen },
@@ -22,13 +23,20 @@ export const Route = createFileRoute("/amenities")({
 });
 
 const AMENITIES = [
-  { icon: Wifi, title: "High-Speed Wi-Fi", body: "Reliable, fast internet throughout your apartment. Perfect for work or streaming." },
-  { icon: Wind, title: "Air Conditioning", body: "Stay cool and comfortable with air conditioning in every bedroom and living area." },
-  { icon: ChefHat, title: "Full Kitchen", body: "Fully equipped kitchen with stove, fridge, microwave, and all cookware." },
-  { icon: Tv, title: "Smart TV", body: "Enjoy your favorite shows and apps on a large high-definition TV." },
+  { icon: Snowflake, title: "Air Conditioning", body: "Stay cool and comfortable with air conditioning in every bedroom and living area." },
+  { icon: Wifi, title: "High Speed Starlink Internet", body: "Fast, reliable Starlink Wi-Fi throughout the apartment — ready for work or streaming." },
+  { icon: ChefHat, title: "Kitchen", body: "A fully equipped self-catering kitchen with cookware and everything you need to make meals at home." },
+  { icon: Tv, title: "Smart TV", body: "Enjoy your favorite shows and apps on a large high-definition Smart TV." },
+  { icon: Refrigerator, title: "Fridge", body: "A full-size refrigerator so you can keep groceries, drinks, and leftovers fresh." },
+  { icon: Microwave, title: "Microwave", body: "Heat up meals quickly after a day at the beach or a night out in Oistins." },
+  { icon: Coffee, title: "Kettle", body: "An electric kettle for tea, instant coffee, and a quick hot drink whenever you like." },
+  { icon: Coffee, title: "Coffee Machine", body: "Start the morning with coffee in your apartment — no café run required." },
+  { icon: CookingPot, title: "Toaster", body: "A toaster for easy breakfasts before you head out for the day." },
+  { icon: Shirt, title: "Iron", body: "An iron so you can keep clothes fresh for dinners, events, or work days." },
+  { icon: Flame, title: "Fire Extinguisher", body: "A fire extinguisher is provided in every apartment for your peace of mind." },
+  { icon: WashingMachine, title: "Washing Machine", body: "In-unit washer in one-bedroom apartments — handy for longer stays. Two-bedroom suites do not include a washer." },
   { icon: Bath, title: "Private Bathroom", body: "Clean, modern bathrooms with hot water and essential toiletries." },
   { icon: Car, title: "Free Parking", body: "Complimentary on-site parking for a hassle-free and secure stay." },
-  { icon: WashingMachine, title: "Washer & Laundry", body: "In-unit washer for your convenience during extended stays." },
   { icon: RouteIcon, title: "Easy Highway Access", body: "Quick access to the ABC Highway to reach any part of the island with ease." },
   { icon: KeyRound, title: "Self Check-In", body: "Flexible self check-in with secure key access at your convenience." },
   { icon: ShoppingBag, title: "Nearby Shops", body: "Supermarkets, gas stations, restaurants, and services just minutes away." },

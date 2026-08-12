@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
   Wifi, Snowflake, ChefHat, Tv, Car, Briefcase, Users, BedDouble,
   ChevronDown, SlidersHorizontal, CheckSquare, Square, Coffee, Shirt,
+  Refrigerator, Microwave, WashingMachine, Flame, CookingPot,
 } from "lucide-react";
 import { fetchApartments, type Apartment } from "@/data/apartments";
 import { fetchApartmentOccupancy, type ApartmentOccupancy } from "@/lib/bookings";
@@ -46,23 +47,60 @@ const GUEST_RANGES = [
 
 const AMENITY_OPTIONS = [
   { key: "Air Conditioning", icon: Snowflake },
+  { key: "High Speed Starlink Internet", icon: Wifi },
   { key: "Kitchen", icon: ChefHat },
   { key: "Smart TV", icon: Tv },
-  { key: "Workspace", icon: Briefcase },
-  { key: "Wi-Fi", icon: Wifi },
+  { key: "Fridge", icon: Refrigerator },
+  { key: "Microwave", icon: Microwave },
+  { key: "Kettle", icon: Coffee },
+  { key: "Coffee Machine", icon: Coffee },
+  { key: "Toaster", icon: CookingPot },
+  { key: "Iron", icon: Shirt },
+  { key: "Fire Extinguisher", icon: Flame },
+  { key: "Washing Machine", icon: WashingMachine },
 ] as const;
 
 const AMENITY_ICON: Record<string, typeof Wifi> = {
   "Wi-Fi": Wifi,
+  "High Speed Starlink Internet": Wifi,
   "Air Conditioning": Snowflake,
   Kitchen: ChefHat,
   "Smart TV": Tv,
+  Fridge: Refrigerator,
+  Microwave: Microwave,
+  Kettle: Coffee,
+  "Coffee Machine": Coffee,
+  Toaster: CookingPot,
+  Iron: Shirt,
+  "Fire Extinguisher": Flame,
+  "Washing Machine": WashingMachine,
+  "Washer/Dryer": WashingMachine,
   Parking: Car,
   Workspace: Briefcase,
-  Kettle: Coffee,
-  Microwave: ChefHat,
-  "Washer/Dryer": Shirt,
 };
+
+function amenityNorm(value: string) {
+  return value.toLowerCase().replace(/[‑–—]/g, "-").replace(/\s+/g, " ").trim();
+}
+
+function apartmentHasAmenity(amenities: string[], filterKey: string) {
+  const wanted = amenityNorm(filterKey);
+  const internet =
+    wanted.includes("wi-fi") ||
+    wanted.includes("wifi") ||
+    wanted.includes("internet") ||
+    wanted.includes("starlink");
+  const laundry = wanted.includes("wash") || wanted.includes("laundry");
+  return amenities.some((am) => {
+    const have = amenityNorm(am);
+    if (have === wanted) return true;
+    if (internet && (have.includes("wi-fi") || have.includes("wifi") || have.includes("internet") || have.includes("starlink"))) {
+      return true;
+    }
+    if (laundry && (have.includes("wash") || have.includes("laundry"))) return true;
+    return false;
+  });
+}
 
 type Filters = {
   types: string[];
@@ -138,7 +176,7 @@ function StaysPage() {
         const match = applied.guests.some((k) => GUEST_RANGES.find((g) => g.key === k)?.test(a.guests));
         if (!match) return false;
       }
-      if (applied.amenities.length && !applied.amenities.every((am) => a.amenities.includes(am))) return false;
+      if (applied.amenities.length && !applied.amenities.every((am) => apartmentHasAmenity(a.amenities, am))) return false;
       return true;
     });
     if (sort === "price-asc") list.sort((a, b) => a.pricePerNight - b.pricePerNight);
@@ -228,14 +266,16 @@ function StaysPage() {
               </FilterGroup>
 
               <FilterGroup title="Amenities">
-                {AMENITY_OPTIONS.map((a) => (
-                  <CheckRow
-                    key={a.key}
-                    label={a.key}
-                    checked={draft.amenities.includes(a.key)}
-                    onChange={() => toggle("amenities", a.key)}
-                  />
-                ))}
+                <div className="max-h-[22rem] space-y-2.5 overflow-y-auto pr-1">
+                  {AMENITY_OPTIONS.map((a) => (
+                    <CheckRow
+                      key={a.key}
+                      label={a.key}
+                      checked={draft.amenities.includes(a.key)}
+                      onChange={() => toggle("amenities", a.key)}
+                    />
+                  ))}
+                </div>
               </FilterGroup>
 
               <div className="mt-5 border-t border-border pt-5">
@@ -357,14 +397,30 @@ function ApartmentCard({
     });
   }
 
+  function openDetails() {
+    navigate({ to: "/stays/$id", params: { id: apt.id } });
+  }
+
   return (
-    <article className="relative flex flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-card transition-shadow hover:shadow-card-hover">
+    <article
+      role="link"
+      tabIndex={0}
+      aria-label={`View ${apt.name}`}
+      onClick={openDetails}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openDetails();
+        }
+      }}
+      className="relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-card transition-shadow hover:shadow-card-hover"
+    >
       <div className="relative aspect-[4/3] overflow-hidden bg-brand-cream">
         <img
           src={apt.images[0]}
-          alt={apt.name}
+          alt=""
           loading="lazy"
-          className={`h-full w-full object-cover transition-transform duration-500 hover:scale-105 ${bookDisabled ? "grayscale-[25%]" : ""}`}
+          className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 hover:scale-105 ${bookDisabled ? "grayscale-[25%]" : ""}`}
         />
         {unavailableForSearch && (
           <div className="absolute left-3 top-3 rounded-full bg-brand-charcoal/90 px-3 py-1 text-xs font-semibold text-white">
@@ -432,6 +488,7 @@ function ApartmentCard({
           <Link
             to="/stays/$id"
             params={{ id: apt.id }}
+            onClick={(e) => e.stopPropagation()}
             className="inline-flex h-11 items-center justify-center rounded-xl border border-brand-green text-sm font-semibold text-brand-green transition-all hover:bg-brand-cream"
           >
             View Details
@@ -443,7 +500,10 @@ function ApartmentCard({
           ) : (
             <button
               type="button"
-              onClick={handleBookNow}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleBookNow();
+              }}
               className="inline-flex h-11 items-center justify-center rounded-xl bg-brand-orange text-sm font-semibold text-white shadow-sm transition-all hover:brightness-110"
             >
               Book Now

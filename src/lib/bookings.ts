@@ -144,6 +144,7 @@ export type TaxiBookingInput = {
   customerEmail: string;
   customerPhone: string;
   notes?: string;
+  driverId?: string;
 };
 
 export type TaxiBookingResult = {
@@ -172,8 +173,42 @@ export type TaxiBookingResult = {
     name: string;
     phone: string;
     vehicleLabel: string | null;
+    passengerCapacity?: number | null;
   } | null;
 };
+
+export type PublicTaxiVehicle = {
+  id: string;
+  name: string;
+  vehicleLabel: string;
+  passengerCapacity: number;
+  isAvailable: boolean;
+  fitsParty: boolean;
+  fare: number;
+};
+
+export type PublicTaxiVehiclesResult = {
+  fare: number;
+  distanceKm: number | null;
+  durationMinutes: number | null;
+  currency: string;
+  vehicles: PublicTaxiVehicle[];
+};
+
+export async function fetchTaxiVehicles(input: {
+  passengers: number;
+  pickupDate?: string;
+  pickupLocation?: string;
+  dropoffLocation?: string;
+}): Promise<PublicTaxiVehiclesResult> {
+  const params = new URLSearchParams({
+    passengers: String(input.passengers),
+  });
+  if (input.pickupDate) params.set("pickupDate", input.pickupDate);
+  if (input.pickupLocation) params.set("pickupLocation", input.pickupLocation);
+  if (input.dropoffLocation) params.set("dropoffLocation", input.dropoffLocation);
+  return apiRequest<PublicTaxiVehiclesResult>(`/taxi/vehicles?${params.toString()}`);
+}
 
 export async function createTaxiBooking(input: TaxiBookingInput): Promise<TaxiBookingResult> {
   return apiRequest<TaxiBookingResult>("/taxi/bookings", {

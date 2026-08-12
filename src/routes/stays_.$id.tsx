@@ -5,7 +5,7 @@ import {
   Wind, Wifi, Tv, ChefHat, Refrigerator, Microwave, Flame, Coffee,
   ShowerHead, Droplets, Sparkles, Shirt, BellRing, Car, Brush, Headphones,
   Images, BadgeCheck, HeartHandshake, CalendarCheck, Snowflake, Briefcase,
-  X,
+  WashingMachine, CookingPot, X,
   type LucideIcon,
 } from "lucide-react";
 import { fetchApartment } from "@/data/apartments";
@@ -72,15 +72,22 @@ const AMENITY_ICONS: Record<string, LucideIcon> = {
   "Wi-Fi": Wifi,
   Wifi: Wifi,
   "Free Wi-Fi": Wifi,
+  "High Speed Starlink Internet": Wifi,
   "Air Conditioning": Snowflake,
   "Smart TV": Tv,
   TV: Tv,
   Kitchen: ChefHat,
   "Fully Equipped Kitchen": ChefHat,
+  Fridge: Refrigerator,
   Refrigerator: Refrigerator,
   Microwave: Microwave,
+  "Coffee Machine": Coffee,
   "Stove & Oven": Flame,
   "Coffee Maker": Coffee,
+  Toaster: CookingPot,
+  Iron: Shirt,
+  "Fire Extinguisher": Flame,
+  "Washing Machine": WashingMachine,
   "Private Bathroom": Bath,
   Bathroom: Bath,
   "Walk-in Shower": ShowerHead,
@@ -96,7 +103,7 @@ const AMENITY_ICONS: Record<string, LucideIcon> = {
   "24/7 Support": Headphones,
   Workspace: Briefcase,
   Kettle: Coffee,
-  "Washer/Dryer": Shirt,
+  "Washer/Dryer": WashingMachine,
 };
 
 function amenityIcon(label: string): LucideIcon {

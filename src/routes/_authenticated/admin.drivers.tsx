@@ -93,8 +93,11 @@ function DriversPage() {
                   <p className="font-semibold text-brand-charcoal hover:text-brand-green">{driver.name}</p>
                   <p className="break-all text-xs text-muted-foreground">{driver.email}</p>
                   <p className="text-xs text-muted-foreground">{driver.phone}</p>
-                  {driver.vehicleLabel && (
-                    <p className="text-xs text-muted-foreground">{driver.vehicleLabel}</p>
+                  {(driver.vehicleLabel || driver.passengerCapacity) && (
+                    <p className="text-xs text-muted-foreground">
+                      {driver.vehicleLabel || "Van"}
+                      {driver.passengerCapacity ? ` · ${driver.passengerCapacity} seats` : ""}
+                    </p>
                   )}
                 </Link>
                 <div className="flex shrink-0 flex-col items-end gap-1">
@@ -144,6 +147,7 @@ function DriversPage() {
               <AdminTh className="w-[18%]">Email</AdminTh>
               <AdminTh className="w-[12%]">Phone</AdminTh>
               <AdminTh className="w-[14%]">Vehicle</AdminTh>
+              <AdminTh className="w-[8%]">Seats</AdminTh>
               <AdminTh className="w-[10%]">Status</AdminTh>
               <AdminTh className="w-[12%]">Availability</AdminTh>
               <AdminTh className="w-[22%]">Actions</AdminTh>
@@ -174,6 +178,9 @@ function DriversPage() {
                   <span className="block truncate" title={driver.vehicleLabel || undefined}>
                     {driver.vehicleLabel || "—"}
                   </span>
+                </AdminTd>
+                <AdminTd className="text-sm text-muted-foreground">
+                  {driver.passengerCapacity ?? "—"}
                 </AdminTd>
                 <AdminTd>
                   <StatusBadge active={driver.isActive} onLabel="Active" offLabel="Inactive" />
@@ -219,7 +226,7 @@ function DriversPage() {
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">
+                <td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">
                   {q.isLoading ? "Loading…" : "No drivers yet. Add your first driver."}
                 </td>
               </tr>
@@ -313,6 +320,7 @@ function DriverForm({
   const [phone, setPhone] = useState(initial?.phone ?? "");
   const [password, setPassword] = useState("");
   const [vehicleLabel, setVehicleLabel] = useState(initial?.vehicleLabel ?? "");
+  const [passengerCapacity, setPassengerCapacity] = useState(initial?.passengerCapacity ?? 7);
   const [isActive, setIsActive] = useState(initial?.isActive ?? true);
   const [isAvailable, setIsAvailable] = useState(initial?.isAvailable ?? true);
 
@@ -325,6 +333,7 @@ function DriverForm({
           phone: phone.trim(),
           password,
           vehicleLabel: vehicleLabel.trim() || undefined,
+          passengerCapacity,
           isAvailable,
         });
         return;
@@ -334,6 +343,7 @@ function DriverForm({
         name: name.trim(),
         phone: phone.trim(),
         vehicleLabel: vehicleLabel.trim() || null,
+        passengerCapacity,
         isActive,
         isAvailable,
         ...(password.trim() ? { password: password.trim() } : {}),
@@ -383,8 +393,21 @@ function DriverForm({
           value={vehicleLabel}
           onChange={(e) => setVehicleLabel(e.target.value)}
           className={inputClass}
-          placeholder="White van · B 1234"
+          placeholder="7-seater van"
         />
+      </Field>
+      <Field label="Passenger capacity">
+        <select
+          value={passengerCapacity}
+          onChange={(e) => setPassengerCapacity(Number(e.target.value))}
+          className={inputClass}
+        >
+          {[7, 10, 4, 5, 6, 8, 12, 14].map((n) => (
+            <option key={n} value={n}>
+              {n} passengers
+            </option>
+          ))}
+        </select>
       </Field>
       <Field label={mode === "create" ? "Password" : "New password (optional)"}>
         <input

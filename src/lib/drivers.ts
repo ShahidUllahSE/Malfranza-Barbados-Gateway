@@ -6,6 +6,7 @@ export type AdminDriver = {
   email: string;
   phone: string;
   vehicleLabel: string | null;
+  passengerCapacity?: number;
   isAvailable: boolean;
   isActive: boolean;
   lastLoginAt: string | null;
@@ -32,6 +33,7 @@ export async function createDriver(input: {
   phone: string;
   password: string;
   vehicleLabel?: string;
+  passengerCapacity?: number;
   isAvailable?: boolean;
 }) {
   return apiRequest<DriverIdentity>("/admin/drivers", {
@@ -47,6 +49,7 @@ export async function updateDriver(
     name: string;
     phone: string;
     vehicleLabel: string | null;
+    passengerCapacity: number;
     password: string;
     isAvailable: boolean;
     isActive: boolean;

@@ -7,7 +7,15 @@ import {
 } from "lucide-react";
 import taxiHero from "@/assets/ChatGPT Image Jul 2, 2026, 10_48_48 PM.png";
 import { PlacesAutocompleteInput, TaxiRouteMap, type LatLng } from "@/components/maps/PlacesAutocompleteInput";
-import { createTaxiBooking, estimateTaxiFare, fetchTaxiFareSettings, type TaxiBookingResult, type TaxiFareSettings } from "@/lib/bookings";
+import {
+  createTaxiBooking,
+  fetchTaxiFareSettings,
+  fetchTaxiVehicles,
+  type PublicTaxiVehicle,
+  type PublicTaxiVehiclesResult,
+  type TaxiBookingResult,
+  type TaxiFareSettings,
+} from "@/lib/bookings";
 import { useUserAuth } from "@/context/UserAuthContext";
 import { clearAdminToken, clearDriverToken, setUserToken } from "@/lib/api";
 import { toast } from "sonner";
@@ -57,11 +65,12 @@ function TaxiPage() {
     phone: "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [confirmation, setConfirmation] = useState<TaxiBookingResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fareSettings, setFareSettings] = useState<TaxiFareSettings | null>(null);
-  const [estimate, setEstimate] = useState<{ fare: number; distanceKm?: number } | null>(null);
-  const [estimating, setEstimating] = useState(false);
+  const [vehicleResult, setVehicleResult] = useState<PublicTaxiVehiclesResult | null>(null);
+  const [selectedVehicle, setSelectedVehicle] = useState<PublicTaxiVehicle | null>(null);
   const [pickupCoords, setPickupCoords] = useState<LatLng | null>(null);
   const [dropoffCoords, setDropoffCoords] = useState<LatLng | null>(null);
   /** Which location field the map click fills — set when user focuses pickup / drop-off. */
@@ -94,47 +103,67 @@ function TaxiPage() {
     }));
   }, [user]);
 
-  // Live fare estimate when pickup, drop-off, or passengers change.
   useEffect(() => {
-    const pickup = form.pickup.trim();
-    const dropoff = form.dropoff.trim();
-    if (pickup.length < 2 || dropoff.length < 2) {
-      setEstimate(null);
-      return;
-    }
+    const pickup = (search.pickup ?? "").trim();
+    const dropoff = (search.dropoff ?? "").trim();
+    if (!pickup || !dropoff || !search.date || !search.time) return;
     let cancelled = false;
-    const timer = window.setTimeout(() => {
-      setEstimating(true);
-      estimateTaxiFare({
-        pickupLocation: pickup,
-        dropoffLocation: dropoff,
-        passengers: form.passengers,
+    setSearching(true);
+    fetchTaxiVehicles({
+      passengers: search.passengers ?? 1,
+      pickupDate: search.date,
+      pickupLocation: pickup,
+      dropoffLocation: dropoff,
+    })
+      .then((result) => {
+        if (!cancelled) setVehicleResult(result);
       })
-        .then((result) => {
-          if (!cancelled) {
-            setEstimate({
-              fare: result.estimatedFare,
-              distanceKm: result.distanceKm,
-            });
-          }
-        })
-        .catch(() => {
-          if (!cancelled) setEstimate(null);
-        })
-        .finally(() => {
-          if (!cancelled) setEstimating(false);
-        });
-    }, 450);
+      .catch(() => {
+        if (!cancelled) setVehicleResult(null);
+      })
+      .finally(() => {
+        if (!cancelled) setSearching(false);
+      });
     return () => {
       cancelled = true;
-      window.clearTimeout(timer);
     };
-  }, [form.pickup, form.dropoff, form.passengers]);
+  }, [search.pickup, search.dropoff, search.date, search.time, search.passengers]);
+
+  const handleFindVehicles = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.pickup.trim() || !form.dropoff.trim() || !form.date || !form.time) {
+      setError("Please fill in pickup, drop-off, date and time.");
+      return;
+    }
+    setError(null);
+    setSearching(true);
+    setSelectedVehicle(null);
+    try {
+      const result = await fetchTaxiVehicles({
+        passengers: form.passengers,
+        pickupDate: form.date,
+        pickupLocation: form.pickup.trim(),
+        dropoffLocation: form.dropoff.trim(),
+      });
+      setVehicleResult(result);
+      window.requestAnimationFrame(() => {
+        document.getElementById("available-vehicles")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
+    } catch (err) {
+      setVehicleResult(null);
+      setError(err instanceof Error ? err.message : "Couldn't load available vehicles.");
+    } finally {
+      setSearching(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.pickup || !form.dropoff || !form.date || !form.time) {
-      setError("Please fill in pickup, drop-off, date and time.");
+    if (!selectedVehicle) {
+      setError("Please choose a vehicle first.");
       return;
     }
     if (!form.name.trim() || !form.email.trim() || !form.phone.trim()) {
@@ -154,6 +183,7 @@ function TaxiPage() {
         customerName: form.name,
         customerEmail: form.email,
         customerPhone: form.phone,
+        driverId: selectedVehicle.id,
       });
       if (result.token) {
         clearAdminToken();
@@ -205,7 +235,14 @@ function TaxiPage() {
             <dl className="mt-4 grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
               <SummaryItem label="Driver" value={driver.name} />
               <SummaryItem label="Phone" value={driver.phone || "—"} />
-              <SummaryItem label="Vehicle" value={driver.vehicleLabel || "Malfranza taxi"} />
+              <SummaryItem
+                label="Vehicle"
+                value={
+                  driver.vehicleLabel
+                    ? `${driver.vehicleLabel}${driver.passengerCapacity ? ` · ${driver.passengerCapacity} seats` : ""}`
+                    : "Malfranza taxi"
+                }
+              />
               <SummaryItem
                 label="Approx. trip time"
                 value={`~${etaMins} min`}
@@ -256,6 +293,8 @@ function TaxiPage() {
           <button
             onClick={() => {
               setConfirmation(null);
+              setVehicleResult(null);
+              setSelectedVehicle(null);
               setForm({ ...form, pickup: "", dropoff: "", date: "", time: "" });
             }}
             className="inline-flex items-center gap-2 rounded-full border border-brand-green px-6 py-3 font-semibold text-brand-green"
@@ -311,9 +350,9 @@ function TaxiPage() {
           <div className="relative">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
-                <h2 className="text-2xl font-bold text-white">Book your ride</h2>
+                <h2 className="text-2xl font-bold text-white">Search available rides</h2>
                 <p className="text-sm text-brand-sage mt-1">
-                  Fast, easy and secure. Your ride is just a few clicks away.
+                  Enter your trip — we’ll show every van with the regulated fare and how many guests it seats.
                 </p>
               </div>
             </div>
@@ -324,7 +363,7 @@ function TaxiPage() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <form onSubmit={handleFindVehicles} className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <RideField label="Service Type" icon={Car} className="sm:col-span-2">
                 <select
                   value={form.serviceType}
@@ -480,61 +519,143 @@ function TaxiPage() {
                   onChange={(e) => setForm({ ...form, passengers: Number(e.target.value) })}
                   className="w-full bg-transparent text-sm text-white outline-none [color-scheme:dark]"
                 >
-                  {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+                  {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
                     <option key={n} value={n} className="bg-brand-green-deep text-white">{n} passenger{n > 1 ? "s" : ""}</option>
                   ))}
                 </select>
               </RideField>
 
-              <RideField label="Your Name" icon={User}>
-                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  maxLength={100} placeholder="Jane Doe" className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/40" />
-              </RideField>
-              <RideField label="Email" icon={User}>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  readOnly={!!user}
-                  maxLength={255}
-                  placeholder="you@example.com"
-                  className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/40 read-only:opacity-80"
-                />
-              </RideField>
-              <RideField label="Phone" icon={User} className="sm:col-span-2">
-                <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  maxLength={40} placeholder="+1 246 000 0000" className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/40" />
-              </RideField>
-
               <div className="sm:col-span-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
-                <div className="text-sm text-white/70 font-medium">
-                  {estimating ? (
-                    <span>Calculating fare…</span>
-                  ) : estimate ? (
-                    <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <DollarSign className="h-4 w-4 text-brand-sage" />
-                      Estimated fare{" "}
-                      <span className="font-bold text-white">${estimate.fare}</span>
-                      {estimate.distanceKm != null && (
-                        <span className="text-white/50">· ~{estimate.distanceKm} km</span>
-                      )}
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-brand-sage" /> Free cancellation up to 12 hours
-                    </span>
-                  )}
-                </div>
-                <button type="submit" disabled={submitting} className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-orange px-7 py-3.5 font-semibold text-white shadow-lg shadow-brand-orange/20 hover:-translate-y-0.5 hover:brightness-105 transition disabled:opacity-60">
-                  {submitting ? "Submitting…" : <>Book Ride Now <ArrowRight className="h-4 w-4" /></>}
+                <p className="text-sm text-white/70 font-medium">
+                  Fixed Malfranza fares on every van — same price, pick the size you need.
+                </p>
+                <button type="submit" disabled={searching} className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-orange px-7 py-3.5 font-semibold text-white shadow-lg shadow-brand-orange/20 hover:-translate-y-0.5 hover:brightness-105 transition disabled:opacity-60">
+                  {searching ? "Finding vehicles…" : <>Find available vehicles <ArrowRight className="h-4 w-4" /></>}
                 </button>
               </div>
 
-              {error && <p className="sm:col-span-2 text-sm text-red-200">{error}</p>}
+              {error && !vehicleResult && <p className="sm:col-span-2 text-sm text-red-200">{error}</p>}
             </form>
           </div>
         </div>
       </section>
+
+      {vehicleResult && (
+        <section id="available-vehicles" className="mx-auto mt-8 max-w-7xl scroll-mt-24 px-4 sm:px-6 lg:px-8">
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-bold text-brand-charcoal sm:text-2xl">Available vehicles</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {form.pickup} → {form.dropoff}
+                {vehicleResult.distanceKm != null ? ` · ~${vehicleResult.distanceKm} km` : ""}
+                {vehicleResult.durationMinutes != null ? ` · ~${vehicleResult.durationMinutes} min` : ""}
+                {" · "}
+                {form.passengers} passenger{form.passengers > 1 ? "s" : ""}
+              </p>
+            </div>
+            <div className="rounded-full bg-brand-cream px-4 py-2 text-sm font-semibold text-brand-green">
+              Regulated fare ${Number(vehicleResult.fare).toFixed(0)} {vehicleResult.currency}
+            </div>
+          </div>
+
+          {vehicleResult.vehicles.length === 0 ? (
+            <div className="rounded-2xl border border-border bg-white p-8 text-center text-sm text-muted-foreground shadow-card">
+              No vehicles are listed yet. Please check back shortly.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {vehicleResult.vehicles.map((vehicle) => (
+                <VehicleOfferCard
+                  key={vehicle.id}
+                  vehicle={vehicle}
+                  currency={vehicleResult.currency}
+                  selected={selectedVehicle?.id === vehicle.id}
+                  onSelect={() => {
+                    if (vehicle.isAvailable && vehicle.fitsParty) {
+                      setSelectedVehicle(vehicle);
+                      setError(null);
+                      window.requestAnimationFrame(() => {
+                        document.getElementById("confirm-ride")?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "start",
+                        });
+                      });
+                    }
+                  }}
+                />
+              ))}
+            </div>
+          )}
+
+          {selectedVehicle && (
+            <form
+              id="confirm-ride"
+              onSubmit={handleSubmit}
+              className="mt-6 scroll-mt-24 rounded-3xl border border-border bg-white p-5 shadow-card sm:p-6"
+            >
+              <h3 className="text-lg font-bold text-brand-charcoal">Confirm your ride</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {selectedVehicle.vehicleLabel} · up to {selectedVehicle.passengerCapacity} guests · $
+                {Number(selectedVehicle.fare).toFixed(0)} {vehicleResult.currency}
+              </p>
+
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <label className="block rounded-xl border border-border bg-slate-50 px-4 py-3">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Your name</span>
+                  <input
+                    required
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    maxLength={100}
+                    placeholder="Jane Doe"
+                    className="mt-1 w-full bg-transparent text-sm text-brand-charcoal outline-none"
+                  />
+                </label>
+                <label className="block rounded-xl border border-border bg-slate-50 px-4 py-3">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Email</span>
+                  <input
+                    required
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    readOnly={!!user}
+                    maxLength={255}
+                    placeholder="you@example.com"
+                    className="mt-1 w-full bg-transparent text-sm text-brand-charcoal outline-none read-only:opacity-80"
+                  />
+                </label>
+                <label className="block rounded-xl border border-border bg-slate-50 px-4 py-3 sm:col-span-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Phone</span>
+                  <input
+                    required
+                    type="tel"
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    maxLength={40}
+                    placeholder="+1 246 000 0000"
+                    className="mt-1 w-full bg-transparent text-sm text-brand-charcoal outline-none"
+                  />
+                </label>
+              </div>
+
+              {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Free cancellation up to 12 hours before pickup.
+                </p>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-orange px-7 py-3.5 font-semibold text-white shadow-lg shadow-brand-orange/20 transition hover:-translate-y-0.5 hover:brightness-105 disabled:opacity-60"
+                >
+                  {submitting ? "Booking…" : <>Book {selectedVehicle.vehicleLabel} <ArrowRight className="h-4 w-4" /></>}
+                </button>
+              </div>
+            </form>
+          )}
+        </section>
+      )}
 
       {fareSettings && (
         <section className="mx-auto mt-10 max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -627,6 +748,69 @@ function TrustPill({ icon: Icon, label }: { icon: React.ComponentType<{ classNam
     <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-3.5 py-1.5 text-sm">
       <Icon className="h-4 w-4 text-brand-green" /> {label}
     </span>
+  );
+}
+
+function VehicleOfferCard({
+  vehicle,
+  currency,
+  selected,
+  onSelect,
+}: {
+  vehicle: PublicTaxiVehicle;
+  currency: string;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const selectable = vehicle.isAvailable && vehicle.fitsParty;
+  const status = !vehicle.fitsParty
+    ? "Too small for your party"
+    : !vehicle.isAvailable
+      ? "Booked for this date"
+      : "Available now";
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      disabled={!selectable}
+      className={`flex w-full items-center gap-4 rounded-2xl border bg-white p-4 text-left shadow-card transition sm:p-5 ${
+        selected
+          ? "border-brand-orange ring-2 ring-brand-orange/30"
+          : selectable
+            ? "border-border hover:border-brand-green/40 hover:shadow-[var(--shadow-card-hover)]"
+            : "cursor-not-allowed border-border opacity-55"
+      }`}
+    >
+      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-brand-cream text-brand-green sm:h-16 sm:w-16">
+        <Car className="h-7 w-7 sm:h-8 sm:w-8" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="font-bold text-brand-charcoal">{vehicle.vehicleLabel}</p>
+          <span
+            className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+              selectable ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-700"
+            }`}
+          >
+            {status}
+          </span>
+        </div>
+        <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+          <Users className="h-3.5 w-3.5" />
+          Up to {vehicle.passengerCapacity} passengers
+        </p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{vehicle.name}</p>
+      </div>
+      <div className="shrink-0 text-right">
+        <p className="text-xl font-bold text-brand-green sm:text-2xl">
+          ${Number(vehicle.fare).toFixed(0)}
+        </p>
+        <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          {currency} · fixed
+        </p>
+      </div>
+    </button>
   );
 }
 
