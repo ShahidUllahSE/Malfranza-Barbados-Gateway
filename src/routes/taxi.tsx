@@ -721,7 +721,7 @@ function TaxiPage() {
                             const order = await createPayPalOrder({
                               amount: rideFare,
                               currency: "USD",
-                              description: `Malfranza taxi · ${form.serviceType} · ${form.passengers} guest(s)`,
+                              description: `Malfranza airport transfer · ${form.passengers} guest(s)`,
                             });
                             return order.orderId;
                           } catch (e) {
