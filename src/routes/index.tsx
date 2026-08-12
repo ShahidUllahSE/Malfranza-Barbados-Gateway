@@ -125,8 +125,8 @@ function HomePage() {
   const featuredStays = apartments.slice(0, 4).map((a) => ({
     id: a.id,
     img: a.images[0],
-    name: a.subtitle,
-    type: a.name,
+    name: a.name,
+    type: a.subtitle,
     desc: a.description,
     guests: a.guests,
     beds: a.beds,

@@ -55,7 +55,7 @@ function aptGallery(slug: string, photos: string[] | undefined): string[] {
   return seed?.images ?? [];
 }
 function displayName(a: { slug: string; name: string; subtitle: string | null }) {
-  return a.subtitle ? `${a.subtitle} — ${a.name}` : a.name;
+  return a.subtitle ? `${a.name} (${a.subtitle})` : a.name;
 }
 
 /* ---------------- Route ---------------- */
@@ -1833,8 +1833,10 @@ function BookingSummary(props: {
         <div className="mt-3 flex gap-3">
           <img src={aptImage(apt.slug, apt.photos)} alt={displayName(apt)} className="h-16 w-16 rounded-lg object-cover" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-brand-charcoal">{apt.subtitle || apt.name}</p>
-            <p className="truncate text-xs text-muted-foreground">{apt.name}</p>
+            <p className="truncate text-sm font-semibold text-brand-charcoal">{apt.name}</p>
+            {apt.subtitle ? (
+              <p className="truncate text-xs text-muted-foreground">{apt.subtitle}</p>
+            ) : null}
             {unitNames && unitNames.length > 0 && (
               <p className="mt-0.5 text-xs font-medium text-brand-green">
                 {unitNames.join(" + ")}

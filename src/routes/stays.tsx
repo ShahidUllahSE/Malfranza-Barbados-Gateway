@@ -434,7 +434,12 @@ function ApartmentCard({
         )}
       </div>
       <div className="flex flex-1 flex-col p-5">
-        <h3 className="text-lg font-bold leading-snug text-brand-green">{apt.name}</h3>
+        {apt.subtitle ? (
+          <p className="text-[11px] font-bold uppercase tracking-wider text-brand-sage">{apt.subtitle}</p>
+        ) : null}
+        <h3 className={`text-lg font-bold leading-snug text-brand-green ${apt.subtitle ? "mt-0.5" : ""}`}>
+          {apt.name}
+        </h3>
         <p className="mt-1 text-sm font-semibold text-brand-charcoal">
           From ${fromRate}
           <span className="font-normal text-muted-foreground"> / night</span>
