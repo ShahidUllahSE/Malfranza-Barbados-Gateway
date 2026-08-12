@@ -145,6 +145,9 @@ export type TaxiBookingInput = {
   customerPhone: string;
   notes?: string;
   driverId?: string;
+  paymentStatus: "paid";
+  paymentReference: string;
+  paymentMethod?: string;
 };
 
 export type TaxiBookingResult = {

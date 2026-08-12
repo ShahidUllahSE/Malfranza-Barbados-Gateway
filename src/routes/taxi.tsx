@@ -3,8 +3,9 @@ import { useState, useEffect } from "react";
 import { z } from "zod";
 import {
   Clock, Sparkles, ShieldCheck, Plane, Car, Users, MapPin, Compass, Map,
-  Calendar, Watch, User, ArrowRight, CheckCircle2, HeartHandshake, DollarSign,
+  Calendar, Watch, User, ArrowRight, CheckCircle2, HeartHandshake, DollarSign, Lock,
 } from "lucide-react";
+import { PayPalButtons, PayPalScriptProvider } from "@paypal/react-paypal-js";
 import taxiHero from "@/assets/ChatGPT Image Jul 2, 2026, 10_48_48 PM.png";
 import { PlacesAutocompleteInput, TaxiRouteMap, type LatLng } from "@/components/maps/PlacesAutocompleteInput";
 import { VehicleOfferCard } from "@/components/taxi/VehicleOfferCard";
@@ -18,6 +19,7 @@ import {
   type TaxiBookingResult,
   type TaxiFareSettings,
 } from "@/lib/bookings";
+import { capturePayPalOrder, createPayPalOrder } from "@/lib/paypal";
 import { useUserAuth } from "@/context/UserAuthContext";
 import { clearAdminToken, clearDriverToken, setUserToken } from "@/lib/api";
 import { toast } from "sonner";
@@ -90,6 +92,7 @@ function TaxiPage() {
     phone: "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [searching, setSearching] = useState(false);
   const [confirmation, setConfirmation] = useState<TaxiBookingResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -188,8 +191,16 @@ function TaxiPage() {
     });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const rideFare = selectedVehicle
+    ? Number(
+        fareSettings
+          ? calculateGuestTaxiFare(fareSettings, form.passengers, vehicleResult?.distanceKm ?? 0)
+          : selectedVehicle.fare,
+      )
+    : 0;
+  const paypalClientId = ((import.meta.env.VITE_PAYPAL_CLIENT_ID as string | undefined) || "").trim();
+
+  const handleSubmit = async (paymentReference: string) => {
     if (!selectedVehicle) {
       setError("Please choose a vehicle first.");
       return;
@@ -200,6 +211,10 @@ function TaxiPage() {
     }
     if (!form.name.trim() || !form.email.trim() || !form.phone.trim()) {
       setError("Please add your name, email and phone so we can confirm the ride.");
+      return;
+    }
+    if (!termsAccepted) {
+      setError("Please accept the booking terms to pay.");
       return;
     }
     setError(null);
@@ -216,6 +231,9 @@ function TaxiPage() {
         customerEmail: form.email,
         customerPhone: form.phone,
         driverId: selectedVehicle.id,
+        paymentStatus: "paid",
+        paymentReference,
+        paymentMethod: "PayPal",
       });
       setConfirmation(result);
       if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
@@ -236,6 +254,7 @@ function TaxiPage() {
         return;
       }
       setError(message);
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -249,7 +268,7 @@ function TaxiPage() {
         </div>
         <h1 className="mt-6 text-3xl font-bold">Ride request received</h1>
         <p className="mt-3 text-muted-foreground">
-          Thanks, {form.name} — your taxi booking is pending confirmation. We’ll email you when it’s confirmed.
+          Thanks, {form.name} — payment received. Your taxi booking is pending confirmation. We’ll email you when it’s confirmed.
         </p>
         <div className="mt-4 inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full bg-brand-cream px-4 py-3 sm:px-5">
           <span className="text-sm text-muted-foreground">Booking reference</span>
@@ -362,7 +381,7 @@ function TaxiPage() {
 
             {!user && (
               <div className="relative mt-5 rounded-2xl border border-white/15 bg-white/10 p-4 text-sm text-white/90">
-                No account needed. Enter your route, pick a van, then add your details — we’ll email a temporary password.
+                No account needed. Enter your route, pick a van, add your details, then pay with PayPal — we’ll email a temporary password.
               </div>
             )}
 
@@ -588,20 +607,15 @@ function TaxiPage() {
           )}
 
           {selectedVehicle && (
-            <form
+            <div
               id="confirm-ride"
-              onSubmit={handleSubmit}
               className="mt-6 scroll-mt-24 rounded-3xl border border-border bg-white p-5 shadow-card sm:p-6"
             >
-              <h3 className="text-lg font-bold text-brand-charcoal">Confirm your ride</h3>
+              <h3 className="text-lg font-bold text-brand-charcoal">Confirm & pay</h3>
               <p className="mt-1 text-sm text-muted-foreground">
                 {selectedVehicle.vehicleLabel} · up to {selectedVehicle.passengerCapacity} guests · $
-                {Number(
-                  fareSettings
-                    ? calculateGuestTaxiFare(fareSettings, form.passengers, vehicleResult.distanceKm)
-                    : selectedVehicle.fare,
-                ).toFixed(0)}{" "}
-                {vehicleResult.currency}
+                {rideFare.toFixed(0)}{" "}
+                {vehicleResult?.currency ?? "USD"}
                 {` · ${form.passengers} guest${form.passengers === 1 ? "" : "s"}`}
                 {form.date && form.time ? ` · ${fmtRideDate(form.date)} at ${form.time}` : ""}
               </p>
@@ -645,21 +659,106 @@ function TaxiPage() {
                 </label>
               </div>
 
+              <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-slate-50 px-4 py-3 text-sm text-brand-charcoal">
+                <input
+                  type="checkbox"
+                  checked={termsAccepted}
+                  onChange={(e) => setTermsAccepted(e.target.checked)}
+                  className="mt-0.5"
+                />
+                <span>
+                  I accept the{" "}
+                  <Link to="/booking-policy" className="font-semibold text-brand-green underline">
+                    booking terms
+                  </Link>{" "}
+                  and will pay ${rideFare.toFixed(0)} USD for this ride.
+                </span>
+              </label>
+
               {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
 
-              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="mt-4 space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  Free cancellation up to 12 hours before pickup.
+                  Free cancellation up to 12 hours before pickup. Pay with PayPal to request this ride —
+                  no direct booking without payment.
                 </p>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-orange px-7 py-3.5 font-semibold text-white shadow-lg shadow-brand-orange/20 transition hover:-translate-y-0.5 hover:brightness-105 disabled:opacity-60"
-                >
-                  {submitting ? "Booking…" : <>Book {selectedVehicle.vehicleLabel} <ArrowRight className="h-4 w-4" /></>}
-                </button>
+
+                {!paypalClientId ? (
+                  <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    PayPal is not configured. Set VITE_PAYPAL_CLIENT_ID and rebuild.
+                  </p>
+                ) : !termsAccepted ||
+                  !form.name.trim() ||
+                  !form.email.trim() ||
+                  !form.phone.trim() ||
+                  !form.date ||
+                  !form.time ? (
+                  <p className="rounded-xl border border-border bg-slate-50 px-4 py-3 text-sm text-muted-foreground">
+                    Complete your details and accept the terms to enable PayPal.
+                  </p>
+                ) : (
+                  <div className={submitting ? "pointer-events-none opacity-60" : ""}>
+                    <PayPalScriptProvider
+                      options={{
+                        clientId: paypalClientId,
+                        currency: "USD",
+                        intent: "capture",
+                        disableFunding: "card,credit,paylater,venmo",
+                      }}
+                    >
+                      <PayPalButtons
+                        fundingSource="paypal"
+                        style={{
+                          layout: "vertical",
+                          color: "gold",
+                          shape: "rect",
+                          label: "paypal",
+                          tagline: false,
+                        }}
+                        disabled={submitting}
+                        createOrder={async () => {
+                          try {
+                            const order = await createPayPalOrder({
+                              amount: rideFare,
+                              currency: "USD",
+                              description: `Malfranza taxi · ${form.serviceType} · ${form.passengers} guest(s)`,
+                            });
+                            return order.orderId;
+                          } catch (e) {
+                            const message =
+                              e instanceof Error ? e.message : "Could not start PayPal checkout";
+                            setError(message);
+                            toast.error(message);
+                            throw e;
+                          }
+                        }}
+                        onApprove={async (data) => {
+                          try {
+                            const capture = await capturePayPalOrder(data.orderID);
+                            await handleSubmit(capture.captureId || capture.orderId);
+                          } catch (e) {
+                            const message =
+                              e instanceof Error ? e.message : "PayPal capture failed";
+                            setError(message);
+                            toast.error(message);
+                          }
+                        }}
+                        onError={(err) => {
+                          console.error("[paypal]", err);
+                          toast.error(
+                            "PayPal cancelled or failed. Try again, or use a private window and Log In with your sandbox buyer account.",
+                          );
+                        }}
+                      />
+                    </PayPalScriptProvider>
+                    <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Lock className="h-3.5 w-3.5" />
+                      Secure PayPal checkout — your ride is requested only after payment.
+                    </p>
+                  </div>
+                )}
               </div>
-            </form>
+            </div>
           )}
         </section>
       )}

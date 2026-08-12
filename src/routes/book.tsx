@@ -602,6 +602,9 @@ function BookWizard() {
             customerPhone: phone.trim(),
             notes: `Bundled with stay ${ref}${taxiFlight ? ` · Flight ${taxiFlight}` : ""}`,
             driverId: selectedTaxiVehicle?.id,
+            paymentStatus: "paid",
+            paymentReference,
+            paymentMethod: "PayPal",
           });
           taxiRef = taxi.bookingReference;
           taxiDriverName = taxi.driver?.name;
