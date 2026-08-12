@@ -722,7 +722,7 @@ function TaxiPage() {
                             const order = await createPayPalOrder({
                               amount: rideFare,
                               currency: "USD",
-                              description: "Malfranza stay — guest booking",
+                              description: "Malfranza stay — Guest booking",
                             });
                             return order.orderId;
                           } catch (e) {
