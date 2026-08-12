@@ -186,7 +186,8 @@ export type PublicTaxiVehicle = {
   isAvailable: boolean;
   fitsParty: boolean;
   fare: number;
-  bookedSlots?: Array<{ date: string; time: string }>;
+  busyUntil?: string | null;
+  bookedSlots?: Array<{ date: string; time: string; until?: string }>;
 };
 
 export type PublicTaxiVehiclesResult = {

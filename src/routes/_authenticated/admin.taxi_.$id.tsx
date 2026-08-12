@@ -47,17 +47,25 @@ function TaxiTripDetailPage() {
   });
 
   const driversQ = useQuery({
-    queryKey: ["admin", "drivers-available"],
-    queryFn: listAvailableDrivers,
+    queryKey: ["admin", "drivers-available", trip?.pickup_date, trip?.pickup_time],
+    queryFn: () =>
+      listAvailableDrivers(
+        trip?.pickup_date && trip?.pickup_time
+          ? { pickupDate: trip.pickup_date, pickupTime: trip.pickup_time }
+          : undefined,
+      ),
+    enabled: !!trip && ["pending", "confirmed", "assigned"].includes(trip.status),
   });
 
   const statusMut = useMutation({
     mutationFn: (s: TaxiStatus) => updateTaxiBookingStatus(id, s),
-    onSuccess: () => {
+    onSuccess: (_data, status) => {
       qc.invalidateQueries({ queryKey: ["admin", "taxi-booking", id] });
       qc.invalidateQueries({ queryKey: ["admin", "taxi-bookings"] });
       if (driverId) qc.invalidateQueries({ queryKey: ["admin", "drivers", driverId] });
-      toast.success("Trip updated");
+      toast.success(
+        status === "confirmed" ? "Booking confirmed — guest has been emailed" : "Trip updated",
+      );
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Update failed"),
   });
@@ -69,7 +77,8 @@ function TaxiTripDetailPage() {
       qc.invalidateQueries({ queryKey: ["admin", "taxi-booking", id] });
       qc.invalidateQueries({ queryKey: ["admin", "taxi-bookings"] });
       qc.invalidateQueries({ queryKey: ["admin", "drivers"] });
-      toast.success("Driver assigned");
+      qc.invalidateQueries({ queryKey: ["admin", "drivers-available"] });
+      toast.success("Driver assigned — guest and driver have been notified");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Assign failed"),
   });
@@ -146,7 +155,61 @@ function TaxiTripDetailPage() {
             )}
           </div>
 
-          {(trip.status === "pending" || trip.status === "confirmed" || trip.status === "assigned") && (
+          {trip.status === "pending" && (
+            <div className="mt-5 space-y-3 rounded-xl border border-brand-orange/30 bg-brand-orange/5 p-4">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-brand-orange">
+                  Confirm booking
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Confirm this ride yourself, or assign a driver who is free for this hour. The guest
+                  is emailed either way; the driver is emailed and notified if you assign one.
+                </p>
+              </div>
+              <select
+                value={assignDriverId}
+                onChange={(e) => setAssignDriverId(e.target.value)}
+                className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm"
+              >
+                <option value="">Select an available driver (optional)…</option>
+                {(driversQ.data ?? [])
+                  .filter((d) => !trip.passengers || (d.passengerCapacity ?? 4) >= trip.passengers)
+                  .map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                      {d.vehicleLabel ? ` · ${d.vehicleLabel}` : ""}
+                      {d.passengerCapacity ? ` · ${d.passengerCapacity} seats` : ""}
+                    </option>
+                  ))}
+              </select>
+              {driversQ.isLoading && (
+                <p className="text-xs text-muted-foreground">Loading drivers free for this hour…</p>
+              )}
+              {!driversQ.isLoading && (driversQ.data ?? []).length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No drivers are free for this hour. You can still confirm, then assign later.
+                </p>
+              )}
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <ActionBtn
+                  onClick={() => {
+                    if (!assignDriverId) {
+                      toast.error("Select a driver first, or confirm without assigning");
+                      return;
+                    }
+                    assignMut.mutate(assignDriverId);
+                  }}
+                >
+                  {assignMut.isPending ? "Assigning…" : "Confirm & assign driver"}
+                </ActionBtn>
+                <ActionBtn onClick={() => statusMut.mutate("confirmed")}>
+                  {statusMut.isPending ? "Confirming…" : "Confirm without assigning"}
+                </ActionBtn>
+              </div>
+            </div>
+          )}
+
+          {(trip.status === "confirmed" || trip.status === "assigned") && (
             <div className="mt-5 space-y-2 rounded-xl border border-slate-200 p-3">
               <div className="text-xs font-semibold uppercase tracking-wide text-brand-green">
                 {trip.driver ? "Reassign driver" : "Assign driver"}
@@ -157,12 +220,15 @@ function TaxiTripDetailPage() {
                 className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm"
               >
                 <option value="">Select available driver…</option>
-                {(driversQ.data ?? []).map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                    {d.vehicleLabel ? ` · ${d.vehicleLabel}` : ""}
-                  </option>
-                ))}
+                {(driversQ.data ?? [])
+                  .filter((d) => !trip.passengers || (d.passengerCapacity ?? 4) >= trip.passengers)
+                  .map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                      {d.vehicleLabel ? ` · ${d.vehicleLabel}` : ""}
+                      {d.passengerCapacity ? ` · ${d.passengerCapacity} seats` : ""}
+                    </option>
+                  ))}
               </select>
               <ActionBtn
                 onClick={() => {
@@ -179,9 +245,6 @@ function TaxiTripDetailPage() {
           )}
 
           <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {trip.status === "pending" && (
-              <ActionBtn onClick={() => statusMut.mutate("confirmed")}>Confirm</ActionBtn>
-            )}
             {trip.status === "assigned" && (
               <ActionBtn onClick={() => statusMut.mutate("en_route")}>Mark en route</ActionBtn>
             )}

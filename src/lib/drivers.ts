@@ -20,10 +20,18 @@ export async function listDrivers(): Promise<AdminDriver[]> {
   return result.items;
 }
 
-export async function listAvailableDrivers(): Promise<AdminDriver[]> {
-  const result = await apiRequest<{ items: AdminDriver[] }>("/admin/drivers/available", {
-    auth: true,
-  });
+export async function listAvailableDrivers(slot?: {
+  pickupDate?: string;
+  pickupTime?: string;
+}): Promise<AdminDriver[]> {
+  const params = new URLSearchParams();
+  if (slot?.pickupDate) params.set("pickupDate", slot.pickupDate);
+  if (slot?.pickupTime) params.set("pickupTime", slot.pickupTime);
+  const qs = params.toString();
+  const result = await apiRequest<{ items: AdminDriver[] }>(
+    `/admin/drivers/available${qs ? `?${qs}` : ""}`,
+    { auth: true },
+  );
   return result.items;
 }
 

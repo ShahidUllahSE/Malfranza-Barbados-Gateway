@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import taxiHero from "@/assets/ChatGPT Image Jul 2, 2026, 10_48_48 PM.png";
 import { PlacesAutocompleteInput, TaxiRouteMap, type LatLng } from "@/components/maps/PlacesAutocompleteInput";
+import { VehicleOfferCard } from "@/components/taxi/VehicleOfferCard";
 import {
   calculateGuestTaxiFare,
   createTaxiBooking,
@@ -142,16 +143,7 @@ function TaxiPage() {
         passengers: form.passengers,
         pickupDate: form.date || undefined,
         pickupTime: form.time || undefined,
-        pickupLocation: pickup,
-        dropoffLocation: dropoff,
       })
-        .catch(() =>
-          fetchTaxiVehicles({
-            passengers: form.passengers,
-            pickupDate: form.date || undefined,
-            pickupTime: form.time || undefined,
-          }),
-        )
         .then((result) => {
           if (cancelled) return;
           setVehicleResult(result);
@@ -225,20 +217,24 @@ function TaxiPage() {
         customerPhone: form.phone,
         driverId: selectedVehicle.id,
       });
+      setConfirmation(result);
+      if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
       if (result.token) {
         clearAdminToken();
         clearDriverToken();
         setUserToken(result.token);
-        await refreshSession().catch(() => undefined);
+        void refreshSession().catch(() => undefined);
       }
       if (result.accountCreated) {
         toast.success("Account created — check your email for a temporary password.");
       }
-      setConfirmation(result);
-      if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       console.error(err);
       const message = err instanceof Error ? err.message : "Couldn't submit your ride request. Please try again.";
+      if (/unable to calculate a route|those locations/i.test(message)) {
+        setError("Couldn't complete booking. Please try again.");
+        return;
+      }
       setError(message);
     } finally {
       setSubmitting(false);
@@ -246,21 +242,14 @@ function TaxiPage() {
   };
 
   if (confirmation) {
-    const etaMins = confirmation.durationMinutes ?? 25;
-    const driver = confirmation.driver;
-
     return (
       <div className="mx-auto max-w-2xl px-4 sm:px-6 py-20 text-center">
         <div className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-brand-cream">
           <CheckCircle2 className="h-7 w-7 text-brand-green" />
         </div>
-        <h1 className="mt-6 text-3xl font-bold">
-          {driver ? "Your driver is assigned" : "Ride request received"}
-        </h1>
+        <h1 className="mt-6 text-3xl font-bold">Ride request received</h1>
         <p className="mt-3 text-muted-foreground">
-          {driver
-            ? `Thanks, ${form.name} — your ride is confirmed and a driver is on the schedule.`
-            : `Thanks, ${form.name} — we're matching a free driver now. Details will show in My Bookings once assigned.`}
+          Thanks, {form.name} — your taxi booking is pending confirmation. We’ll email you when it’s confirmed.
         </p>
         <div className="mt-4 inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full bg-brand-cream px-4 py-3 sm:px-5">
           <span className="text-sm text-muted-foreground">Booking reference</span>
@@ -269,47 +258,16 @@ function TaxiPage() {
           </span>
         </div>
 
-        {driver ? (
-          <div className="mt-8 rounded-2xl border border-brand-sage/40 bg-brand-cream/40 p-6 text-left shadow-card">
-            <h2 className="text-lg font-bold text-brand-green">Your driver & vehicle</h2>
-            <dl className="mt-4 grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
-              <SummaryItem label="Driver" value={driver.name} />
-              <SummaryItem label="Phone" value={driver.phone || "—"} />
-              <SummaryItem
-                label="Vehicle"
-                value={
-                  driver.vehicleLabel
-                    ? `${driver.vehicleLabel}${driver.passengerCapacity ? ` · ${driver.passengerCapacity} seats` : ""}`
-                    : "Malfranza taxi"
-                }
-              />
-              <SummaryItem
-                label="Approx. trip time"
-                value={`~${etaMins} min`}
-              />
-            </dl>
-            {confirmation.vehicleUpgraded ? (
-              <p className="mt-4 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
-                Your smaller vehicle was busy, so we upgraded you to the larger van at no extra cost.
-              </p>
-            ) : null}
-            <p className="mt-4 rounded-xl bg-white/80 px-3 py-2 text-sm text-brand-charcoal">
-              Pickup is scheduled for <strong>{form.time}</strong> on <strong>{form.date}</strong>.
-              Expect about <strong>~{etaMins} minutes</strong> travel time for this route.
-            </p>
-          </div>
-        ) : (
-          <div className="mt-8 rounded-2xl border border-border p-6 text-left shadow-card">
-            <h2 className="text-lg font-bold text-brand-green">Matching a driver</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              No free driver was available instantly. As soon as one is free, they'll be auto-assigned
-              and you'll see their name and vehicle under My Bookings.
-            </p>
-            <p className="mt-3 text-sm text-brand-charcoal">
-              Estimated trip time once underway: <strong>~{etaMins} min</strong>
-            </p>
-          </div>
-        )}
+        <div className="mt-8 rounded-2xl border border-border p-6 text-left shadow-card">
+          <h2 className="text-lg font-bold text-brand-green">Awaiting confirmation</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Malfranza will confirm your booking shortly. You’ll get an email and a notification when it’s confirmed.
+            Driver details are shared only after a driver is assigned.
+          </p>
+          <p className="mt-3 text-sm text-brand-charcoal">
+            Pickup is scheduled for <strong>{form.time}</strong> on <strong>{form.date}</strong>.
+          </p>
+        </div>
 
         <div className="mt-6 rounded-2xl border border-border p-6 text-left shadow-card">
           <h2 className="text-lg font-bold text-brand-green">Ride summary</h2>
@@ -815,112 +773,6 @@ function fmtRideDate(iso: string) {
   } catch {
     return iso;
   }
-}
-
-function VehicleOfferCard({
-  vehicle,
-  currency,
-  passengers,
-  selected,
-  onSelect,
-}: {
-  vehicle: PublicTaxiVehicle;
-  currency: string;
-  passengers: number;
-  selected: boolean;
-  onSelect: () => void;
-}) {
-  const booked = !vehicle.isAvailable;
-  const selectable = vehicle.isAvailable && vehicle.fitsParty;
-  const slots = vehicle.bookedSlots ?? [];
-  const status = !vehicle.fitsParty
-    ? "Too small for your party"
-    : booked
-      ? "Booked"
-      : "Available now";
-
-  return (
-    <article
-      className={`rounded-2xl border bg-white p-4 shadow-card sm:p-5 ${
-        selected
-          ? "border-brand-orange ring-2 ring-brand-orange/30"
-          : "border-border"
-      } ${booked ? "opacity-90" : ""}`}
-    >
-      <div className="flex items-start gap-4">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-brand-cream text-brand-green sm:h-16 sm:w-16">
-          <Car className="h-7 w-7 sm:h-8 sm:w-8" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="font-bold text-brand-charcoal">{vehicle.vehicleLabel}</p>
-            <span
-              className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-                booked
-                  ? "bg-brand-charcoal text-white"
-                  : selectable
-                    ? "bg-emerald-100 text-emerald-800"
-                    : "bg-slate-200 text-slate-700"
-              }`}
-            >
-              {status}
-            </span>
-          </div>
-          <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Users className="h-3.5 w-3.5" />
-            Up to {vehicle.passengerCapacity} passengers
-          </p>
-
-          {slots.length > 0 && (
-            <div className="mt-3 space-y-1.5">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Booked slots
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {slots.slice(0, 4).map((slot) => (
-                  <span
-                    key={`${slot.date}-${slot.time}`}
-                    className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-900"
-                  >
-                    {fmtRideDate(slot.date)} · {slot.time}
-                  </span>
-                ))}
-                {slots.length > 4 && (
-                  <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
-                    +{slots.length - 4} more
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-        <div className="shrink-0 text-right">
-          <p className="text-xl font-bold text-brand-green sm:text-2xl">
-            ${Number(vehicle.fare).toFixed(0)}
-          </p>
-          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            {currency} · {passengers} guest{passengers === 1 ? "" : "s"}
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-4">
-        {booked || !selectable ? (
-          <span className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-slate-200 text-sm font-semibold text-slate-600">
-            {booked ? "Booked" : "Unavailable"}
-          </span>
-        ) : (
-          <button
-            type="button"
-            onClick={onSelect}
-            className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-brand-orange text-sm font-semibold text-white shadow-sm transition-all hover:brightness-110"
-          >
-            {selected ? "Selected" : "Select van"}
-          </button>
-        )}
-      </div>
-    </article>
-  );
 }
 
 function ChooseFromMapButton({

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Logo } from "./Logo";
 import { useUserAuth } from "@/context/UserAuthContext";
+import { UserNotificationBell } from "@/components/UserNotificationBell";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -109,6 +110,7 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex shrink-0 items-center gap-3 sm:gap-4">
+          {user ? <UserNotificationBell /> : null}
           {signedIn ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

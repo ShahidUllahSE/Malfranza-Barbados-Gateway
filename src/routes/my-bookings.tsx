@@ -331,8 +331,14 @@ function MyBookingsPage() {
             <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-card">
               <div className="divide-y divide-slate-100 md:hidden">
                 {taxiTrips.map((trip) => {
+                  const showDriver =
+                    trip.status === "assigned" ||
+                    trip.status === "en_route" ||
+                    trip.status === "completed";
                   const driver =
-                    trip.driverId && typeof trip.driverId === "object" ? trip.driverId : null;
+                    showDriver && trip.driverId && typeof trip.driverId === "object"
+                      ? trip.driverId
+                      : null;
                   return (
                     <div key={trip.bookingReference} className="p-4">
                       <div className="flex items-start justify-between gap-2">
@@ -379,8 +385,12 @@ function MyBookingsPage() {
                   </thead>
                   <tbody>
                     {taxiTrips.map((trip) => {
+                      const showDriver =
+                        trip.status === "assigned" ||
+                        trip.status === "en_route" ||
+                        trip.status === "completed";
                       const driver =
-                        trip.driverId && typeof trip.driverId === "object"
+                        showDriver && trip.driverId && typeof trip.driverId === "object"
                           ? trip.driverId
                           : null;
                       return (

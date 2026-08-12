@@ -27,8 +27,12 @@ import {
   createApartmentBooking,
   createTaxiBooking,
   fetchTaxiFareSettings,
+  fetchTaxiVehicles,
   guestFareFromSettings,
+  type PublicTaxiVehicle,
+  type PublicTaxiVehiclesResult,
 } from "@/lib/bookings";
+import { VehicleOfferCard } from "@/components/taxi/VehicleOfferCard";
 import { registerAtCheckout } from "@/lib/user";
 import { capturePayPalOrder, createPayPalOrder } from "@/lib/paypal";
 import { PayPalButtons, PayPalScriptProvider } from "@paypal/react-paypal-js";
@@ -170,6 +174,9 @@ function BookWizard() {
   const [taxiFlight, setTaxiFlight] = useState("");
   const [taxiPassengers, setTaxiPassengers] = useState(2);
   const [airportPickupFare, setAirportPickupFare] = useState(30);
+  const [taxiVehicles, setTaxiVehicles] = useState<PublicTaxiVehiclesResult | null>(null);
+  const [taxiSearching, setTaxiSearching] = useState(false);
+  const [selectedTaxiVehicle, setSelectedTaxiVehicle] = useState<PublicTaxiVehicle | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -186,6 +193,42 @@ function BookWizard() {
       cancelled = true;
     };
   }, [taxiPassengers]);
+
+  useEffect(() => {
+    if (!taxiOn || !taxiDate || !taxiTime) {
+      setTaxiVehicles(null);
+      setSelectedTaxiVehicle(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      setTaxiSearching(true);
+      fetchTaxiVehicles({
+        passengers: taxiPassengers,
+        pickupDate: taxiDate,
+        pickupTime: taxiTime,
+      })
+        .then((result) => {
+          if (cancelled) return;
+          setTaxiVehicles(result);
+          setSelectedTaxiVehicle((current) => {
+            if (!current) return null;
+            const next = result.vehicles.find((v) => v.id === current.id);
+            return next?.isAvailable && next.fitsParty ? next : null;
+          });
+        })
+        .catch(() => {
+          if (!cancelled) setTaxiVehicles(null);
+        })
+        .finally(() => {
+          if (!cancelled) setTaxiSearching(false);
+        });
+    }, 300);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [taxiOn, taxiDate, taxiTime, taxiPassengers]);
 
   // Guest details + checkout path (guest | create account)
   const [checkoutPath, setCheckoutPath] = useState<"guest" | "account">("guest");
@@ -264,7 +307,9 @@ function BookWizard() {
       ? averageNightly(pricedType, checkIn, checkOut)
       : catalogFromRate(pricedType);
 
-  const pickupFee = taxiOn ? airportPickupFare : 0;
+  const pickupFee = taxiOn
+    ? Number(selectedTaxiVehicle?.fare ?? taxiVehicles?.fare ?? airportPickupFare)
+    : 0;
   const bundleDiscount = taxiOn ? Math.round(roomTotal * 0.05) : 0;
   const total = Math.max(0, roomTotal + pickupFee - bundleDiscount);
 
@@ -408,7 +453,7 @@ function BookWizard() {
     if (step === 2) {
       if (!apartmentId || !selectedApt) return false;
       if (selectedApt.units.length > 0 && selectedUnits.length === 0) return false;
-      return !taxiOn || (!!taxiDate && !!taxiTime && taxiPassengers >= 1);
+      return !taxiOn || (!!taxiDate && !!taxiTime && taxiPassengers >= 1 && !!selectedTaxiVehicle);
     }
     if (step === 3) {
       const basics =
@@ -429,12 +474,17 @@ function BookWizard() {
   }, [
     step, nights, guests, apartmentId, selectedUnits, selectedApt, selectionUnavailable,
     checkingAvail, roomLocked,
-    taxiOn, taxiDate, taxiTime, taxiPassengers, fullName, email, phone,
+    taxiOn, taxiDate, taxiTime, taxiPassengers, selectedTaxiVehicle, fullName, email, phone,
     user, checkoutPath, password, confirmPassword,
   ]);
 
   const goNext = async () => {
     if (!canContinue) return;
+
+    if (step === 2 && taxiOn && !selectedTaxiVehicle) {
+      toastError("Select an available van, or continue without pickup.");
+      return;
+    }
 
     if (step === 3 && checkoutPath === "account" && !user) {
       if (password.length < 8) {
@@ -551,6 +601,7 @@ function BookWizard() {
             customerEmail: email.trim(),
             customerPhone: phone.trim(),
             notes: `Bundled with stay ${ref}${taxiFlight ? ` · Flight ${taxiFlight}` : ""}`,
+            driverId: selectedTaxiVehicle?.id,
           });
           taxiRef = taxi.bookingReference;
           taxiDriverName = taxi.driver?.name;
@@ -787,7 +838,10 @@ function BookWizard() {
             {step === 2 && (
               <StepTaxi
                 taxiOn={taxiOn}
-                setTaxiOn={setTaxiOn}
+                setTaxiOn={(on) => {
+                  setTaxiOn(on);
+                  if (!on) setSelectedTaxiVehicle(null);
+                }}
                 taxiDate={taxiDate}
                 setTaxiDate={setTaxiDate}
                 taxiTime={taxiTime}
@@ -797,8 +851,13 @@ function BookWizard() {
                 taxiPassengers={taxiPassengers}
                 setTaxiPassengers={setTaxiPassengers}
                 pickupFee={pickupFee}
+                vehicles={taxiVehicles}
+                searching={taxiSearching}
+                selectedVehicle={selectedTaxiVehicle}
+                onSelectVehicle={setSelectedTaxiVehicle}
                 onSkipPickup={() => {
                   setTaxiOn(false);
+                  setSelectedTaxiVehicle(null);
                   setStep((s) => Math.min(STEPS.length - 1, s + 1));
                 }}
               />
@@ -1257,12 +1316,16 @@ function StepTaxi(props: {
   taxiFlight: string; setTaxiFlight: (v: string) => void;
   taxiPassengers: number; setTaxiPassengers: (n: number) => void;
   pickupFee: number;
+  vehicles: PublicTaxiVehiclesResult | null;
+  searching: boolean;
+  selectedVehicle: PublicTaxiVehicle | null;
+  onSelectVehicle: (vehicle: PublicTaxiVehicle) => void;
   onSkipPickup: () => void;
 }) {
   const {
     taxiOn, setTaxiOn, taxiDate, setTaxiDate, taxiTime, setTaxiTime,
     taxiFlight, setTaxiFlight, taxiPassengers, setTaxiPassengers, pickupFee,
-    onSkipPickup,
+    vehicles, searching, selectedVehicle, onSelectVehicle, onSkipPickup,
   } = props;
   return (
     <div>
@@ -1311,7 +1374,9 @@ function StepTaxi(props: {
                 <Field label="Passengers">
                   <select value={taxiPassengers} onChange={(e) => setTaxiPassengers(Number(e.target.value))}
                     className="mt-1 w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-green">
-                    {[1,2,3,4,5,6].map((n) => <option key={n} value={n}>{n}</option>)}
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
                   </select>
                 </Field>
               </div>
@@ -1319,6 +1384,44 @@ function StepTaxi(props: {
           </div>
         </div>
       </div>
+
+      {taxiOn && taxiDate && taxiTime && (
+        <div className="mt-5 space-y-3">
+          <div>
+            <h3 className="text-base font-bold text-brand-charcoal">Choose a vehicle</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Same as Taxi Service — a booked van is held for 1 hour, then it can be booked again.
+            </p>
+          </div>
+          {searching && (
+            <p className="text-sm text-muted-foreground">Loading available vans…</p>
+          )}
+          {!searching && vehicles && vehicles.vehicles.length === 0 && (
+            <p className="rounded-2xl border border-border bg-white p-4 text-sm text-muted-foreground">
+              No vehicles fit this party size. Try fewer passengers, or continue without pickup.
+            </p>
+          )}
+          {!searching && vehicles && vehicles.vehicles.length > 0 && (
+            <div className="space-y-3">
+              {vehicles.vehicles.map((vehicle) => (
+                <VehicleOfferCard
+                  key={vehicle.id}
+                  vehicle={vehicle}
+                  currency={vehicles.currency}
+                  passengers={taxiPassengers}
+                  selected={selectedVehicle?.id === vehicle.id}
+                  onSelect={() => {
+                    if (vehicle.isAvailable && vehicle.fitsParty) onSelectVehicle(vehicle);
+                  }}
+                />
+              ))}
+            </div>
+          )}
+          {taxiOn && !selectedVehicle && !searching && vehicles && vehicles.vehicles.some((v) => v.isAvailable) && (
+            <p className="text-sm text-brand-orange">Select an available van to continue.</p>
+          )}
+        </div>
+      )}
 
       <button
         type="button"
