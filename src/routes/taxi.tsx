@@ -715,13 +715,14 @@ function TaxiPage() {
                           label: "paypal",
                           tagline: false,
                         }}
-                        disabled={submitting}
+                        disabled={submitting || rideFare < 0.5}
+                        forceReRender={[rideFare, termsAccepted, form.passengers]}
                         createOrder={async () => {
                           try {
                             const order = await createPayPalOrder({
                               amount: rideFare,
                               currency: "USD",
-                              description: `Malfranza airport transfer · ${form.passengers} guest(s)`,
+                              description: "Malfranza stay — guest booking",
                             });
                             return order.orderId;
                           } catch (e) {
