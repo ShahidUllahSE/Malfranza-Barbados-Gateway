@@ -14,7 +14,7 @@ import stayGarden from "@/assets/rooms/apartment-1_tropical-escape/tropical-esca
 import stayTropical from "@/assets/rooms/apartment-3_palm-retreat/palm-retreat-01.jpg";
 import stay1br from "@/assets/rooms/apartment-2_island-breeze/island-breeze-01.jpg";
 import taxiVan from "@/assets/ChatGPT Image Jul 2, 2026, 10_48_48 PM.png";
-import locationBanner from "@/assets/rooms/apartment-4_golden-serenity/golden-serenity-01.jpg";
+import locationBanner from "@/assets/newimage/Malfranza Apartment Number 1-3.jpg";
 import { PlacesAutocompleteInput } from "@/components/maps/PlacesAutocompleteInput";
 
 const homeSearchSchema = z.object({
