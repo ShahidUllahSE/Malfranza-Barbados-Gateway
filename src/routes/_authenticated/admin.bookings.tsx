@@ -2,10 +2,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { CalendarRange, Search, X } from "lucide-react";
+import { CalendarRange, Plus, Search, X } from "lucide-react";
 import {
+  createAdminStayBooking,
+  listAllApartments,
   listApartmentBookings,
   updateApartmentBookingStatus,
+  type ApartmentUnitInput,
   type AptBookingStatus,
 } from "@/lib/admin";
 import { formatShortStayRange } from "@/lib/occupancy";
@@ -45,6 +48,7 @@ function BookingsPage() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const mut = useMutation({
     mutationFn: ({ id, s }: { id: string; s: AptBookingStatus }) => updateApartmentBookingStatus(id, s),
@@ -89,13 +93,23 @@ function BookingsPage() {
     <div className="space-y-5">
       <AdminPageHeader
         title="Bookings"
-        description="Manage apartment stays, payments, and guest check-ins."
+        description="Manage apartment stays, payments, and guest check-ins. Add walk-in or phone bookings here."
         meta={
-          !q.isLoading && (
-            <div className="rounded-full bg-white px-3.5 py-1.5 text-xs font-semibold text-brand-green ring-1 ring-brand-sage/30 shadow-sm">
-              {rows.length} shown · {all.length} total
-            </div>
-          )
+          <div className="flex flex-wrap items-center gap-2">
+            {!q.isLoading && (
+              <div className="rounded-full bg-white px-3.5 py-1.5 text-xs font-semibold text-brand-green ring-1 ring-brand-sage/30 shadow-sm">
+                {rows.length} shown · {all.length} total
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setCreateOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-brand-green px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90"
+            >
+              <Plus className="h-4 w-4" />
+              Add booking
+            </button>
+          </div>
         }
       />
 
@@ -421,6 +435,56 @@ function BookingsPage() {
               )}
             </section>
 
+            {(openBooking.status === "cancelled" ||
+              Number((openBooking as any).refund_percent) > 0 ||
+              (openBooking as any).refund_payout) && (
+              <section className="rounded-xl border border-rose-200 bg-rose-50/70 p-4 space-y-3">
+                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-rose-800">
+                  Guest cancellation
+                </h3>
+                {(openBooking as any).cancelled_by && (
+                  <Field label="Cancelled by">{String((openBooking as any).cancelled_by)}</Field>
+                )}
+                <Field label="Refund policy">
+                  {Number((openBooking as any).refund_percent) > 0
+                    ? `50% · $${Number((openBooking as any).refund_amount ?? 0).toFixed(2)} · ${
+                        (openBooking as any).refund_status || "eligible"
+                      }`
+                    : "No refund (within 7 days or unpaid)"}
+                </Field>
+                {(openBooking as any).cancellation_reason && (
+                  <Field label="Reason">{(openBooking as any).cancellation_reason}</Field>
+                )}
+                {(openBooking as any).refund_payout && (
+                  <>
+                    <Field label="Payout method">
+                      {String((openBooking as any).refund_payout.method ?? "—")}
+                    </Field>
+                    <Field label="Account name">
+                      {(openBooking as any).refund_payout.accountName || "—"}
+                    </Field>
+                    {(openBooking as any).refund_payout.paypalEmail && (
+                      <Field label="PayPal email">{(openBooking as any).refund_payout.paypalEmail}</Field>
+                    )}
+                    {(openBooking as any).refund_payout.bankName && (
+                      <Field label="Bank">{(openBooking as any).refund_payout.bankName}</Field>
+                    )}
+                    {(openBooking as any).refund_payout.accountNumber && (
+                      <Field label="Account no.">{(openBooking as any).refund_payout.accountNumber}</Field>
+                    )}
+                    {(openBooking as any).refund_payout.routingOrSortCode && (
+                      <Field label="Routing / sort">
+                        {(openBooking as any).refund_payout.routingOrSortCode}
+                      </Field>
+                    )}
+                    {(openBooking as any).refund_payout.notes && (
+                      <Field label="Payout notes">{(openBooking as any).refund_payout.notes}</Field>
+                    )}
+                  </>
+                )}
+              </section>
+            )}
+
             {(openBooking as any).taxi_addon && (
               <section className="rounded-xl border border-brand-sage/40 bg-brand-cream/40 p-4 space-y-3">
                 <h3 className="text-[11px] font-semibold uppercase tracking-wider text-brand-green">
@@ -469,9 +533,244 @@ function BookingsPage() {
           </div>
         </Drawer>
       )}
+
+      {createOpen && (
+        <Drawer wide onClose={() => setCreateOpen(false)}>
+          <OfflineStayForm
+            onClose={() => setCreateOpen(false)}
+            onCreated={() => {
+              setCreateOpen(false);
+              qc.invalidateQueries({ queryKey: ["admin", "apt-bookings"] });
+            }}
+          />
+        </Drawer>
+      )}
     </div>
   );
 }
+
+function todayIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function addDaysIso(iso: string, days: number) {
+  const d = new Date(`${iso}T12:00:00`);
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function OfflineStayForm({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const apartmentsQ = useQuery({ queryKey: ["admin", "apartments-all"], queryFn: listAllApartments });
+  const apartments = (apartmentsQ.data ?? []).filter((a) => a.is_active);
+  const [apartmentId, setApartmentId] = useState("");
+  const [unitId, setUnitId] = useState("");
+  const [checkIn, setCheckIn] = useState(todayIso);
+  const [checkOut, setCheckOut] = useState(() => addDaysIso(todayIso(), 1));
+  const [guests, setGuests] = useState(2);
+  const [guestName, setGuestName] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
+  const [specialRequests, setSpecialRequests] = useState("");
+  const [agencyCode, setAgencyCode] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState<"unpaid" | "paid">("unpaid");
+  const [status, setStatus] = useState<"pending" | "confirmed">("confirmed");
+  const [notifyGuest, setNotifyGuest] = useState(true);
+
+  const apartment = apartments.find((a) => a.id === apartmentId);
+  const units = (apartment?.units ?? []).filter((u: ApartmentUnitInput) => u.isActive);
+
+  const mut = useMutation({
+    mutationFn: () => {
+      if (!apartmentId) throw new Error("Select an apartment");
+      if (units.length > 0 && !unitId) throw new Error("Select a unit");
+      if (!guestName.trim() || !guestEmail.trim() || !guestPhone.trim()) {
+        throw new Error("Guest name, email, and phone are required");
+      }
+      if (checkOut <= checkIn) throw new Error("Check-out must be after check-in");
+      return createAdminStayBooking({
+        apartmentId,
+        unitId: unitId || undefined,
+        unitIds: unitId ? [unitId] : undefined,
+        checkIn,
+        checkOut,
+        guestName: guestName.trim(),
+        guestEmail: guestEmail.trim(),
+        guestPhone: guestPhone.trim(),
+        guests,
+        specialRequests: specialRequests.trim() || undefined,
+        agencyCode: agencyCode.trim() || undefined,
+        paymentStatus,
+        paymentReference: paymentStatus === "paid" ? "OFFLINE" : undefined,
+        status,
+        notifyGuest,
+      });
+    },
+    onSuccess: () => {
+      toast.success("Offline booking added");
+      onCreated();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not add booking"),
+  });
+
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        mut.mutate();
+      }}
+    >
+      <div>
+        <h2 className="font-display text-xl font-bold text-brand-charcoal">Add offline booking</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Record a walk-in or phone stay. Dates are locked like an online booking.
+        </p>
+      </div>
+
+      <label className="block space-y-1">
+        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Apartment</span>
+        <select
+          required
+          value={apartmentId}
+          onChange={(e) => {
+            setApartmentId(e.target.value);
+            setUnitId("");
+          }}
+          className={inputClass}
+        >
+          <option value="">Select apartment…</option>
+          {apartments.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {units.length > 0 && (
+        <label className="block space-y-1">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            {apartment?.units_exclusive ? "Configuration" : "Unit"}
+          </span>
+          <select required value={unitId} onChange={(e) => setUnitId(e.target.value)} className={inputClass}>
+            <option value="">Select…</option>
+            {units.map((u: ApartmentUnitInput) => (
+              <option key={u._id} value={u._id}>
+                {u.name} · {u.bedrooms} BR · max {u.maxGuests}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+
+      <div className="grid grid-cols-2 gap-3">
+        <label className="block space-y-1">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Check-in</span>
+          <input type="date" required value={checkIn} onChange={(e) => setCheckIn(e.target.value)} className={inputClass} />
+        </label>
+        <label className="block space-y-1">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Check-out</span>
+          <input type="date" required value={checkOut} onChange={(e) => setCheckOut(e.target.value)} className={inputClass} />
+        </label>
+      </div>
+
+      <label className="block space-y-1">
+        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Guests</span>
+        <input
+          type="number"
+          min={1}
+          max={apartment?.max_guests ?? 20}
+          required
+          value={guests}
+          onChange={(e) => setGuests(Number(e.target.value) || 1)}
+          className={inputClass}
+        />
+      </label>
+
+      <label className="block space-y-1">
+        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Guest name</span>
+        <input required value={guestName} onChange={(e) => setGuestName(e.target.value)} className={inputClass} />
+      </label>
+      <label className="block space-y-1">
+        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Email</span>
+        <input type="email" required value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} className={inputClass} />
+      </label>
+      <label className="block space-y-1">
+        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Phone</span>
+        <input required value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} className={inputClass} />
+      </label>
+      <label className="block space-y-1">
+        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Special requests</span>
+        <textarea
+          rows={3}
+          value={specialRequests}
+          onChange={(e) => setSpecialRequests(e.target.value)}
+          className={`${inputClass} h-auto py-2`}
+        />
+      </label>
+      <label className="block space-y-1">
+        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Agency code (optional)</span>
+        <input
+          value={agencyCode}
+          onChange={(e) => setAgencyCode(e.target.value.toUpperCase())}
+          placeholder="AG-XXXXXXXX"
+          className={inputClass}
+        />
+      </label>
+
+      <div className="grid grid-cols-2 gap-3">
+        <label className="block space-y-1">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Payment</span>
+          <select
+            value={paymentStatus}
+            onChange={(e) => setPaymentStatus(e.target.value as "unpaid" | "paid")}
+            className={inputClass}
+          >
+            <option value="unpaid">Unpaid</option>
+            <option value="paid">Paid offline</option>
+          </select>
+        </label>
+        <label className="block space-y-1">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Status</span>
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value as "pending" | "confirmed")}
+            className={inputClass}
+          >
+            <option value="confirmed">Confirmed</option>
+            <option value="pending">Pending</option>
+          </select>
+        </label>
+      </div>
+
+      <label className="flex items-center gap-2 text-sm text-brand-charcoal">
+        <input type="checkbox" checked={notifyGuest} onChange={(e) => setNotifyGuest(e.target.checked)} />
+        Email guest confirmation (and login if new account)
+      </label>
+
+      <div className="grid grid-cols-2 gap-2 pt-2">
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-xl bg-slate-100 px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={mut.isPending}
+          className="rounded-xl bg-brand-green px-3 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 disabled:opacity-60"
+        >
+          {mut.isPending ? "Saving…" : "Add booking"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+const inputClass =
+  "h-11 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 text-sm outline-none transition focus:border-brand-green focus:bg-white focus:ring-2 focus:ring-brand-green/15";
 
 function RowLine({ label, value }: { label: string; value: string }) {
   return (
@@ -489,11 +788,23 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </div>
   );
 }
-export function Drawer({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+export function Drawer({
+  children,
+  onClose,
+  wide,
+}: {
+  children: React.ReactNode;
+  onClose: () => void;
+  wide?: boolean;
+}) {
   return (
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="absolute right-0 top-0 h-full w-full overflow-y-auto bg-white p-6 shadow-2xl sm:max-w-md">
+      <div
+        className={`absolute right-0 top-0 h-full w-full overflow-y-auto bg-white p-6 shadow-2xl ${
+          wide ? "sm:max-w-lg" : "sm:max-w-md"
+        }`}
+      >
         <button
           onClick={onClose}
           className="mb-5 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-muted-foreground transition hover:bg-brand-cream hover:text-brand-green"

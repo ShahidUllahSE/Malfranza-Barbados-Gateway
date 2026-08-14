@@ -14,6 +14,8 @@ import {
   Plane,
   AlertCircle,
   Users,
+  Ban,
+  CircleDollarSign,
 } from "lucide-react";
 import {
   listApartmentBookings,
@@ -69,6 +71,20 @@ function AdminDashboard() {
     const taxisToday = taxis.filter((t) => t.pickup_date === today && t.status !== "cancelled");
     const pendingTaxis = taxis.filter((t) => t.status === "pending" || t.status === "confirmed");
     const newEnquiries = enquiries.filter((e) => e.status === "new");
+    const cancelledStays = bookings.filter((b) => b.status === "cancelled");
+    const cancelledTaxis = taxis.filter((t) => t.status === "cancelled");
+    const cancellations = cancelledStays.length + cancelledTaxis.length;
+    const refundOpen = [
+      ...bookings.filter((b) =>
+        ["eligible", "requested", "reviewing"].includes(String((b as any).refund_status ?? "")),
+      ),
+      ...taxis.filter((t) =>
+        ["eligible", "requested", "reviewing"].includes(String((t as any).refund_status ?? "")),
+      ),
+    ];
+    const refundRequested = refundOpen.filter((item) =>
+      ["requested", "reviewing"].includes(String((item as any).refund_status ?? "")),
+    );
 
     const paidRevenue = activeBookings
       .filter((b) => b.payment_status === "paid")
@@ -93,6 +109,11 @@ function AdminDashboard() {
       taxisToday,
       pendingTaxis,
       newEnquiries,
+      cancellations,
+      cancelledStays: cancelledStays.length,
+      cancelledTaxis: cancelledTaxis.length,
+      refundOpen: refundOpen.length,
+      refundRequested: refundRequested.length,
       paidRevenue,
       monthRevenue,
       occupancy: occ.occupancy,
@@ -137,6 +158,7 @@ function AdminDashboard() {
             </div>
             <div className="flex flex-wrap gap-2">
               <QuickLink to="/admin/bookings" label="Bookings" />
+              <QuickLink to="/admin/refunds" label="Refunds" />
               <QuickLink to="/admin/taxi" label="Taxi" />
               <QuickLink to="/admin/enquiries" label="Enquiries" />
             </div>
@@ -217,6 +239,27 @@ function AdminDashboard() {
           hint="Needs a reply"
           tone="orange"
           to="/admin/insights/enquiries"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          loading={loading}
+          icon={Ban}
+          label="Cancellations"
+          value={stats.cancellations}
+          hint={`${stats.cancelledStays} stay · ${stats.cancelledTaxis} taxi`}
+          tone="orange"
+          to="/admin/bookings"
+        />
+        <StatCard
+          loading={loading}
+          icon={CircleDollarSign}
+          label="Refund requests"
+          value={stats.refundOpen}
+          hint={`${stats.refundRequested} awaiting payout action`}
+          tone="amber"
+          to="/admin/refunds"
         />
       </div>
 

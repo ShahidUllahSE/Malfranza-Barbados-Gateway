@@ -1,13 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Building2, CircleHelp, Plus, Percent, Search, Wallet } from "lucide-react";
 import {
   createTravelAgencyAdmin,
   fetchAdminAgencyCommission,
+  fetchAdminAgencySettings,
   listAdminAgencies,
   setAdminAgencyActive,
+  updateAdminAgencySettings,
 } from "@/lib/agency";
 import {
   AdminPageHeader,
@@ -36,10 +38,15 @@ const inputClass =
 function AdminAgenciesPage() {
   const qc = useQueryClient();
   const agenciesQ = useQuery({ queryKey: ["admin", "agencies"], queryFn: listAdminAgencies });
+  const settingsQ = useQuery({
+    queryKey: ["admin", "agency-settings"],
+    queryFn: fetchAdminAgencySettings,
+  });
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [commissionPercent, setCommissionPercent] = useState("10");
   const [form, setForm] = useState({
     agencyName: "",
     contactName: "",
@@ -57,6 +64,12 @@ function AdminAgenciesPage() {
       }),
   });
 
+  useEffect(() => {
+    if (settingsQ.data?.defaultCommissionPercent != null) {
+      setCommissionPercent(String(settingsQ.data.defaultCommissionPercent));
+    }
+  }, [settingsQ.data]);
+
   const toggle = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
       setAdminAgencyActive(id, isActive),
@@ -65,6 +78,27 @@ function AdminAgenciesPage() {
       toast.success("Agency updated");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Update failed"),
+  });
+
+  const saveRate = useMutation({
+    mutationFn: () => {
+      const pct = Number(commissionPercent);
+      if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+        throw new Error("Enter a commission between 0 and 100");
+      }
+      return updateAdminAgencySettings({
+        defaultCommissionPercent: pct,
+        applyToAllAgencies: true,
+      });
+    },
+    onSuccess: (data) => {
+      setCommissionPercent(String(data.defaultCommissionPercent));
+      qc.setQueryData(["admin", "agency-settings"], data);
+      qc.invalidateQueries({ queryKey: ["admin", "agencies"] });
+      qc.invalidateQueries({ queryKey: ["admin", "agency-commission"] });
+      toast.success(`Commission rate set to ${data.defaultCommissionPercent}% for all travel agents`);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save rate"),
   });
 
   const create = useMutation({
@@ -89,6 +123,9 @@ function AdminAgenciesPage() {
 
   const agencies = agenciesQ.data ?? [];
   const report = commissionQ.data;
+  const ratePercent =
+    settingsQ.data?.defaultCommissionPercent ??
+    Math.round((report?.commissionRate ?? 0.1) * 100);
 
   /** Commission figures for the selected period, keyed by agency code */
   const periodByCode = useMemo(() => {
@@ -262,11 +299,58 @@ function AdminAgenciesPage() {
               </li>
               <li>
                 That stay is linked to them and they earn{" "}
-                <span className="font-semibold text-brand-charcoal">10% of the room total</span>{" "}
+                <span className="font-semibold text-brand-charcoal">
+                  {ratePercent}% of the room total
+                </span>{" "}
                 (not taxi). You pay that commission later.
               </li>
             </ol>
           </div>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-border/70 bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold text-brand-charcoal">Travel agent commission</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Change the platform rate anytime. Saving updates all agents; new bookings use this %.
+              Past bookings keep the rate they were booked at.
+            </p>
+          </div>
+          <form
+            className="flex flex-wrap items-end gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              saveRate.mutate();
+            }}
+          >
+            <label className="block text-xs">
+              <span className="font-medium text-muted-foreground">Rate (%)</span>
+              <div className="relative mt-1">
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.5}
+                  required
+                  value={commissionPercent}
+                  onChange={(e) => setCommissionPercent(e.target.value)}
+                  className={`${inputClass} w-28 pr-7`}
+                />
+                <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                  %
+                </span>
+              </div>
+            </label>
+            <button
+              type="submit"
+              disabled={saveRate.isPending || settingsQ.isLoading}
+              className="h-9 rounded-lg bg-brand-green px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
+            >
+              {saveRate.isPending ? "Saving…" : "Save rate"}
+            </button>
+          </form>
         </div>
       </div>
 
@@ -281,7 +365,7 @@ function AdminAgenciesPage() {
         <StatCard
           icon={Percent}
           title="Commission rate"
-          value="10%"
+          value={`${ratePercent}%`}
           note="Of stay (room) amount only"
         />
         <StatCard
@@ -417,7 +501,7 @@ function AdminAgenciesPage() {
                   <AdminTh className="!py-2.5">
                     You owe them
                     <span className="mt-0.5 block normal-case tracking-normal text-[10px] font-normal text-muted-foreground">
-                      10% commission
+                      {ratePercent}% commission
                     </span>
                   </AdminTh>
                   <AdminTh className="!py-2.5">Status</AdminTh>

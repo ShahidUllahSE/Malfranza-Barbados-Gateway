@@ -6,14 +6,14 @@ import {
   CheckCircle2, ShieldCheck, Sparkles, ArrowRight,
 } from "lucide-react";
 import { APARTMENTS, fetchApartments, type Apartment } from "@/data/apartments";
-import heroImg from "@/assets/rooms/apartment-1_tropical-escape/tropical-escape-02.jpg";
+import heroImg from "@/assets/update images/Hero homepage (1).jpg";
 import stayKitchen from "@/assets/rooms/apartment-1_tropical-escape/tropical-escape-05.jpg";
 import stay2br from "@/assets/rooms/apartment-a-and-b_sunset-suite/sunset-suite-01-malfranza-a-and-b-9.jpg";
 import stayBathroom from "@/assets/rooms/apartment-2_island-breeze/island-breeze-06.jpg";
 import stayGarden from "@/assets/rooms/apartment-1_tropical-escape/tropical-escape-02.jpg";
 import stayTropical from "@/assets/rooms/apartment-3_palm-retreat/palm-retreat-01.jpg";
 import stay1br from "@/assets/rooms/apartment-2_island-breeze/island-breeze-01.jpg";
-import taxiVan from "@/assets/ChatGPT Image Jul 2, 2026, 10_48_48 PM.png";
+import taxiVan from "@/assets/update images/Vehicle Photo (1).jpg";
 import locationBanner from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_00 PM.png";
 import { PlacesAutocompleteInput } from "@/components/maps/PlacesAutocompleteInput";
 
@@ -602,7 +602,7 @@ function HomePage() {
                 </button>
                 <p className="flex items-center justify-center gap-1.5 text-xs text-white/60">
                   <CheckCircle2 className="h-3.5 w-3.5 text-brand-sage" />
-                  Free cancellation up to 12 hours
+                  Cancel 7+ days ahead for 50% refund
                 </p>
               </div>
             </div>

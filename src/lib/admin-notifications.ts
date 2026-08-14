@@ -4,7 +4,8 @@ export type AdminNotificationType =
   | "taxi_booking"
   | "stay_booking"
   | "enquiry"
-  | "agency_signup";
+  | "agency_signup"
+  | "refund_request";
 
 export type AdminNotification = {
   id: string;

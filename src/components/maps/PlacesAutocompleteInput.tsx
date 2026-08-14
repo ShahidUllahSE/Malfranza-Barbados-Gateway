@@ -299,6 +299,9 @@ export function PlacesAutocompleteInput({
   };
 
   const pick = (item: SuggestionItem) => {
+    // Keep the suggestion label the user clicked — Google's formattedAddress
+    // is often a different nearby street address (e.g. "Cosy Corner…" instead of
+    // "Malfranza Apartments…"). Coords still come from place details for routing.
     onChange(item.text);
     setOpen(false);
     setSuggestions([]);
@@ -309,19 +312,15 @@ export function PlacesAutocompleteInput({
           const place = item.prediction.toPlace?.() ?? item.prediction;
           if (place?.fetchFields) {
             await place.fetchFields({
-              fields: ["formattedAddress", "location", "displayName"],
+              fields: ["location", "displayName", "formattedAddress"],
             });
             const loc = place.location;
             const lat =
               typeof loc?.lat === "function" ? loc.lat() : typeof loc?.lat === "number" ? loc.lat : null;
             const lng =
               typeof loc?.lng === "function" ? loc.lng() : typeof loc?.lng === "number" ? loc.lng : null;
-            const address =
-              place.formattedAddress ||
-              place.displayName ||
-              item.text;
             onPlace?.({
-              address: String(address),
+              address: item.text,
               location: lat != null && lng != null ? { lat, lng } : null,
             });
             return;
@@ -332,7 +331,7 @@ export function PlacesAutocompleteInput({
           detailsServiceRef.current.getDetails(
             {
               placeId: item.id,
-              fields: ["formatted_address", "geometry", "name"],
+              fields: ["geometry", "name", "formatted_address"],
               sessionToken: sessionRef.current,
             },
             (result: any | null, status: string) => {
@@ -345,7 +344,7 @@ export function PlacesAutocompleteInput({
               }
               const loc = result.geometry?.location;
               onPlace({
-                address: String(result.formatted_address || result.name || item.text),
+                address: item.text,
                 location: loc ? { lat: loc.lat(), lng: loc.lng() } : null,
               });
             },

@@ -1,8 +1,16 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Search, X } from "lucide-react";
-import { listTaxiBookings, taxiHasAssignedDriver, type TaxiStatus } from "@/lib/admin";
+import { toast } from "sonner";
+import { Plus, Search, X } from "lucide-react";
+import {
+  createAdminTaxiBooking,
+  listTaxiBookings,
+  taxiHasAssignedDriver,
+  type TaxiStatus,
+} from "@/lib/admin";
+import { listDrivers } from "@/lib/drivers";
+import { Drawer } from "./admin.bookings";
 import {
   StatusPill,
   AdminTableShell,
@@ -31,11 +39,25 @@ const STATUSES: (TaxiStatus | "all")[] = [
   "cancelled",
 ];
 
+const TAXI_SERVICES = [
+  "Airport Pickup",
+  "Airport Drop-off",
+  "Point to Point",
+  "Hourly / Custom",
+] as const;
+
+function todayIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function TaxiPage() {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const q = useQuery({ queryKey: ["admin", "taxi-bookings"], queryFn: listTaxiBookings });
   const [status, setStatus] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
 
   const all = q.data ?? [];
 
@@ -71,13 +93,23 @@ function TaxiPage() {
     <div className="space-y-5">
       <AdminPageHeader
         title="Taxi Trips"
-        description="Open a trip for full details and driver progress. Free vehicles are assigned when available; you can reassign anytime."
+        description="Open a trip for full details and driver progress. Add walk-in or phone taxi bookings here."
         meta={
-          !q.isLoading && (
-            <div className="rounded-full bg-white px-3.5 py-1.5 text-xs font-semibold text-brand-green ring-1 ring-brand-sage/30 shadow-sm">
-              {rows.length} shown · {all.length} total
-            </div>
-          )
+          <div className="flex flex-wrap items-center gap-2">
+            {!q.isLoading && (
+              <div className="rounded-full bg-white px-3.5 py-1.5 text-xs font-semibold text-brand-green ring-1 ring-brand-sage/30 shadow-sm">
+                {rows.length} shown · {all.length} total
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setCreateOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-brand-green px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90"
+            >
+              <Plus className="h-4 w-4" />
+              Add trip
+            </button>
+          </div>
         }
       />
 
@@ -232,6 +264,215 @@ function TaxiPage() {
           </AdminTableShell>
         </AdminTableCard>
       )}
+
+      {createOpen && (
+        <Drawer wide onClose={() => setCreateOpen(false)}>
+          <OfflineTaxiForm
+            onClose={() => setCreateOpen(false)}
+            onCreated={() => {
+              setCreateOpen(false);
+              qc.invalidateQueries({ queryKey: ["admin", "taxi-bookings"] });
+            }}
+          />
+        </Drawer>
+      )}
     </div>
+  );
+}
+
+const inputClass =
+  "h-11 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 text-sm outline-none transition focus:border-brand-green focus:bg-white focus:ring-2 focus:ring-brand-green/15";
+
+function OfflineTaxiForm({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const driversQ = useQuery({ queryKey: ["admin", "drivers"], queryFn: listDrivers });
+  const drivers = (driversQ.data ?? []).filter((d) => d.isActive);
+  const [serviceType, setServiceType] = useState<(typeof TAXI_SERVICES)[number]>("Airport Pickup");
+  const [pickupLocation, setPickupLocation] = useState("");
+  const [dropoffLocation, setDropoffLocation] = useState("");
+  const [pickupDate, setPickupDate] = useState(todayIso);
+  const [pickupTime, setPickupTime] = useState("10:00");
+  const [passengers, setPassengers] = useState(2);
+  const [customerName, setCustomerName] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [notes, setNotes] = useState("");
+  const [driverId, setDriverId] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState<"unpaid" | "paid">("unpaid");
+  const [status, setStatus] = useState<"pending" | "confirmed">("confirmed");
+  const [notifyGuest, setNotifyGuest] = useState(true);
+
+  const mut = useMutation({
+    mutationFn: () => {
+      if (!customerName.trim() || !customerEmail.trim() || !customerPhone.trim()) {
+        throw new Error("Customer name, email, and phone are required");
+      }
+      if (!pickupLocation.trim() || !dropoffLocation.trim()) {
+        throw new Error("Pickup and drop-off are required");
+      }
+      return createAdminTaxiBooking({
+        serviceType,
+        pickupLocation: pickupLocation.trim(),
+        dropoffLocation: dropoffLocation.trim(),
+        pickupDate,
+        pickupTime: pickupTime.slice(0, 5),
+        passengers,
+        customerName: customerName.trim(),
+        customerEmail: customerEmail.trim(),
+        customerPhone: customerPhone.trim(),
+        notes: notes.trim() || undefined,
+        driverId: driverId || undefined,
+        paymentStatus,
+        paymentReference: paymentStatus === "paid" ? "OFFLINE" : undefined,
+        status,
+        notifyGuest,
+      });
+    },
+    onSuccess: () => {
+      toast.success("Offline taxi booking added");
+      onCreated();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not add trip"),
+  });
+
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        mut.mutate();
+      }}
+    >
+      <div>
+        <h2 className="font-display text-xl font-bold text-brand-charcoal">Add offline taxi trip</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Record a walk-in or phone taxi booking. Assign a driver now or later.
+        </p>
+      </div>
+
+      <label className="block space-y-1">
+        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Service</span>
+        <select
+          value={serviceType}
+          onChange={(e) => setServiceType(e.target.value as (typeof TAXI_SERVICES)[number])}
+          className={inputClass}
+        >
+          {TAXI_SERVICES.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="block space-y-1">
+        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Pickup</span>
+        <input required value={pickupLocation} onChange={(e) => setPickupLocation(e.target.value)} className={inputClass} />
+      </label>
+      <label className="block space-y-1">
+        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Drop-off</span>
+        <input required value={dropoffLocation} onChange={(e) => setDropoffLocation(e.target.value)} className={inputClass} />
+      </label>
+
+      <div className="grid grid-cols-2 gap-3">
+        <label className="block space-y-1">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Date</span>
+          <input type="date" required value={pickupDate} onChange={(e) => setPickupDate(e.target.value)} className={inputClass} />
+        </label>
+        <label className="block space-y-1">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Time</span>
+          <input type="time" required value={pickupTime} onChange={(e) => setPickupTime(e.target.value)} className={inputClass} />
+        </label>
+      </div>
+
+      <label className="block space-y-1">
+        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Passengers</span>
+        <input
+          type="number"
+          min={1}
+          max={14}
+          required
+          value={passengers}
+          onChange={(e) => setPassengers(Number(e.target.value) || 1)}
+          className={inputClass}
+        />
+      </label>
+
+      <label className="block space-y-1">
+        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Customer name</span>
+        <input required value={customerName} onChange={(e) => setCustomerName(e.target.value)} className={inputClass} />
+      </label>
+      <label className="block space-y-1">
+        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Email</span>
+        <input type="email" required value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} className={inputClass} />
+      </label>
+      <label className="block space-y-1">
+        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Phone</span>
+        <input required value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} className={inputClass} />
+      </label>
+      <label className="block space-y-1">
+        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Notes</span>
+        <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} className={`${inputClass} h-auto py-2`} />
+      </label>
+
+      <label className="block space-y-1">
+        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Driver (optional)</span>
+        <select value={driverId} onChange={(e) => setDriverId(e.target.value)} className={inputClass}>
+          <option value="">Assign later</option>
+          {drivers.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.name}
+              {d.vehicleLabel ? ` · ${d.vehicleLabel}` : ""}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <div className="grid grid-cols-2 gap-3">
+        <label className="block space-y-1">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Payment</span>
+          <select
+            value={paymentStatus}
+            onChange={(e) => setPaymentStatus(e.target.value as "unpaid" | "paid")}
+            className={inputClass}
+          >
+            <option value="unpaid">Unpaid</option>
+            <option value="paid">Paid offline</option>
+          </select>
+        </label>
+        <label className="block space-y-1">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Status</span>
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value as "pending" | "confirmed")}
+            className={inputClass}
+          >
+            <option value="confirmed">Confirmed</option>
+            <option value="pending">Pending</option>
+          </select>
+        </label>
+      </div>
+
+      <label className="flex items-center gap-2 text-sm text-brand-charcoal">
+        <input type="checkbox" checked={notifyGuest} onChange={(e) => setNotifyGuest(e.target.checked)} />
+        Email guest confirmation (and login if new account)
+      </label>
+
+      <div className="grid grid-cols-2 gap-2 pt-2">
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-xl bg-slate-100 px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={mut.isPending}
+          className="rounded-xl bg-brand-green px-3 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 disabled:opacity-60"
+        >
+          {mut.isPending ? "Saving…" : "Add trip"}
+        </button>
+      </div>
+    </form>
   );
 }

@@ -94,7 +94,7 @@ export function VehicleOfferCard({
         </div>
         <div className="shrink-0 text-right">
           <p className="text-xl font-bold text-brand-green sm:text-2xl">
-            ${Number(vehicle.fare).toFixed(0)}
+            ${Number(vehicle.fare).toFixed(2)}
           </p>
           <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             {currency} · {passengers} guest{passengers === 1 ? "" : "s"}

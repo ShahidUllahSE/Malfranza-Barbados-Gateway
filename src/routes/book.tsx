@@ -28,11 +28,11 @@ import {
   createTaxiBooking,
   fetchTaxiFareSettings,
   fetchTaxiVehicles,
-  guestFareFromSettings,
   type PublicTaxiVehicle,
   type PublicTaxiVehiclesResult,
 } from "@/lib/bookings";
 import { VehicleOfferCard } from "@/components/taxi/VehicleOfferCard";
+import { fetchAgencyCommissionRate } from "@/lib/agency";
 import { registerAtCheckout } from "@/lib/user";
 import { capturePayPalOrder, createPayPalOrder } from "@/lib/paypal";
 import { PayPalButtons, PayPalScriptProvider } from "@paypal/react-paypal-js";
@@ -40,6 +40,7 @@ import { APARTMENTS as SEEDED_APTS } from "@/data/apartments";
 import {
   averageNightly,
   catalogFromRate,
+  RATE_TABLE,
   roomTypeFromBedrooms,
   staySubtotal,
 } from "@/lib/pricing";
@@ -183,7 +184,7 @@ function BookWizard() {
     fetchTaxiFareSettings()
       .then((settings) => {
         if (!cancelled) {
-          setAirportPickupFare(guestFareFromSettings(settings, taxiPassengers));
+          setAirportPickupFare(settings.minimumFareUsd);
         }
       })
       .catch(() => {
@@ -192,7 +193,7 @@ function BookWizard() {
     return () => {
       cancelled = true;
     };
-  }, [taxiPassengers]);
+  }, []);
 
   useEffect(() => {
     if (!taxiOn || !taxiDate || !taxiTime) {
@@ -200,6 +201,8 @@ function BookWizard() {
       setSelectedTaxiVehicle(null);
       return;
     }
+    const dropoffName =
+      apartments.find((a) => a.id === apartmentId)?.name ?? "Malfranza Rentals";
     let cancelled = false;
     const timer = window.setTimeout(() => {
       setTaxiSearching(true);
@@ -207,6 +210,8 @@ function BookWizard() {
         passengers: taxiPassengers,
         pickupDate: taxiDate,
         pickupTime: taxiTime,
+        pickupLocation: "Grantley Adams International Airport (BGI), Barbados",
+        dropoffLocation: `${dropoffName}, Oistins, Barbados`,
       })
         .then((result) => {
           if (cancelled) return;
@@ -228,7 +233,7 @@ function BookWizard() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [taxiOn, taxiDate, taxiTime, taxiPassengers]);
+  }, [taxiOn, taxiDate, taxiTime, taxiPassengers, apartmentId, apartments]);
 
   // Guest details + checkout path (guest | create account)
   const [checkoutPath, setCheckoutPath] = useState<"guest" | "account">("guest");
@@ -240,6 +245,7 @@ function BookWizard() {
     if (typeof window === "undefined") return "";
     return localStorage.getItem("mfz.agencyBookingCode") ?? "";
   });
+  const [agencyCommissionPercent, setAgencyCommissionPercent] = useState(10);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [accountBusy, setAccountBusy] = useState(false);
@@ -255,6 +261,20 @@ function BookWizard() {
     setPassword("");
     setConfirmPassword("");
   }, [user]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchAgencyCommissionRate()
+      .then((s) => {
+        if (!cancelled) setAgencyCommissionPercent(s.defaultCommissionPercent);
+      })
+      .catch(() => {
+        /* keep 10% fallback */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Prefill agency code from signed-in travel agent or last-used local code.
   useEffect(() => {
@@ -657,7 +677,7 @@ function BookWizard() {
       } else if (booking.accountCreated) {
         toastSuccess(
           "Account details emailed",
-          `We sent your login email and a temporary password to ${guestEmail}. Check your inbox (and spam folder).`,
+          `We sent login details to ${guestEmail}. Check your inbox (and spam folder).`,
         );
       } else {
         toastSuccess(
@@ -777,7 +797,7 @@ function BookWizard() {
                 )}
                 {step === 4 && (
                   <p className="text-xs text-muted-foreground sm:text-right">
-                    Use the Pay button below to finish this demo booking.
+                    Use PayPal below to complete your booking.
                   </p>
                 )}
               </div>
@@ -877,6 +897,7 @@ function BookWizard() {
                 setRequests={setRequests}
                 agencyCode={agencyCode}
                 setAgencyCode={setAgencyCode}
+                agencyCommissionPercent={agencyCommissionPercent}
                 emailLocked={!!user}
                 signedIn={!!user}
                 signedInEmail={user?.email}
@@ -1100,7 +1121,8 @@ function StepRoom(props: {
         <div>
           <h2 className="text-xl font-bold text-brand-green">Pick your apartment</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Seasonal rates: 1-BR from $90 · 2-BR from $100 (peak higher).
+            Seasonal rates: 1-BR from ${RATE_TABLE["one-bedroom"].off} · 2-BR from $
+            {RATE_TABLE["two-bedroom"].off} (peak higher). All-in — PayPal fee included.
           </p>
         </div>
         {checkingAvail && (
@@ -1377,7 +1399,7 @@ function StepTaxi(props: {
                 <Field label="Passengers">
                   <select value={taxiPassengers} onChange={(e) => setTaxiPassengers(Number(e.target.value))}
                     className="mt-1 w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-green">
-                    {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+                    {Array.from({ length: 7 }, (_, i) => i + 1).map((n) => (
                       <option key={n} value={n}>{n}</option>
                     ))}
                   </select>
@@ -1450,6 +1472,7 @@ function StepDetails(props: {
   setRequests: (v: string) => void;
   agencyCode: string;
   setAgencyCode: (v: string) => void;
+  agencyCommissionPercent?: number;
   emailLocked?: boolean;
   signedIn?: boolean;
   signedInEmail?: string;
@@ -1472,6 +1495,7 @@ function StepDetails(props: {
     setRequests,
     agencyCode,
     setAgencyCode,
+    agencyCommissionPercent = 10,
     emailLocked,
     signedIn,
     signedInEmail,
@@ -1488,7 +1512,7 @@ function StepDetails(props: {
     <div>
       <h2 className="text-xl font-bold text-brand-green">How would you like to check out?</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Either way an account is linked so My Bookings always works — no forced login before booking.
+        Continue as a guest or create an account.
       </p>
 
       {signedIn ? (
@@ -1556,20 +1580,6 @@ function StepDetails(props: {
         </p>
       )}
 
-      {!signedIn && checkoutPath === "guest" && (
-        <p className="mt-4 rounded-xl border border-border bg-brand-cream/60 px-3.5 py-2.5 text-xs text-muted-foreground">
-          Continue as guest: no password step — you go straight to payment. After payment we create
-          secure access and email your details.
-        </p>
-      )}
-
-      {!signedIn && checkoutPath === "account" && (
-        <p className="mt-4 rounded-xl border border-border bg-brand-cream/60 px-3.5 py-2.5 text-xs text-muted-foreground">
-          Create account: set a password below (email is already captured). You&apos;ll be signed in
-          and then proceed to payment.
-        </p>
-      )}
-
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <Field label="Full name">
           <input
@@ -1632,7 +1642,7 @@ function StepDetails(props: {
             />
             <p className="mt-1 text-xs text-muted-foreground">
               Travel agents: enter the code issued by Malfranza admin to attribute this booking
-              and earn 10% commission.
+              and earn {agencyCommissionPercent}% commission.
             </p>
           </Field>
         </div>
@@ -1684,15 +1694,8 @@ function StepPayment(props: {
     <div>
       <h2 className="text-xl font-bold text-brand-green">Payment</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Pay securely with PayPal. Sandbox test mode — use your personal sandbox buyer account.
+        Pay securely with PayPal or debit/credit card.
       </p>
-
-      <div className="mt-4 rounded-xl border border-sky-200 bg-sky-50 px-3.5 py-3 text-sm text-sky-950">
-        <span className="font-semibold">Sandbox testing.</span> Log in with a{" "}
-        <strong>Personal</strong> sandbox account (e.g.{" "}
-        <span className="font-mono text-xs">…@personal.example.com</span>
-        ). No real money is charged.
-      </div>
 
       <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-white px-3.5 py-3.5 text-sm text-brand-charcoal">
         <input
@@ -1748,12 +1751,9 @@ function StepPayment(props: {
                 currency: "USD",
                 intent: "capture",
                 components: "buttons",
-                // Sandbox: only PayPal wallet login — hide guest "Pay with card" which traps testers
-                disableFunding: "card,credit,paylater,venmo",
               }}
             >
               <PayPalButtons
-                fundingSource="paypal"
                 style={{ layout: "vertical", color: "gold", shape: "rect", label: "paypal", tagline: false }}
                 disabled={paying || total < 0.5}
                 forceReRender={[total, termsAccepted]}
@@ -1788,9 +1788,7 @@ function StepPayment(props: {
                 }}
                 onError={(err) => {
                   console.error("[paypal]", err);
-                  toastError(
-                    "PayPal cancelled or failed. Open a private window, click Log In, use Personal sandbox email + password (not guest card).",
-                  );
+                  toastError("PayPal cancelled or failed. Please try again.");
                   setPaying(false);
                 }}
                 onCancel={() => {
@@ -1803,8 +1801,7 @@ function StepPayment(props: {
         )}
 
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Lock className="h-3.5 w-3.5" /> Sandbox: click PayPal → Log In with{" "}
-          <span className="font-mono">@personal.example.com</span> account (not bank card form)
+          <Lock className="h-3.5 w-3.5" /> Secure checkout — PayPal wallet or debit/credit card
         </p>
       </div>
     </div>
@@ -1961,7 +1958,7 @@ function ConfirmationScreen(props: {
   const confirmCopy = createdAccountAtCheckout
     ? `You're booked! Your confirmation is on its way to ${guestEmail || "your email"}. You can view and manage this booking anytime under My Bookings.`
     : accountCreated
-      ? `You're booked! A confirmation and your booking details are on the way to ${guestEmail || "your email"}. We've also set up secure access to your booking — check your email for a link to view or manage it under My Bookings.`
+      ? `You're booked! Your confirmation is on its way to ${guestEmail || "your email"}. Check your inbox for a link to view or manage this booking under My Bookings.`
       : `You're booked! Your confirmation is on its way to ${guestEmail || "your email"}. You can view and manage this booking anytime under My Bookings.`;
 
   return (

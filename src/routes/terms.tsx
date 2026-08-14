@@ -99,7 +99,7 @@ function TermsPage() {
               items={[
                 "A deposit of one night's payment is required at the time of booking.",
                 "We accept Visa, Mastercard, American Express, and PayPal.",
-                "Free cancellation up to 48 hours before check-in. Cancellations within 48 hours of check-in, and no-shows, forfeit a deposit equal to one night's payment, as set out in the Booking Policy and your booking confirmation.",
+                "Cancellations: a 50% refund applies if you cancel 7 or more days before check-in; no refund applies within 7 days of check-in or for no-shows. Once checked in, unused nights are not refundable. Full terms are in the Booking Policy and Refund Policy, and are stated in your booking confirmation.",
               ]}
             />
             <p>
@@ -242,59 +242,53 @@ function TermsPage() {
             </p>
           </Section>
 
-          <div className="rounded-2xl border border-brand-green/15 bg-brand-green px-6 py-8 text-white sm:px-8">
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-orange">
-              Guest Policy
-            </p>
-            <h2 className="mt-2 font-display text-xl font-bold tracking-tight text-brand-cream sm:text-2xl">
-              Contact us
-            </h2>
-            <p className="mt-4 font-semibold text-brand-sage">
+          <Section number="18" title="Contact Us">
+            <p className="font-semibold text-brand-charcoal">
               Malfranza Apartments &amp; Taxi Barbados
             </p>
-            <ul className="mt-4 space-y-3 text-sm sm:text-base">
+            <ul className="mt-3 space-y-3">
               <li>
                 <a
                   href="mailto:malfranza@gmail.com"
-                  className="inline-flex items-center gap-2 text-white/90 transition hover:text-white"
+                  className="inline-flex items-center gap-2 font-medium text-brand-green hover:underline"
                 >
-                  <Mail className="h-4 w-4 shrink-0 text-brand-sage" />
+                  <Mail className="h-4 w-4 shrink-0" />
                   malfranza@gmail.com
                 </a>
               </li>
               <li className="flex flex-wrap items-start gap-2">
-                <Phone className="mt-0.5 h-4 w-4 shrink-0 text-brand-sage" />
-                <span className="text-white/90">
-                  <a href="tel:+12462344875" className="hover:text-white">
+                <Phone className="mt-0.5 h-4 w-4 shrink-0 text-brand-green" />
+                <span>
+                  <a href="tel:+12462344875" className="font-medium text-brand-green hover:underline">
                     1 (246) 234-4875
                   </a>
-                  <span className="text-white/50"> / </span>
-                  <a href="tel:+12462314875" className="hover:text-white">
+                  <span className="text-muted-foreground"> / </span>
+                  <a href="tel:+12462314875" className="font-medium text-brand-green hover:underline">
                     1 (246) 231-4875
                   </a>
                 </span>
               </li>
             </ul>
-            <p className="mt-6 text-sm text-white/70">
+            <p className="mt-4">
               Related policies:{" "}
-              <Link to="/booking-policy" className="font-medium text-brand-sage underline-offset-4 hover:underline">
+              <Link to="/booking-policy" className="font-medium text-brand-green hover:underline">
                 Booking
               </Link>
               {" · "}
-              <Link to="/privacy" className="font-medium text-brand-sage underline-offset-4 hover:underline">
+              <Link to="/privacy" className="font-medium text-brand-green hover:underline">
                 Privacy
               </Link>
               {" · "}
-              <Link to="/cookies" className="font-medium text-brand-sage underline-offset-4 hover:underline">
+              <Link to="/cookies" className="font-medium text-brand-green hover:underline">
                 Cookies
               </Link>
               {" · "}
-              <Link to="/contact" className="font-medium text-brand-sage underline-offset-4 hover:underline">
+              <Link to="/contact" className="font-medium text-brand-green hover:underline">
                 Contact
               </Link>
               .
             </p>
-          </div>
+          </Section>
         </div>
       </article>
     </div>

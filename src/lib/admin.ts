@@ -72,8 +72,55 @@ export async function listApartmentBookings() {
     taxi_fare: booking.taxi?.fare ?? 0,
     taxi_notes: booking.taxi?.notes ?? null,
     created_at: booking.createdAt,
+    cancelled_at: booking.cancelledAt ?? null,
+    cancelled_by: booking.cancelledBy ?? null,
+    cancellation_reason: booking.cancellationReason ?? null,
+    refund_percent: booking.refundPercent ?? 0,
+    refund_amount: booking.refundAmount ?? 0,
+    refund_status: booking.refundStatus ?? "none",
+    refund_payout: booking.refundPayout ?? null,
     apartments: { name: booking.apartmentName, slug: "" },
   }));
+}
+
+export async function createAdminStayBooking(input: {
+  apartmentId: string;
+  unitId?: string;
+  unitIds?: string[];
+  checkIn: string;
+  checkOut: string;
+  guestName: string;
+  guestEmail: string;
+  guestPhone: string;
+  guests: number;
+  specialRequests?: string;
+  agencyCode?: string;
+  paymentStatus: "unpaid" | "paid";
+  paymentReference?: string;
+  status: "pending" | "confirmed";
+  notifyGuest: boolean;
+}) {
+  return apiRequest("/admin/bookings", {
+    method: "POST",
+    auth: true,
+    body: JSON.stringify({
+      apartmentId: input.apartmentId,
+      unitId: input.unitId,
+      unitIds: input.unitIds,
+      checkIn: input.checkIn,
+      checkOut: input.checkOut,
+      guestName: input.guestName,
+      guestEmail: input.guestEmail,
+      guestPhone: input.guestPhone,
+      guests: input.guests,
+      specialRequests: input.specialRequests || undefined,
+      agencyCode: input.agencyCode || undefined,
+      paymentStatus: input.paymentStatus,
+      paymentReference: input.paymentReference || undefined,
+      status: input.status,
+      notifyGuest: input.notifyGuest,
+    }),
+  });
 }
 
 export async function updateApartmentBookingStatus(id: string, status: AptBookingStatus) {
@@ -112,6 +159,22 @@ export type AdminTaxiBooking = {
   } | null;
   assigned_at: string | null;
   created_at: string;
+  payment_status?: string;
+  cancelled_at?: string | null;
+  cancelled_by?: string | null;
+  cancellation_reason?: string | null;
+  refund_percent?: number;
+  refund_amount?: number;
+  refund_status?: string;
+  refund_payout?: {
+    method?: string;
+    accountName?: string;
+    paypalEmail?: string;
+    bankName?: string;
+    accountNumber?: string;
+    routingOrSortCode?: string;
+    notes?: string;
+  } | null;
 };
 
 function mapTaxiBooking(booking: any): AdminTaxiBooking {
@@ -136,6 +199,14 @@ function mapTaxiBooking(booking: any): AdminTaxiBooking {
     driver: mapLinkedDriver(booking),
     assigned_at: booking.assignedAt ?? null,
     created_at: booking.createdAt,
+    payment_status: booking.paymentStatus ?? null,
+    cancelled_at: booking.cancelledAt ?? null,
+    cancelled_by: booking.cancelledBy ?? null,
+    cancellation_reason: booking.cancellationReason ?? null,
+    refund_percent: booking.refundPercent ?? 0,
+    refund_amount: booking.refundAmount ?? 0,
+    refund_status: booking.refundStatus ?? "none",
+    refund_payout: booking.refundPayout ?? null,
   };
 }
 
@@ -147,6 +218,47 @@ export async function listTaxiBookings() {
 export async function getTaxiBooking(id: string) {
   const booking = await apiRequest<any>(`/admin/taxi/${id}`, { auth: true });
   return mapTaxiBooking(booking);
+}
+
+export async function createAdminTaxiBooking(input: {
+  serviceType: "Airport Pickup" | "Airport Drop-off" | "Point to Point" | "Hourly / Custom";
+  pickupLocation: string;
+  dropoffLocation: string;
+  pickupDate: string;
+  pickupTime: string;
+  passengers: number;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  notes?: string;
+  driverId?: string;
+  paymentStatus: "unpaid" | "paid";
+  paymentReference?: string;
+  status: "pending" | "confirmed";
+  notifyGuest: boolean;
+}) {
+  return apiRequest("/admin/taxi", {
+    method: "POST",
+    auth: true,
+    body: JSON.stringify({
+      serviceType: input.serviceType,
+      pickupLocation: input.pickupLocation,
+      dropoffLocation: input.dropoffLocation,
+      pickupDate: input.pickupDate,
+      pickupTime: input.pickupTime,
+      passengers: input.passengers,
+      customerName: input.customerName,
+      customerEmail: input.customerEmail,
+      customerPhone: input.customerPhone,
+      notes: input.notes || undefined,
+      driverId: input.driverId || undefined,
+      paymentStatus: input.paymentStatus,
+      paymentReference: input.paymentReference || undefined,
+      paymentMethod: "Offline",
+      status: input.status,
+      notifyGuest: input.notifyGuest,
+    }),
+  });
 }
 
 export async function updateTaxiBookingStatus(id: string, status: TaxiStatus) {
@@ -328,6 +440,71 @@ export async function uploadApartmentImage(file: File) {
     method: "POST",
     auth: true,
     body: form,
+  });
+}
+
+export type AdminRefundItem = {
+  id: string;
+  kind: "stay" | "taxi";
+  bookingReference: string;
+  guestName: string;
+  guestEmail: string;
+  guestPhone: string;
+  title: string;
+  eventDate: string;
+  totalPaid: number;
+  refundPercent: number;
+  refundAmount: number;
+  refundStatus: string;
+  refundPayout: {
+    method?: string;
+    accountName?: string;
+    paypalEmail?: string;
+    bankName?: string;
+    accountNumber?: string;
+    routingOrSortCode?: string;
+    notes?: string;
+  } | null;
+  refundAdminNote: string | null;
+  cancellationReason: string | null;
+  cancelledAt: string | null;
+  refundRequestedAt: string | null;
+  refundReviewedAt: string | null;
+  refundProcessedAt: string | null;
+  paymentStatus: string;
+  href: string;
+};
+
+export async function listAdminRefunds(params?: {
+  status?: "all" | "eligible" | "requested" | "reviewing" | "processed" | "rejected";
+  kind?: "all" | "stay" | "taxi";
+}) {
+  const qs = new URLSearchParams();
+  if (params?.status) qs.set("status", params.status);
+  if (params?.kind) qs.set("kind", params.kind);
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  return apiRequest<{
+    items: AdminRefundItem[];
+    counts: {
+      eligible: number;
+      requested: number;
+      reviewing: number;
+      processed: number;
+      rejected: number;
+      open: number;
+    };
+  }>(`/admin/refunds${suffix}`, { auth: true });
+}
+
+export async function updateAdminRefund(
+  kind: "stay" | "taxi",
+  id: string,
+  input: { status: "reviewing" | "processed" | "rejected"; adminNote?: string },
+) {
+  return apiRequest<AdminRefundItem>(`/admin/refunds/${kind}/${id}`, {
+    method: "PATCH",
+    auth: true,
+    body: JSON.stringify(input),
   });
 }
 

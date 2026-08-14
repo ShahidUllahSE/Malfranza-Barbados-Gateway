@@ -128,6 +128,30 @@ export async function setAdminAgencyActive(id: string, isActive: boolean) {
   });
 }
 
+export type AgencyCommissionSettings = {
+  defaultCommissionRate: number;
+  defaultCommissionPercent: number;
+};
+
+export async function fetchAgencyCommissionRate(): Promise<AgencyCommissionSettings> {
+  return apiRequest<AgencyCommissionSettings>("/agencies/commission-rate");
+}
+
+export async function fetchAdminAgencySettings(): Promise<AgencyCommissionSettings> {
+  return apiRequest<AgencyCommissionSettings>("/admin/agencies/settings", { auth: true });
+}
+
+export async function updateAdminAgencySettings(input: {
+  defaultCommissionPercent: number;
+  applyToAllAgencies?: boolean;
+}): Promise<AgencyCommissionSettings> {
+  return apiRequest<AgencyCommissionSettings>("/admin/agencies/settings", {
+    method: "PATCH",
+    auth: true,
+    body: JSON.stringify(input),
+  });
+}
+
 export async function requestAgencyPasswordReset(email: string): Promise<{ message: string }> {
   await apiRequest("/agencies/password-reset/request", {
     method: "POST",

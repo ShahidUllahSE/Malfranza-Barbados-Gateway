@@ -8,6 +8,7 @@ import stayKitchen from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_20 PM.png";
 import stay1br from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_34 PM.png";
 import stayBathroom from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_13 PM.png";
 import stayGarden from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_00 PM.png";
+import { StarlinkBadge } from "@/components/StarlinkBadge";
 
 export const Route = createFileRoute("/amenities")({
   head: () => ({
@@ -23,8 +24,8 @@ export const Route = createFileRoute("/amenities")({
 });
 
 const AMENITIES = [
+  { icon: Wifi, title: "High Speed Starlink Internet", body: "Fast, reliable Starlink Wi-Fi throughout the apartment — ready for work or streaming.", featured: true },
   { icon: Snowflake, title: "Air Conditioning", body: "Stay cool and comfortable with air conditioning in every bedroom and living area." },
-  { icon: Wifi, title: "High Speed Starlink Internet", body: "Fast, reliable Starlink Wi-Fi throughout the apartment — ready for work or streaming." },
   { icon: ChefHat, title: "Kitchen", body: "A fully equipped self-catering kitchen with cookware and everything you need to make meals at home." },
   { icon: Tv, title: "Smart TV", body: "Enjoy your favorite shows and apps on a large high-definition Smart TV." },
   { icon: Refrigerator, title: "Fridge", body: "A full-size refrigerator so you can keep groceries, drinks, and leftovers fresh." },
@@ -72,6 +73,9 @@ function AmenitiesPage() {
               Our apartments are thoughtfully equipped with modern amenities and essentials
               to make your stay in Barbados easy, relaxing, and enjoyable.
             </p>
+            <div className="mt-5">
+              <StarlinkBadge />
+            </div>
           </div>
           <div className="rounded-3xl overflow-hidden shadow-card">
             <img
@@ -86,8 +90,15 @@ function AmenitiesPage() {
       {/* AMENITY GRID */}
       <section className="mx-auto max-w-7xl px-4 mt-16 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {AMENITIES.map(({ icon: Icon, title, body }) => (
-            <article key={title} className="rounded-2xl border border-border bg-white p-6 shadow-card hover:shadow-[var(--shadow-card-hover)] transition">
+          {AMENITIES.map(({ icon: Icon, title, body, featured }) => (
+            <article
+              key={title}
+              className={
+                featured
+                  ? "rounded-2xl border-2 border-brand-green/35 bg-brand-cream/50 p-6 shadow-card sm:col-span-2 lg:col-span-3"
+                  : "rounded-2xl border border-border bg-white p-6 shadow-card hover:shadow-[var(--shadow-card-hover)] transition"
+              }
+            >
               <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-brand-sage/25">
                 <Icon className="h-5 w-5 text-brand-green" />
               </div>

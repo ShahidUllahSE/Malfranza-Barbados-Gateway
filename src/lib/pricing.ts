@@ -1,16 +1,23 @@
 /**
  * Seasonal + room-type pricing (USD / room / night).
+ * Amplifi AI · Final Room Rates (Aug 2026) — PayPal fee already included.
  * Keep in sync with backend `modules/apartments/pricing.ts`.
+ *
+ * | Room Type   | Out of Season | Summer / Peak |
+ * | One-bedroom | $95           | $100          |
+ * | Two-bedroom | $105          | $115          |
+ *
+ * Peak (provisional until confirmed): mid-Dec → mid-Apr + Jul–Aug.
  */
 
 export type PricedRoomType = "one-bedroom" | "two-bedroom";
 
 const RATES: Record<PricedRoomType, { off: number; peak: number }> = {
-  "one-bedroom": { off: 90, peak: 95 },
-  "two-bedroom": { off: 100, peak: 110 },
+  "one-bedroom": { off: 95, peak: 100 },
+  "two-bedroom": { off: 105, peak: 115 },
 };
 
-export const PLATFORM_MIN_NIGHTLY = 90;
+export const PLATFORM_MIN_NIGHTLY = 95;
 
 export function isPeakSeason(isoDate: string): boolean {
   const d = new Date(`${isoDate.slice(0, 10)}T00:00:00.000Z`);
@@ -18,9 +25,12 @@ export function isPeakSeason(isoDate: string): boolean {
   const month = d.getUTCMonth() + 1;
   const day = d.getUTCDate();
 
+  // High season: 15 Dec – 14 Apr
   if (month === 12 && day >= 15) return true;
   if (month >= 1 && month <= 3) return true;
   if (month === 4 && day <= 14) return true;
+
+  // Summer peak: 1 Jul – 31 Aug
   if (month === 7 || month === 8) return true;
 
   return false;
@@ -78,8 +88,8 @@ export function averageNightly(
   return Math.round((staySubtotal(roomType, checkIn, checkOut) / nights.length) * 100) / 100;
 }
 
-/** Peak table rates for help copy */
+/** Full rate table for UI copy — same numbers as RATES. */
 export const RATE_TABLE = {
-  "one-bedroom": { off: 90, peak: 95 },
-  "two-bedroom": { off: 100, peak: 110 },
+  "one-bedroom": { off: 95, peak: 100 },
+  "two-bedroom": { off: 105, peak: 115 },
 } as const;

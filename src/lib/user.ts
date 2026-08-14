@@ -120,3 +120,67 @@ export async function listMyTaxiBookings() {
   const result = await apiRequest<{ items: any[] }>("/users/me/taxi", { userAuth: true });
   return result.items;
 }
+
+export async function cancelMyStayBooking(
+  reference: string,
+  input: {
+    reason?: string;
+  },
+) {
+  return apiRequest(`/users/me/bookings/${encodeURIComponent(reference)}/cancel`, {
+    method: "POST",
+    userAuth: true,
+    body: JSON.stringify(input),
+  });
+}
+
+export async function cancelMyTaxiBooking(
+  reference: string,
+  input: {
+    reason?: string;
+  },
+) {
+  return apiRequest(`/users/me/taxi/${encodeURIComponent(reference)}/cancel`, {
+    method: "POST",
+    userAuth: true,
+    body: JSON.stringify(input),
+  });
+}
+
+export async function submitMyStayRefundRequest(
+  reference: string,
+  payout: {
+    method: "paypal" | "bank" | "other";
+    accountName: string;
+    paypalEmail?: string;
+    bankName?: string;
+    accountNumber?: string;
+    routingOrSortCode?: string;
+    notes?: string;
+  },
+) {
+  return apiRequest(`/users/me/bookings/${encodeURIComponent(reference)}/refund-request`, {
+    method: "POST",
+    userAuth: true,
+    body: JSON.stringify({ payout }),
+  });
+}
+
+export async function submitMyTaxiRefundRequest(
+  reference: string,
+  payout: {
+    method: "paypal" | "bank" | "other";
+    accountName: string;
+    paypalEmail?: string;
+    bankName?: string;
+    accountNumber?: string;
+    routingOrSortCode?: string;
+    notes?: string;
+  },
+) {
+  return apiRequest(`/users/me/taxi/${encodeURIComponent(reference)}/refund-request`, {
+    method: "POST",
+    userAuth: true,
+    body: JSON.stringify({ payout }),
+  });
+}

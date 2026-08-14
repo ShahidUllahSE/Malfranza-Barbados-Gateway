@@ -14,11 +14,11 @@ export const Route = createFileRoute("/_authenticated/admin/settings")({
 });
 
 const EMPTY: TaxiFareSettings = {
-  fareFor1to4: 25,
-  fareFor5to7: 35,
-  fareFor8to10: 45,
+  fareFor1to4: 1.62,
+  fareFor5to7: 2.4,
+  fareFor8to10: 4,
   perKmUsd: 0,
-  minimumFareUsd: 25,
+  minimumFareUsd: 5,
 };
 
 function SettingsPage() {
@@ -40,16 +40,20 @@ function SettingsPage() {
     if (!settingsQ.data) return;
     const data = settingsQ.data;
     setForm({
-      fareFor1to4: data.fareFor1to4 ?? data.fareFor1Guest ?? 25,
-      fareFor5to7: data.fareFor5to7 ?? data.fareFor3Guests ?? 35,
-      fareFor8to10: data.fareFor8to10 ?? data.fareFor4PlusGuests ?? 45,
-      perKmUsd: data.perKmUsd,
+      fareFor1to4: data.fareFor1to4 ?? data.fareFor1Guest ?? 1.62,
+      fareFor5to7: data.fareFor5to7 ?? data.fareFor3Guests ?? 2.4,
+      fareFor8to10: data.fareFor8to10 ?? data.fareFor4PlusGuests ?? 4,
+      perKmUsd: data.perKmUsd ?? 0,
       minimumFareUsd: data.minimumFareUsd,
     });
   }, [settingsQ.data]);
 
   const save = useMutation({
-    mutationFn: () => updateAdminTaxiFareSettings(form),
+    mutationFn: () =>
+      updateAdminTaxiFareSettings({
+        ...form,
+        perKmUsd: 0,
+      }),
     onSuccess: (data) => {
       setForm(data);
       qc.setQueryData(["admin", "taxi-fare-settings"], data);
@@ -82,10 +86,10 @@ function SettingsPage() {
       </div>
 
       <div className="max-w-2xl rounded-2xl bg-white p-5 shadow-card sm:p-6">
-        <h2 className="font-display font-bold text-brand-charcoal">Taxi fares by guests</h2>
+        <h2 className="font-display font-bold text-brand-charcoal">Taxi rates (USD per km)</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Set the regulated fare for 1–4, 5–7, or 8–10 passengers. An optional per-km charge is added
-          for the route. Guests see these amounts on every van.
+          Set the regulated rate by party size. Fare = driving distance (Google Maps) × rate for the
+          guest tier, never below the minimum.
         </p>
 
         {settingsQ.isLoading ? (
@@ -102,47 +106,49 @@ function SettingsPage() {
           >
             <div className="grid gap-3 sm:grid-cols-3">
               <MoneyField
-                label="1–4 guests"
+                label="1–4 guests $/km"
+                hint="Standard car"
                 value={form.fareFor1to4}
                 onChange={(v) => setNumber("fareFor1to4", v)}
+                step="0.01"
               />
               <MoneyField
-                label="5–7 guests"
+                label="5–7 guests $/km"
+                hint="XL"
                 value={form.fareFor5to7}
                 onChange={(v) => setNumber("fareFor5to7", v)}
+                step="0.01"
               />
               <MoneyField
-                label="8–10 guests"
+                label="8–10 guests $/km"
+                hint="Future tier"
                 value={form.fareFor8to10}
                 onChange={(v) => setNumber("fareFor8to10", v)}
+                step="0.01"
               />
             </div>
 
             <div className="grid gap-3 border-t border-slate-100 pt-4 sm:grid-cols-2">
               <MoneyField
-                label="Per km (optional)"
-                hint="Set to 0 for flat guest-only pricing"
-                value={form.perKmUsd}
-                onChange={(v) => setNumber("perKmUsd", v)}
-                step="0.1"
-              />
-              <MoneyField
                 label="Minimum fare"
                 hint="Never charge less than this"
                 value={form.minimumFareUsd}
                 onChange={(v) => setNumber("minimumFareUsd", v)}
+                step="0.01"
               />
             </div>
 
             <div className="rounded-xl bg-brand-cream/70 px-4 py-3 text-xs text-brand-charcoal">
               <p className="font-semibold text-brand-green">How the total is calculated</p>
               <p className="mt-1">
-                Guest fare (from the brackets above) + (distance km × per km), then floored by the
-                minimum fare.
+                Distance (km) × rate for the guest tier, then floored by the minimum fare.
               </p>
               <p className="mt-2 text-muted-foreground">
-                Example with current values: 2 guests · 10 km → ${form.fareFor1to4} + 10 × $
-                {form.perKmUsd} = ${Math.max(form.minimumFareUsd, Math.round(form.fareFor1to4 + 10 * form.perKmUsd))}
+                Example: 2 guests · 10 km → 10 × ${form.fareFor1to4} = $
+                {Math.max(
+                  form.minimumFareUsd,
+                  Math.round(10 * form.fareFor1to4 * 100) / 100,
+                ).toFixed(2)}
               </p>
             </div>
 

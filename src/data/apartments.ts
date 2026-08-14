@@ -146,6 +146,7 @@ function galleryFor(match: string): string[] {
 }
 
 const SHARED_AMENITIES = [
+  "High Speed Starlink Internet",
   "Air Conditioning",
   "Smart TV",
   "Fridge",
@@ -156,7 +157,6 @@ const SHARED_AMENITIES = [
   "Toaster",
   "Iron",
   "Fire Extinguisher",
-  "High Speed Starlink Internet",
 ] as const;
 
 const AMENITIES_1BR = [...SHARED_AMENITIES, "Washing Machine"] as const;
@@ -248,17 +248,38 @@ export const APARTMENTS: Apartment[] = [
     name: "Sunset Suite",
     subtitle: "Room A & B",
     description:
-      "Sunset Suite — two-bedroom residence (Room A & B) at Malfranza, Oistins.",
+      "Sunset Suite — Room A and Room B at Malfranza, Oistins. Book either room on its own, or both together.",
     type: "two-bedroom",
     guests: 4,
     beds: 2,
     baths: 2,
     sizeSqM: 95,
-    pricePerNight: catalogFromRate("two-bedroom"),
+    pricePerNight: catalogFromRate("one-bedroom"),
     images: galleryFor("sunset-suite"),
     amenities: [...AMENITIES_2BR],
     unitsExclusive: false,
-    units: [],
+    units: [
+      {
+        id: "room-a",
+        name: "Room A",
+        description: "Independently bookable room in Sunset Suite.",
+        bedrooms: 1,
+        bathrooms: 1,
+        maxGuests: 2,
+        pricePerNight: catalogFromRate("one-bedroom"),
+        isActive: true,
+      },
+      {
+        id: "room-b",
+        name: "Room B",
+        description: "Independently bookable room in Sunset Suite.",
+        bedrooms: 1,
+        bathrooms: 1,
+        maxGuests: 2,
+        pricePerNight: catalogFromRate("one-bedroom"),
+        isActive: true,
+      },
+    ],
   },
 ];
 

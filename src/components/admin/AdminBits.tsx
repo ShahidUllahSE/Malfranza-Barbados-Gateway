@@ -97,6 +97,12 @@ export function StatusPill({ status }: { status: AnyStatus }) {
     checked_out: { cls: "bg-violet-50 text-violet-800 ring-1 ring-violet-200/80", dot: "bg-violet-400" },
     cancelled: { cls: "bg-rose-50 text-rose-700 ring-1 ring-rose-200/80", dot: "bg-rose-400" },
     closed: { cls: "bg-slate-50 text-slate-600 ring-1 ring-slate-200/80", dot: "bg-slate-400" },
+    eligible: { cls: "bg-amber-50 text-amber-800 ring-1 ring-amber-200/80", dot: "bg-amber-500" },
+    requested: { cls: "bg-sky-50 text-sky-800 ring-1 ring-sky-200/80", dot: "bg-sky-500" },
+    reviewing: { cls: "bg-indigo-50 text-indigo-800 ring-1 ring-indigo-200/80", dot: "bg-indigo-500" },
+    processed: { cls: "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200/80", dot: "bg-emerald-500" },
+    rejected: { cls: "bg-rose-50 text-rose-700 ring-1 ring-rose-200/80", dot: "bg-rose-400" },
+    refunded: { cls: "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200/80", dot: "bg-emerald-500" },
   };
   const style = map[status] ?? { cls: "bg-slate-50 text-slate-700 ring-1 ring-slate-200/80", dot: "bg-slate-400" };
   return (

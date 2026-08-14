@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   Calendar,
@@ -12,7 +13,11 @@ import {
   User,
   Users,
 } from "lucide-react";
-import { getMyBooking } from "@/lib/user";
+import { CancelBookingDialog } from "@/components/CancelBookingDialog";
+import { RefundRequestDialog } from "@/components/RefundRequestDialog";
+import type { CancellationPreview } from "@/lib/cancellation";
+import { refundStatusLabel } from "@/lib/cancellation";
+import { cancelMyStayBooking, getMyBooking, submitMyStayRefundRequest } from "@/lib/user";
 import { useUserAuth } from "@/context/UserAuthContext";
 
 export const Route = createFileRoute("/my-bookings_/$reference")({
@@ -45,6 +50,10 @@ function BookingDetailPage() {
   const [booking, setBooking] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [refundOpen, setRefundOpen] = useState(false);
+  const [refunding, setRefunding] = useState(false);
 
   useEffect(() => {
     if (user) return;
@@ -109,6 +118,8 @@ function BookingDetailPage() {
   const checkIn = String(booking.checkIn).slice(0, 10);
   const checkOut = String(booking.checkOut).slice(0, 10);
   const taxi = booking.taxi;
+  const cancellation = booking.cancellation as CancellationPreview | undefined;
+  const canCancel = Boolean(cancellation?.allowed);
 
   return (
     <div className="min-h-screen bg-brand-cream/40">
@@ -215,8 +226,97 @@ function BookingDetailPage() {
             )}
             <PriceRow label="Total" value={`$${Number(booking.totalAmount).toFixed(0)}`} bold />
           </div>
+
+          {booking.status === "cancelled" && (
+            <div className="mt-6 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+              <p className="font-semibold">This stay is cancelled</p>
+              {Number(booking.refundPercent) > 0 ? (
+                <>
+                  <p className="mt-1">{refundStatusLabel(booking.refundStatus)}</p>
+                  <p className="mt-1 text-[13px]">
+                    50% of ${Number(booking.totalAmount).toFixed(2)} = ${Number(booking.refundAmount).toFixed(2)}
+                  </p>
+                  {booking.refundAdminNote && (
+                    <p className="mt-2 text-[13px]">Admin note: {booking.refundAdminNote}</p>
+                  )}
+                  {booking.refundStatus === "eligible" && (
+                    <button
+                      type="button"
+                      onClick={() => setRefundOpen(true)}
+                      className="mt-3 rounded-xl bg-brand-green px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+                    >
+                      Submit refund request
+                    </button>
+                  )}
+                </>
+              ) : (
+                <p className="mt-1">No refund applies under the 7-day cancellation policy.</p>
+              )}
+            </div>
+          )}
+
+          {canCancel && (
+            <div className="mt-6 border-t border-border pt-5">
+              <button
+                type="button"
+                onClick={() => setCancelOpen(true)}
+                className="rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-50"
+              >
+                Cancel this booking
+              </button>
+              {cancellation && (
+                <p className="mt-2 text-xs text-muted-foreground">{cancellation.message}</p>
+              )}
+            </div>
+          )}
         </div>
       </div>
+
+      {cancelOpen && cancellation && (
+        <CancelBookingDialog
+          preview={cancellation}
+          eventLabel="check-in"
+          pending={cancelling}
+          onClose={() => !cancelling && setCancelOpen(false)}
+          onConfirm={async (input) => {
+            setCancelling(true);
+            try {
+              await cancelMyStayBooking(booking.bookingReference, input);
+              toast.success(
+                cancellation.refundEligible
+                  ? "Booking cancelled. You can submit your refund request now."
+                  : "Booking cancelled. No refund applies.",
+              );
+              setCancelOpen(false);
+              const data = await getMyBooking(reference);
+              setBooking(data);
+              if (cancellation.refundEligible) setRefundOpen(true);
+            } finally {
+              setCancelling(false);
+            }
+          }}
+        />
+      )}
+
+      {refundOpen && Number(booking.refundAmount) > 0 && (
+        <RefundRequestDialog
+          amount={Number(booking.refundAmount)}
+          pending={refunding}
+          onClose={() => !refunding && setRefundOpen(false)}
+          onSubmit={async (payout) => {
+            setRefunding(true);
+            try {
+              await submitMyStayRefundRequest(booking.bookingReference, payout);
+              toast.success("Refund request sent to admin");
+              setRefundOpen(false);
+              const data = await getMyBooking(reference);
+              setBooking(data);
+            } finally {
+              setRefunding(false);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

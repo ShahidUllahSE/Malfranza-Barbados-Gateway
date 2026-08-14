@@ -1,7 +1,17 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Loader2, Plus, ChevronRight } from "lucide-react";
-import { listMyBookings, listMyTaxiBookings } from "@/lib/user";
+import { CancelBookingDialog } from "@/components/CancelBookingDialog";
+import { RefundRequestDialog } from "@/components/RefundRequestDialog";
+import type { CancellationPreview } from "@/lib/cancellation";
+import { refundStatusLabel } from "@/lib/cancellation";
+import {
+  cancelMyTaxiBooking,
+  listMyBookings,
+  listMyTaxiBookings,
+  submitMyTaxiRefundRequest,
+} from "@/lib/user";
 import { useUserAuth } from "@/context/UserAuthContext";
 
 export const Route = createFileRoute("/my-bookings")({
@@ -110,6 +120,10 @@ function MyBookingsPage() {
   const [taxiTrips, setTaxiTrips] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cancelTrip, setCancelTrip] = useState<any | null>(null);
+  const [cancellingTaxi, setCancellingTaxi] = useState(false);
+  const [refundTrip, setRefundTrip] = useState<any | null>(null);
+  const [refundingTaxi, setRefundingTaxi] = useState(false);
 
   useEffect(() => {
     if (user) return;
@@ -365,6 +379,29 @@ function MyBookingsPage() {
                           {driver.vehicleLabel ? ` · ${driver.vehicleLabel}` : ""}
                         </p>
                       )}
+                      {trip.cancellation?.allowed && (
+                        <button
+                          type="button"
+                          onClick={() => setCancelTrip(trip)}
+                          className="mt-3 text-xs font-semibold text-rose-700 hover:underline"
+                        >
+                          Cancel trip
+                        </button>
+                      )}
+                      {trip.status === "cancelled" && Number(trip.refundPercent) > 0 && (
+                        <div className="mt-2 space-y-1">
+                          <p className="text-xs text-rose-800">{refundStatusLabel(trip.refundStatus)}</p>
+                          {trip.refundStatus === "eligible" && (
+                            <button
+                              type="button"
+                              onClick={() => setRefundTrip(trip)}
+                              className="text-xs font-semibold text-brand-green hover:underline"
+                            >
+                              Submit refund request · ${Number(trip.refundAmount).toFixed(2)}
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -432,8 +469,28 @@ function MyBookingsPage() {
                           <Td>
                             <StatusBadge status={String(trip.status)} />
                           </Td>
-                          <Td nowrap className="text-right font-bold text-brand-green">
-                            ${Number(trip.estimatedFare).toFixed(0)}
+                          <Td nowrap className="text-right">
+                            <div className="font-bold text-brand-green">
+                              ${Number(trip.estimatedFare).toFixed(0)}
+                            </div>
+                            {trip.cancellation?.allowed && (
+                              <button
+                                type="button"
+                                onClick={() => setCancelTrip(trip)}
+                                className="mt-1 text-xs font-semibold text-rose-700 hover:underline"
+                              >
+                                Cancel
+                              </button>
+                            )}
+                            {trip.status === "cancelled" && trip.refundStatus === "eligible" && (
+                              <button
+                                type="button"
+                                onClick={() => setRefundTrip(trip)}
+                                className="mt-1 block text-xs font-semibold text-brand-green hover:underline"
+                              >
+                                Request refund
+                              </button>
+                            )}
                           </Td>
                         </tr>
                       );
@@ -446,9 +503,62 @@ function MyBookingsPage() {
         )}
 
         <p className="mt-8 text-xs text-muted-foreground">
-          Bookings are linked to your Malfranza account email.
+          Bookings are linked to your Malfranza account email. Cancel 7+ days before check-in or pickup
+          for a 50% refund; within 7 days there is no refund.
         </p>
       </div>
+
+      {cancelTrip?.cancellation?.allowed && (
+        <CancelBookingDialog
+          preview={cancelTrip.cancellation as CancellationPreview}
+          eventLabel="pickup"
+          pending={cancellingTaxi}
+          onClose={() => !cancellingTaxi && setCancelTrip(null)}
+          onConfirm={async (input) => {
+            setCancellingTaxi(true);
+            try {
+              await cancelMyTaxiBooking(cancelTrip.bookingReference, input);
+              toast.success(
+                cancelTrip.cancellation.refundEligible
+                  ? "Trip cancelled. You can submit your refund request now."
+                  : "Trip cancelled. No refund applies.",
+              );
+              const ref = cancelTrip.bookingReference;
+              const wasEligible = cancelTrip.cancellation.refundEligible;
+              setCancelTrip(null);
+              const [stayItems, taxiItems] = await Promise.all([listMyBookings(), listMyTaxiBookings()]);
+              setBookings(stayItems.map(mapAccountBooking));
+              setTaxiTrips(taxiItems);
+              if (wasEligible) {
+                const next = taxiItems.find((t: any) => t.bookingReference === ref);
+                if (next) setRefundTrip(next);
+              }
+            } finally {
+              setCancellingTaxi(false);
+            }
+          }}
+        />
+      )}
+
+      {refundTrip && Number(refundTrip.refundAmount) > 0 && (
+        <RefundRequestDialog
+          amount={Number(refundTrip.refundAmount)}
+          pending={refundingTaxi}
+          onClose={() => !refundingTaxi && setRefundTrip(null)}
+          onSubmit={async (payout) => {
+            setRefundingTaxi(true);
+            try {
+              await submitMyTaxiRefundRequest(refundTrip.bookingReference, payout);
+              toast.success("Refund request sent to admin");
+              setRefundTrip(null);
+              const taxiItems = await listMyTaxiBookings();
+              setTaxiTrips(taxiItems);
+            } finally {
+              setRefundingTaxi(false);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

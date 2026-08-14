@@ -6,7 +6,7 @@ import {
   Calendar, Watch, User, ArrowRight, CheckCircle2, HeartHandshake, DollarSign, Lock,
 } from "lucide-react";
 import { PayPalButtons, PayPalScriptProvider } from "@paypal/react-paypal-js";
-import taxiHero from "@/assets/ChatGPT Image Jul 2, 2026, 10_48_48 PM.png";
+import taxiHero from "@/assets/update images/Vehicle Photo (1).jpg";
 import { PlacesAutocompleteInput, TaxiRouteMap, type LatLng } from "@/components/maps/PlacesAutocompleteInput";
 import { VehicleOfferCard } from "@/components/taxi/VehicleOfferCard";
 import {
@@ -146,6 +146,12 @@ function TaxiPage() {
         passengers: form.passengers,
         pickupDate: form.date || undefined,
         pickupTime: form.time || undefined,
+        pickupLocation: form.pickup.trim() || undefined,
+        dropoffLocation: form.dropoff.trim() || undefined,
+        pickupLat: pickupCoords?.lat,
+        pickupLng: pickupCoords?.lng,
+        dropoffLat: dropoffCoords?.lat,
+        dropoffLng: dropoffCoords?.lng,
       })
         .then((result) => {
           if (cancelled) return;
@@ -171,7 +177,7 @@ function TaxiPage() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [form.pickup, form.dropoff, form.passengers, form.date, form.time]);
+  }, [form.pickup, form.dropoff, form.passengers, form.date, form.time, pickupCoords, dropoffCoords]);
 
   const handleFindVehicles = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -234,6 +240,10 @@ function TaxiPage() {
         paymentStatus: "paid",
         paymentReference,
         paymentMethod: "PayPal",
+        pickupLat: pickupCoords?.lat,
+        pickupLng: pickupCoords?.lng,
+        dropoffLat: dropoffCoords?.lat,
+        dropoffLng: dropoffCoords?.lng,
       });
       setConfirmation(result);
       if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
@@ -244,7 +254,7 @@ function TaxiPage() {
         void refreshSession().catch(() => undefined);
       }
       if (result.accountCreated) {
-        toast.success("Account created — check your email for a temporary password.");
+        toast.success("Account created — check your email for login details.");
       }
     } catch (err) {
       console.error(err);
@@ -300,7 +310,7 @@ function TaxiPage() {
             <SummaryItem label="Status" value={confirmation.status.replaceAll("_", " ")} />
             <SummaryItem
               label="Fare estimate"
-              value={`$${Number(confirmation.estimatedFare).toFixed(0)} ${confirmation.currency}`}
+              value={`$${Number(confirmation.estimatedFare).toFixed(2)} ${confirmation.currency}`}
             />
           </dl>
         </div>
@@ -378,12 +388,6 @@ function TaxiPage() {
                 </p>
               </div>
             </div>
-
-            {!user && (
-              <div className="relative mt-5 rounded-2xl border border-white/15 bg-white/10 p-4 text-sm text-white/90">
-                No account needed. Enter your route, pick a van, add your details, then pay with PayPal — we’ll email a temporary password.
-              </div>
-            )}
 
             <form onSubmit={handleFindVehicles} className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <RideField
@@ -473,7 +477,7 @@ function TaxiPage() {
                       onChange={(e) => setForm({ ...form, passengers: Number(e.target.value) })}
                       className="w-full bg-transparent text-sm text-white outline-none [color-scheme:dark]"
                     >
-                      {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+                      {Array.from({ length: 7 }, (_, i) => i + 1).map((n) => (
                         <option key={n} value={n} className="bg-brand-green-deep text-white">{n} passenger{n > 1 ? "s" : ""}</option>
                       ))}
                     </select>
@@ -531,7 +535,17 @@ function TaxiPage() {
                   {searching
                     ? "Loading our vans…"
                     : fareSettings
-                      ? `Fare for ${form.passengers} guest${form.passengers === 1 ? "" : "s"}: $${calculateGuestTaxiFare(fareSettings, form.passengers, vehicleResult?.distanceKm)}`
+                      ? [
+                          `Fare for ${form.passengers} guest${form.passengers === 1 ? "" : "s"}: $${calculateGuestTaxiFare(fareSettings, form.passengers, vehicleResult?.distanceKm).toFixed(2)}`,
+                          vehicleResult?.distanceKm != null
+                            ? `· ~${vehicleResult.distanceKm} km`
+                            : null,
+                          vehicleResult?.durationMinutes != null
+                            ? `· ~${vehicleResult.durationMinutes} min`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" ")
                       : "Enter guests — the fare updates from the guest rate card."}
                 </p>
                 <button type="submit" className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-orange px-7 py-3.5 font-semibold text-white shadow-lg shadow-brand-orange/20 hover:-translate-y-0.5 hover:brightness-105 transition">
@@ -566,7 +580,7 @@ function TaxiPage() {
                 fareSettings
                   ? calculateGuestTaxiFare(fareSettings, form.passengers, vehicleResult.distanceKm)
                   : vehicleResult.fare,
-              ).toFixed(0)}{" "}
+              ).toFixed(2)}{" "}
               {vehicleResult.currency}
             </div>
           </div>
@@ -614,7 +628,7 @@ function TaxiPage() {
               <h3 className="text-lg font-bold text-brand-charcoal">Confirm & pay</h3>
               <p className="mt-1 text-sm text-muted-foreground">
                 {selectedVehicle.vehicleLabel} · up to {selectedVehicle.passengerCapacity} guests · $
-                {rideFare.toFixed(0)}{" "}
+                {rideFare.toFixed(2)}{" "}
                 {vehicleResult?.currency ?? "USD"}
                 {` · ${form.passengers} guest${form.passengers === 1 ? "" : "s"}`}
                 {form.date && form.time ? ` · ${fmtRideDate(form.date)} at ${form.time}` : ""}
@@ -671,7 +685,7 @@ function TaxiPage() {
                   <Link to="/booking-policy" className="font-semibold text-brand-green underline">
                     booking terms
                   </Link>{" "}
-                  and will pay ${rideFare.toFixed(0)} USD for this ride.
+                  and will pay ${rideFare.toFixed(2)} USD for this ride.
                 </span>
               </label>
 
@@ -679,7 +693,7 @@ function TaxiPage() {
 
               <div className="mt-4 space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  Free cancellation up to 12 hours before pickup. Pay with PayPal to request this ride —
+                  Cancel 7+ days before pickup for a 50% refund; within 7 days there is no refund. Pay with PayPal to request this ride —
                   no direct booking without payment.
                 </p>
 
@@ -703,11 +717,10 @@ function TaxiPage() {
                         clientId: paypalClientId,
                         currency: "USD",
                         intent: "capture",
-                        disableFunding: "card,credit,paylater,venmo",
+                        components: "buttons",
                       }}
                     >
                       <PayPalButtons
-                        fundingSource="paypal"
                         style={{
                           layout: "vertical",
                           color: "gold",
@@ -722,7 +735,7 @@ function TaxiPage() {
                             const order = await createPayPalOrder({
                               amount: rideFare,
                               currency: "USD",
-                              description: "Malfranza stay — Guest booking",
+                              description: "Malfranza taxi booking",
                             });
                             return order.orderId;
                           } catch (e) {
@@ -746,15 +759,13 @@ function TaxiPage() {
                         }}
                         onError={(err) => {
                           console.error("[paypal]", err);
-                          toast.error(
-                            "PayPal cancelled or failed. Try again, or use a private window and Log In with your sandbox buyer account.",
-                          );
+                          toast.error("PayPal cancelled or failed. Please try again.");
                         }}
                       />
                     </PayPalScriptProvider>
                     <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                       <Lock className="h-3.5 w-3.5" />
-                      Secure PayPal checkout — your ride is requested only after payment.
+                      Secure checkout — PayPal wallet or debit/credit card. Ride is requested only after payment.
                     </p>
                   </div>
                 )}
@@ -767,19 +778,15 @@ function TaxiPage() {
       {fareSettings && (
         <section className="mx-auto mt-10 max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="rounded-2xl border border-border bg-white p-5 shadow-card sm:p-6">
-            <h2 className="text-lg font-bold text-brand-green sm:text-xl">Fares by guests</h2>
+            <h2 className="text-lg font-bold text-brand-green sm:text-xl">Rates by guests (USD / km)</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Regulated Malfranza rates — the ride price is this guest fare
-              {fareSettings.perKmUsd > 0
-                ? ` plus $${fareSettings.perKmUsd}/km for the route`
-                : ", same on every van"}
-              .
+              Regulated Malfranza rates — total fare is driving distance × the rate for your party
+              size (minimum ${Number(fareSettings.minimumFareUsd).toFixed(2)}).
             </p>
-            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {[
-                { label: "1–4 guests", value: fareSettings.fareFor1to4 ?? fareSettings.fareFor1Guest ?? 25, active: form.passengers <= 4 },
-                { label: "5–7 guests", value: fareSettings.fareFor5to7 ?? fareSettings.fareFor3Guests ?? 35, active: form.passengers >= 5 && form.passengers <= 7 },
-                { label: "8–10 guests", value: fareSettings.fareFor8to10 ?? fareSettings.fareFor4PlusGuests ?? 45, active: form.passengers >= 8 },
+                { label: "1–4 guests", value: fareSettings.fareFor1to4 ?? fareSettings.fareFor1Guest ?? 1.62, active: form.passengers <= 4 },
+                { label: "XL · 5–7 guests", value: fareSettings.fareFor5to7 ?? fareSettings.fareFor3Guests ?? 2.4, active: form.passengers >= 5 },
               ].map((tier) => (
                 <div
                   key={tier.label}
@@ -791,7 +798,10 @@ function TaxiPage() {
                     {tier.label}
                   </div>
                   <div className={`mt-1 text-xl font-bold ${tier.active ? "text-white" : "text-brand-green"}`}>
-                    ${tier.value}
+                    ${Number(tier.value).toFixed(2)}
+                    <span className={`ml-1 text-sm font-semibold ${tier.active ? "text-white/80" : "text-muted-foreground"}`}>
+                      /km
+                    </span>
                   </div>
                 </div>
               ))}

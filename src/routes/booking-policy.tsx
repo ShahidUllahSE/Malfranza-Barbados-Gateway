@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { Mail, Phone } from "lucide-react";
+import { RATE_TABLE } from "@/lib/pricing";
 
 export const Route = createFileRoute("/booking-policy")({
   head: () => ({
@@ -15,7 +16,7 @@ export const Route = createFileRoute("/booking-policy")({
       {
         property: "og:description",
         content:
-          "Deposit, payment methods, free cancellation up to 48 hours, property rules, and check-in times at Malfranza.",
+          "Deposit, payment methods, 7-day cancellation (50% or 0% refund), property rules, and check-in times at Malfranza.",
       },
     ],
   }),
@@ -83,26 +84,33 @@ function BookingPolicyPage() {
               booking is due as advised in your booking confirmation.
             </p>
             <p>
-              All rates are quoted in US dollars (USD) per room, per night. Rates vary by room type
-              and season. Seasonal (summer/peak) rates apply during our peak period and are shown at
-              the time of booking. The rate applicable to your stay is always displayed and
-              confirmed before you pay.
+              All rates are quoted in US dollars (USD) per room, per night, and vary by room type and
+              season. The price shown at booking is the final price you pay, with no additional
+              processing fees added at checkout. One-bedroom apartments are US $
+              {RATE_TABLE["one-bedroom"].off} per night out of season and US $
+              {RATE_TABLE["one-bedroom"].peak} during our summer/peak period; the two-bedroom
+              apartment is US ${RATE_TABLE["two-bedroom"].off} out of season and US $
+              {RATE_TABLE["two-bedroom"].peak} during summer/peak. The rate applicable to your stay
+              is always displayed and confirmed before you pay.
             </p>
           </Section>
 
           <Section number="4" title="Cancellations">
             <p>
-              Free cancellation up to 48 hours before check-in. If you cancel more than 48 hours
-              before your check-in date, you will not be charged and any deposit paid is refunded in
-              full.
+              Cancel <strong>7 or more days</strong> before check-in: you receive a{" "}
+              <strong>50% refund</strong> of the amount paid.
             </p>
             <p>
-              Cancellations within 48 hours of check-in forfeit a deposit equal to one night&apos;s
-              payment. No-shows are treated as a cancellation within 48 hours.
+              Cancel <strong>less than 7 days</strong> before check-in:{" "}
+              <strong>no refund</strong> is available.
             </p>
             <p>
-              The cancellation terms applicable to your reservation are also stated in your booking
-              confirmation.
+              No-shows are treated as a cancellation of less than 7 days. Once you have checked in,
+              unused nights are not refundable if you leave early.
+            </p>
+            <p>
+              Full refund terms are set out in our Refund Policy, and your cancellation terms are
+              also stated in your booking confirmation.
             </p>
           </Section>
 
@@ -126,15 +134,11 @@ function BookingPolicyPage() {
           </Section>
 
           <Section number="6" title="Children">
-            <p>
-              There is no age limit for children. Guests of all ages are welcome.
-            </p>
+            <p>There is no age limit for children. Guests of all ages are welcome.</p>
           </Section>
 
           <Section number="7" title="Parking">
-            <p>
-              Free parking is available for guests travelling with their own transportation.
-            </p>
+            <p>Free parking is available for guests travelling with their own transportation.</p>
           </Section>
 
           <Section number="8" title="Taxi & Airport Pickup Service">
@@ -187,55 +191,53 @@ function BookingPolicyPage() {
             </p>
           </Section>
 
-          <div className="rounded-2xl border border-brand-green/15 bg-brand-green px-6 py-8 text-white sm:px-8">
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-orange">
-              Guest Policy
-            </p>
-            <h2 className="mt-2 font-display text-xl font-bold tracking-tight text-brand-cream sm:text-2xl">
-              Contact us
-            </h2>
-            <p className="mt-4 font-semibold text-brand-sage">
+          <Section number="12" title="Contact Us">
+            <p className="font-semibold text-brand-charcoal">
               Malfranza Apartments &amp; Taxi Barbados
             </p>
-            <ul className="mt-4 space-y-3 text-sm sm:text-base">
+            <ul className="mt-3 space-y-3">
               <li>
                 <a
                   href="mailto:malfranza@gmail.com"
-                  className="inline-flex items-center gap-2 text-white/90 transition hover:text-white"
+                  className="inline-flex items-center gap-2 font-medium text-brand-green hover:underline"
                 >
-                  <Mail className="h-4 w-4 shrink-0 text-brand-sage" />
+                  <Mail className="h-4 w-4 shrink-0" />
                   malfranza@gmail.com
                 </a>
               </li>
               <li className="flex flex-wrap items-start gap-2">
-                <Phone className="mt-0.5 h-4 w-4 shrink-0 text-brand-sage" />
-                <span className="text-white/90">
-                  <a href="tel:+12462344875" className="hover:text-white">
+                <Phone className="mt-0.5 h-4 w-4 shrink-0 text-brand-green" />
+                <span>
+                  <a href="tel:+12462344875" className="font-medium text-brand-green hover:underline">
                     1 (246) 234-4875
                   </a>
-                  <span className="text-white/50"> / </span>
-                  <a href="tel:+12462314875" className="hover:text-white">
+                  <span className="text-muted-foreground"> / </span>
+                  <a href="tel:+12462314875" className="font-medium text-brand-green hover:underline">
                     1 (246) 231-4875
                   </a>
                 </span>
               </li>
             </ul>
-            <p className="mt-6 text-sm text-white/70">
+            <p className="mt-4">
               Also see{" "}
-              <Link to="/privacy" className="font-medium text-brand-sage underline-offset-4 hover:underline">
-                Privacy Policy
+              <Link to="/terms" className="font-medium text-brand-green hover:underline">
+                Terms
               </Link>
               {" · "}
-              <Link to="/cookies" className="font-medium text-brand-sage underline-offset-4 hover:underline">
-                Cookies Policy
+              <Link to="/privacy" className="font-medium text-brand-green hover:underline">
+                Privacy
               </Link>
               {" · "}
-              <Link to="/contact" className="font-medium text-brand-sage underline-offset-4 hover:underline">
+              <Link to="/cookies" className="font-medium text-brand-green hover:underline">
+                Cookies
+              </Link>
+              {" · "}
+              <Link to="/contact" className="font-medium text-brand-green hover:underline">
                 Contact
               </Link>
               .
             </p>
-          </div>
+          </Section>
         </div>
       </article>
     </div>

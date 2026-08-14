@@ -151,6 +151,44 @@ function TaxiTripDetailPage() {
                 <Field label="Notes" value={trip.notes} />
               </div>
             )}
+            {(trip.status === "cancelled" || Number(trip.refund_percent) > 0 || trip.refund_payout) && (
+              <div className="sm:col-span-2 rounded-xl border border-rose-200 bg-rose-50/80 p-4 space-y-2">
+                <div className="text-xs font-semibold uppercase tracking-wide text-rose-800">
+                  Guest cancellation
+                </div>
+                {trip.cancelled_by && <Field label="Cancelled by" value={trip.cancelled_by} />}
+                <Field
+                  label="Refund"
+                  value={
+                    Number(trip.refund_percent) > 0
+                      ? `50% · $${Number(trip.refund_amount ?? 0).toFixed(2)} · ${
+                          trip.refund_status || "eligible"
+                        }`
+                      : "No refund (within 7 days or unpaid)"
+                  }
+                />
+                {trip.cancellation_reason && <Field label="Reason" value={trip.cancellation_reason} />}
+                {trip.refund_payout && (
+                  <>
+                    <Field label="Payout method" value={trip.refund_payout.method ?? "—"} />
+                    <Field label="Account name" value={trip.refund_payout.accountName ?? "—"} />
+                    {trip.refund_payout.paypalEmail && (
+                      <Field label="PayPal email" value={trip.refund_payout.paypalEmail} />
+                    )}
+                    {trip.refund_payout.bankName && (
+                      <Field label="Bank" value={trip.refund_payout.bankName} />
+                    )}
+                    {trip.refund_payout.accountNumber && (
+                      <Field label="Account no." value={trip.refund_payout.accountNumber} />
+                    )}
+                    {trip.refund_payout.routingOrSortCode && (
+                      <Field label="Routing / sort" value={trip.refund_payout.routingOrSortCode} />
+                    )}
+                    {trip.refund_payout.notes && <Field label="Payout notes" value={trip.refund_payout.notes} />}
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {trip.status === "pending" && (

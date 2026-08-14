@@ -17,6 +17,7 @@ import {
   PanelLeftClose,
   PanelLeft,
   Building2,
+  CircleDollarSign,
 } from "lucide-react";
 import { getCurrentAdmin } from "@/lib/api";
 import { Logo } from "@/components/Logo";
@@ -48,6 +49,7 @@ function isNavGroup(item: NavEntry): item is NavGroup {
 const NAV: NavEntry[] = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/admin/bookings", label: "Bookings", icon: ClipboardList },
+  { to: "/admin/refunds", label: "Refunds", icon: CircleDollarSign },
   { to: "/admin/agencies", label: "Agencies", icon: Building2 },
   { to: "/admin/apartments", label: "Apartments", icon: BedDouble },
   { to: "/admin/calendar", label: "Calendar", icon: CalendarDays },

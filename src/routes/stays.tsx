@@ -6,10 +6,11 @@ import {
   ChevronDown, SlidersHorizontal, CheckSquare, Square, Coffee, Shirt,
   Refrigerator, Microwave, WashingMachine, Flame, CookingPot,
 } from "lucide-react";
+import { StarlinkBadge, prioritizeStarlinkAmenities, isStarlinkAmenity } from "@/components/StarlinkBadge";
 import { fetchApartments, type Apartment } from "@/data/apartments";
 import { fetchApartmentOccupancy, type ApartmentOccupancy } from "@/lib/bookings";
 import { catalogFromRate, roomTypeFromApartmentType } from "@/lib/pricing";
-import heroImg from "@/assets/rooms/apartment-1_tropical-escape/tropical-escape-02.jpg";
+import heroImg from "@/assets/update images/Stays first section image .jpg";
 
 const staysSearchSchema = z.object({
   checkIn: z.string().optional(),
@@ -209,7 +210,7 @@ function StaysPage() {
             </span>
           </div>
           <div className="aspect-[5/4] overflow-hidden rounded-3xl shadow-card">
-            <img src={heroImg} alt="Bright bedroom" className="h-full w-full object-cover" />
+            <img src={heroImg} alt="Malfranza stay in Barbados" className="h-full w-full object-cover" />
           </div>
         </div>
       </section>
@@ -378,8 +379,11 @@ function ApartmentCard({
   searchDates?: { checkIn: string; checkOut: string; guests?: number };
 }) {
   const navigate = useNavigate();
-  const displayed = apt.amenities.slice(0, 6);
-  const fromRate = catalogFromRate(roomTypeFromApartmentType(apt.type));
+  const displayed = prioritizeStarlinkAmenities(apt.amenities).slice(0, 6);
+  const fromRate =
+    apt.units.length > 0
+      ? apt.pricePerNight
+      : catalogFromRate(roomTypeFromApartmentType(apt.type));
   const ranges = occupancy?.blockedRanges ?? [];
   const unavailableForSearch = searchDates ? occupancy?.available === false : false;
   const occupiedNow = occupancy?.occupiedNow === true;
@@ -468,8 +472,11 @@ function ApartmentCard({
           </div>
         )}
 
-        <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-brand-charcoal/75">
+        <div className="mt-4 flex flex-wrap gap-2 text-xs text-brand-charcoal/75">
           {displayed.map((am) => {
+            if (isStarlinkAmenity(am)) {
+              return <StarlinkBadge key={am} compact />;
+            }
             const Icon = AMENITY_ICON[am];
             return (
               <span key={am} className="inline-flex items-center gap-1.5">

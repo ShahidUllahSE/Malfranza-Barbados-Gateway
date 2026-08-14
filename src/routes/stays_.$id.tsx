@@ -18,9 +18,11 @@ import {
 import {
   averageNightly,
   catalogFromRate,
+  RATE_TABLE,
   roomTypeFromApartmentType,
   roomTypeFromBedrooms,
 } from "@/lib/pricing";
+import { StarlinkBadge, isStarlinkAmenity, prioritizeStarlinkAmenities } from "@/components/StarlinkBadge";
 import { AreaMap } from "@/components/maps/AreaMap";
 import { OISTINS_CENTER } from "@/lib/googleMaps";
 import {
@@ -200,9 +202,11 @@ function ApartmentDetailPage() {
   useEffect(() => {
     setGuests((current) => Math.min(current, combinedMaxGuests));
   }, [combinedMaxGuests]);
-  const amenities = apt.amenities.length > 0
-    ? apt.amenities
-    : ["Wi-Fi", "Air Conditioning", "Kitchen", "Smart TV"];
+  const amenities = prioritizeStarlinkAmenities(
+    apt.amenities.length > 0
+      ? apt.amenities
+      : ["Wi-Fi", "Air Conditioning", "Kitchen", "Smart TV"],
+  );
 
   const handleCheckAvailability = async () => {
     if (!checkIn || !checkOut) {
@@ -411,6 +415,9 @@ function ApartmentDetailPage() {
           <p className="mt-2 inline-flex items-center gap-1.5 text-muted-foreground">
             <MapPin className="h-4 w-4 text-brand-orange" /> Oistins, Christ Church, Barbados
           </p>
+          <div className="mt-3">
+            <StarlinkBadge />
+          </div>
 
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
             <button
@@ -437,7 +444,7 @@ function ApartmentDetailPage() {
             <span className="text-center text-sm text-muted-foreground sm:text-left">
               From <span className="font-semibold text-brand-green">${catalogFromRate(pricedType)}</span> / night
               <span className="block text-xs sm:inline sm:before:content-['·_']">
-                Peak up to ${pricedType === "two-bedroom" ? 110 : 95}
+                Peak up to ${RATE_TABLE[pricedType].peak}
               </span>
             </span>
           </div>
@@ -557,13 +564,20 @@ function ApartmentDetailPage() {
           <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {amenities.map((label) => {
               const Icon = amenityIcon(label);
+              const featured = isStarlinkAmenity(label);
               return (
                 <li
                   key={label}
-                  className="flex min-w-0 items-center gap-2.5 rounded-xl border border-border px-3.5 py-3 text-sm"
+                  className={
+                    featured
+                      ? "flex min-w-0 items-center gap-2.5 rounded-xl border-2 border-brand-green/40 bg-brand-cream/60 px-3.5 py-3 text-sm shadow-sm sm:col-span-2 lg:col-span-2"
+                      : "flex min-w-0 items-center gap-2.5 rounded-xl border border-border px-3.5 py-3 text-sm"
+                  }
                 >
                   <Icon className="h-4 w-4 shrink-0 text-brand-green" />
-                  <span className="min-w-0 leading-snug">{label}</span>
+                  <span className={`min-w-0 leading-snug ${featured ? "font-semibold text-brand-charcoal" : ""}`}>
+                    {label}
+                  </span>
                 </li>
               );
             })}

@@ -718,7 +718,7 @@ function UnitEditor({
           bedrooms: 2,
           bathrooms: 2,
           maxGuests: 4,
-          pricePerNight: 110,
+          pricePerNight: 105,
           isActive: true,
         },
       ];
@@ -758,7 +758,7 @@ function UnitEditor({
                   bedrooms: 1,
                   bathrooms: 1,
                   maxGuests: 2,
-                  pricePerNight: 110,
+                  pricePerNight: 105,
                   isActive: true,
                 },
               ])
