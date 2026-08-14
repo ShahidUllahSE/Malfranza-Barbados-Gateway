@@ -88,8 +88,8 @@ function SettingsPage() {
       <div className="max-w-2xl rounded-2xl bg-white p-5 shadow-card sm:p-6">
         <h2 className="font-display font-bold text-brand-charcoal">Taxi rates (USD per km)</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Set the regulated rate by party size. Fare = driving distance (Google Maps) × rate for the
-          guest tier, never below the minimum.
+          Set the regulated rate by vehicle size. Fare = driving distance (Google Maps) × rate for
+          the van chosen, never below the minimum. The 8–10 seat tier is kept for later.
         </p>
 
         {settingsQ.isLoading ? (
@@ -106,22 +106,22 @@ function SettingsPage() {
           >
             <div className="grid gap-3 sm:grid-cols-3">
               <MoneyField
-                label="1–4 guests $/km"
-                hint="Standard car"
+                label="4-seater $/km"
+                hint="Up to 4 passengers"
                 value={form.fareFor1to4}
                 onChange={(v) => setNumber("fareFor1to4", v)}
                 step="0.01"
               />
               <MoneyField
-                label="5–7 guests $/km"
-                hint="XL"
+                label="XL 7-seater $/km"
+                hint="Up to 7 passengers"
                 value={form.fareFor5to7}
                 onChange={(v) => setNumber("fareFor5to7", v)}
                 step="0.01"
               />
               <MoneyField
-                label="8–10 guests $/km"
-                hint="Future tier"
+                label="8–10 seater $/km"
+                hint="Not offered yet"
                 value={form.fareFor8to10}
                 onChange={(v) => setNumber("fareFor8to10", v)}
                 step="0.01"
@@ -141,13 +141,19 @@ function SettingsPage() {
             <div className="rounded-xl bg-brand-cream/70 px-4 py-3 text-xs text-brand-charcoal">
               <p className="font-semibold text-brand-green">How the total is calculated</p>
               <p className="mt-1">
-                Distance (km) × rate for the guest tier, then floored by the minimum fare.
+                Distance (km) × rate for the vehicle size, then floored by the minimum fare.
               </p>
               <p className="mt-2 text-muted-foreground">
-                Example: 2 guests · 10 km → 10 × ${form.fareFor1to4} = $
+                Example: 4-seater · 10 km → 10 × ${form.fareFor1to4} = $
                 {Math.max(
                   form.minimumFareUsd,
                   Math.round(10 * form.fareFor1to4 * 100) / 100,
+                ).toFixed(2)}
+                {" · "}
+                XL · 10 km → 10 × ${form.fareFor5to7} = $
+                {Math.max(
+                  form.minimumFareUsd,
+                  Math.round(10 * form.fareFor5to7 * 100) / 100,
                 ).toFixed(2)}
               </p>
             </div>

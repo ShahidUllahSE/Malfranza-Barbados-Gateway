@@ -10,7 +10,7 @@ import { StarlinkBadge, prioritizeStarlinkAmenities, isStarlinkAmenity } from "@
 import { fetchApartments, type Apartment } from "@/data/apartments";
 import { fetchApartmentOccupancy, type ApartmentOccupancy } from "@/lib/bookings";
 import { catalogFromRate, roomTypeFromApartmentType } from "@/lib/pricing";
-import heroImg from "@/assets/update images/Stays first section image .jpg";
+import heroImg from "@/assets/update images/Stays first section image.jpg";
 
 const staysSearchSchema = z.object({
   checkIn: z.string().optional(),

@@ -10,7 +10,7 @@ import taxiHero from "@/assets/update images/Vehicle Photo (1).jpg";
 import { PlacesAutocompleteInput, TaxiRouteMap, type LatLng } from "@/components/maps/PlacesAutocompleteInput";
 import { VehicleOfferCard } from "@/components/taxi/VehicleOfferCard";
 import {
-  calculateGuestTaxiFare,
+  calculateVehicleTaxiFare,
   createTaxiBooking,
   fetchTaxiFareSettings,
   fetchTaxiVehicles,
@@ -200,7 +200,11 @@ function TaxiPage() {
   const rideFare = selectedVehicle
     ? Number(
         fareSettings
-          ? calculateGuestTaxiFare(fareSettings, form.passengers, vehicleResult?.distanceKm ?? 0)
+          ? calculateVehicleTaxiFare(
+              fareSettings,
+              selectedVehicle.passengerCapacity,
+              vehicleResult?.distanceKm ?? 0,
+            )
           : selectedVehicle.fare,
       )
     : 0;
@@ -561,10 +565,18 @@ function TaxiPage() {
               </p>
             </div>
             <div className="rounded-full bg-brand-cream px-4 py-2 text-sm font-semibold text-brand-green">
-              {form.passengers} guest{form.passengers === 1 ? "" : "s"} · $
+              From $
               {Number(
-                fareSettings
-                  ? calculateGuestTaxiFare(fareSettings, form.passengers, vehicleResult.distanceKm)
+                fareSettings && vehicleResult.distanceKm != null
+                  ? Math.min(
+                      ...vehicleResult.vehicles.map((v) =>
+                        calculateVehicleTaxiFare(
+                          fareSettings,
+                          v.passengerCapacity,
+                          vehicleResult.distanceKm,
+                        ),
+                      ),
+                    )
                   : vehicleResult.fare,
               ).toFixed(2)}{" "}
               {vehicleResult.currency}
@@ -582,9 +594,14 @@ function TaxiPage() {
                   key={vehicle.id}
                   vehicle={{
                     ...vehicle,
-                    fare: fareSettings
-                      ? calculateGuestTaxiFare(fareSettings, form.passengers, vehicleResult.distanceKm)
-                      : vehicle.fare,
+                    fare:
+                      fareSettings && vehicleResult.distanceKm != null
+                        ? calculateVehicleTaxiFare(
+                            fareSettings,
+                            vehicle.passengerCapacity,
+                            vehicleResult.distanceKm,
+                          )
+                        : vehicle.fare,
                   }}
                   currency={vehicleResult.currency}
                   passengers={form.passengers}
@@ -677,14 +694,14 @@ function TaxiPage() {
 
               {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
 
-              <div className="mt-4 space-y-3">
-                <p className="text-sm text-muted-foreground">
+              <div className="mt-6 flex flex-col items-center">
+                <p className="max-w-md text-center text-sm text-muted-foreground">
                   Cancel 7+ days before pickup for a 50% refund; within 7 days there is no refund. Pay with PayPal to request this ride —
                   no direct booking without payment.
                 </p>
 
                 {!paypalClientId ? (
-                  <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  <p className="mt-3 w-full max-w-sm rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-center text-sm text-amber-900">
                     PayPal is not configured. Set VITE_PAYPAL_CLIENT_ID and rebuild.
                   </p>
                 ) : !termsAccepted ||
@@ -693,17 +710,20 @@ function TaxiPage() {
                   !form.phone.trim() ||
                   !form.date ||
                   !form.time ? (
-                  <p className="rounded-xl border border-border bg-slate-50 px-4 py-3 text-sm text-muted-foreground">
+                  <p className="mt-3 w-full max-w-sm rounded-xl border border-border bg-slate-50 px-4 py-3 text-center text-sm text-muted-foreground">
                     Complete your details and accept the terms to enable PayPal.
                   </p>
                 ) : (
-                  <div className={submitting ? "pointer-events-none opacity-60" : ""}>
+                  <div
+                    className={`mt-4 w-full max-w-sm ${submitting ? "pointer-events-none opacity-60" : ""}`}
+                  >
                     <PayPalScriptProvider
                       options={{
                         clientId: paypalClientId,
                         currency: "USD",
                         intent: "capture",
                         components: "buttons",
+                        disableFunding: "paylater",
                       }}
                     >
                       <PayPalButtons
@@ -749,8 +769,8 @@ function TaxiPage() {
                         }}
                       />
                     </PayPalScriptProvider>
-                    <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Lock className="h-3.5 w-3.5" />
+                    <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
+                      <Lock className="h-3.5 w-3.5 shrink-0" />
                       Secure checkout — PayPal wallet or debit/credit card. Ride is requested only after payment.
                     </p>
                   </div>
@@ -764,15 +784,23 @@ function TaxiPage() {
       {fareSettings && (
         <section className="mx-auto mt-10 max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="rounded-2xl border border-border bg-white p-5 shadow-card sm:p-6">
-            <h2 className="text-lg font-bold text-brand-green sm:text-xl">Rates by guests (USD / km)</h2>
+            <h2 className="text-lg font-bold text-brand-green sm:text-xl">Rates by vehicle (USD / km)</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Regulated Malfranza rates — total fare is driving distance × the rate for your party
-              size (minimum ${Number(fareSettings.minimumFareUsd).toFixed(2)}).
+              Regulated Malfranza rates — total fare is driving distance × the rate for the van you
+              choose (minimum ${Number(fareSettings.minimumFareUsd).toFixed(2)}).
             </p>
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {[
-                { label: "1–4 guests", value: fareSettings.fareFor1to4 ?? fareSettings.fareFor1Guest ?? 1.62, active: form.passengers <= 4 },
-                { label: "XL · 5–7 guests", value: fareSettings.fareFor5to7 ?? fareSettings.fareFor3Guests ?? 2.4, active: form.passengers >= 5 },
+                {
+                  label: "4-seater",
+                  value: fareSettings.fareFor1to4 ?? fareSettings.fareFor1Guest ?? 1.62,
+                  active: (selectedVehicle?.passengerCapacity ?? 0) > 0 && (selectedVehicle?.passengerCapacity ?? 0) <= 4,
+                },
+                {
+                  label: "XL · 7 seats",
+                  value: fareSettings.fareFor5to7 ?? fareSettings.fareFor3Guests ?? 2.4,
+                  active: (selectedVehicle?.passengerCapacity ?? 0) > 4 && (selectedVehicle?.passengerCapacity ?? 0) <= 7,
+                },
               ].map((tier) => (
                 <div
                   key={tier.label}

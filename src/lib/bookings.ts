@@ -263,11 +263,16 @@ export type TaxiFareSettings = {
 };
 
 export function guestFareFromSettings(settings: TaxiFareSettings, passengers: number): number {
+  return vehicleFareFromSettings(settings, passengers);
+}
+
+/** Per-km rate by vehicle capacity: ≤4 → 4-seater, ≤7 → XL, else 8–10 tier. */
+export function vehicleFareFromSettings(settings: TaxiFareSettings, capacity: number): number {
   const fare1to4 = settings.fareFor1to4 ?? settings.fareFor1Guest ?? 1.62;
   const fare5to7 = settings.fareFor5to7 ?? settings.fareFor3Guests ?? 2.4;
   const fare8to10 = settings.fareFor8to10 ?? settings.fareFor4PlusGuests ?? 4;
-  if (passengers <= 4) return fare1to4;
-  if (passengers <= 7) return fare5to7;
+  if (capacity <= 4) return fare1to4;
+  if (capacity <= 7) return fare5to7;
   return fare8to10;
 }
 
@@ -276,7 +281,15 @@ export function calculateGuestTaxiFare(
   passengers: number,
   distanceKm: number | null | undefined,
 ): number {
-  const perKm = guestFareFromSettings(settings, passengers);
+  return calculateVehicleTaxiFare(settings, passengers, distanceKm);
+}
+
+export function calculateVehicleTaxiFare(
+  settings: TaxiFareSettings,
+  capacity: number,
+  distanceKm: number | null | undefined,
+): number {
+  const perKm = vehicleFareFromSettings(settings, capacity);
   const total = Math.max(0, Number(distanceKm) || 0) * perKm;
   return Math.max(settings.minimumFareUsd, Math.round(total * 100) / 100);
 }

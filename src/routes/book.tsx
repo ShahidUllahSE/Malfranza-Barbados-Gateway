@@ -1751,6 +1751,7 @@ function StepPayment(props: {
                 currency: "USD",
                 intent: "capture",
                 components: "buttons",
+                disableFunding: "paylater",
               }}
             >
               <PayPalButtons
