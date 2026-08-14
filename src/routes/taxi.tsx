@@ -530,24 +530,10 @@ function TaxiPage() {
                 </select>
               </RideField>
 
-              <div className="sm:col-span-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
-                <p className="text-sm text-white/70 font-medium">
-                  {searching
-                    ? "Loading our vans…"
-                    : fareSettings
-                      ? [
-                          `Fare for ${form.passengers} guest${form.passengers === 1 ? "" : "s"}: $${calculateGuestTaxiFare(fareSettings, form.passengers, vehicleResult?.distanceKm).toFixed(2)}`,
-                          vehicleResult?.distanceKm != null
-                            ? `· ~${vehicleResult.distanceKm} km`
-                            : null,
-                          vehicleResult?.durationMinutes != null
-                            ? `· ~${vehicleResult.durationMinutes} min`
-                            : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" ")
-                      : "Enter guests — the fare updates from the guest rate card."}
-                </p>
+              <div className="sm:col-span-2 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 pt-2">
+                {searching && (
+                  <p className="text-sm text-white/70 font-medium sm:mr-auto">Loading our vans…</p>
+                )}
                 <button type="submit" className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-orange px-7 py-3.5 font-semibold text-white shadow-lg shadow-brand-orange/20 hover:-translate-y-0.5 hover:brightness-105 transition">
                   See available vehicles <ArrowRight className="h-4 w-4" />
                 </button>
