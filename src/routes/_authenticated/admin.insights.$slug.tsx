@@ -1,6 +1,7 @@
 import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowLeft,
   CalendarCheck,
@@ -256,6 +257,24 @@ function InsightDetailPage() {
 
   const [openId, setOpenId] = useState<string | null>(null);
 
+  const openBooking = useMemo(() => {
+    if (!openId) return null;
+    const pools = [
+      data.todaysCheckIns,
+      data.todaysCheckOuts,
+      data.upcoming,
+      data.pending,
+      data.inHouse,
+      data.paid,
+      data.contributing,
+    ];
+    for (const rows of pools) {
+      const hit = rows.find((r) => r.id === openId);
+      if (hit) return hit;
+    }
+    return null;
+  }, [openId, data]);
+
   const summary = (() => {
     switch (slug) {
       case "arrivals":
@@ -452,6 +471,12 @@ function InsightDetailPage() {
           setOpenId={setOpenId}
         />
       )}
+
+      {openBooking && (
+        <InsightDrawer onClose={() => setOpenId(null)}>
+          <BookingDrawerBody booking={openBooking} />
+        </InsightDrawer>
+      )}
     </div>
   );
 }
@@ -473,8 +498,6 @@ function BookingDetailTable({
   setOpenId: (id: string | null) => void;
   showPayment?: boolean;
 }) {
-  const open = rows.find((r) => r.id === openId) ?? null;
-
   return (
     <AdminPanel title={title} description={`${rows.length} record${rows.length === 1 ? "" : "s"}`}>
       {rows.length === 0 ? (
@@ -562,12 +585,6 @@ function BookingDetailTable({
             </tbody>
           </AdminTableShell>
         </AdminTableCard>
-      )}
-
-      {open && (
-        <InsightDrawer onClose={() => setOpenId(null)}>
-          <BookingDrawerBody booking={open} />
-        </InsightDrawer>
       )}
     </AdminPanel>
   );
@@ -889,15 +906,22 @@ function InsightDrawer({
   children: React.ReactNode;
   onClose: () => void;
 }) {
-  return (
-    <div className="fixed inset-0 z-50">
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex justify-end">
       <button
         type="button"
         className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
         aria-label="Close"
         onClick={onClose}
       />
-      <div className="absolute right-0 top-0 flex h-full w-full max-w-md flex-col bg-white shadow-2xl sm:max-w-lg">
+      <aside
+        role="dialog"
+        aria-modal="true"
+        aria-label="Booking details"
+        className="relative z-10 flex h-full w-full max-w-md flex-col bg-white shadow-2xl sm:max-w-lg"
+      >
         <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
           <p className="text-sm font-semibold text-brand-charcoal">Booking details</p>
           <button
@@ -909,8 +933,9 @@ function InsightDrawer({
           </button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto p-5">{children}</div>
-      </div>
-    </div>
+      </aside>
+    </div>,
+    document.body,
   );
 }
 
