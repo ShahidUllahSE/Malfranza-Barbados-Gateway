@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { Loader2, X } from "lucide-react";
 import type { RefundPayoutInput } from "@/lib/cancellation";
 
@@ -20,11 +21,16 @@ export function RefundRequestDialog({ amount, onClose, onSubmit, pending }: Prop
   const [accountNumber, setAccountNumber] = useState("");
   const [routingOrSortCode, setRoutingOrSortCode] = useState("");
   const [notes, setNotes] = useState("");
+  const [policyAccepted, setPolicyAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!policyAccepted) {
+      setError("Please confirm you agree to the refund policy.");
+      return;
+    }
     if (!accountName.trim()) {
       setError("Enter the name on the payout account");
       return;
@@ -152,6 +158,28 @@ export function RefundRequestDialog({ amount, onClose, onSubmit, pending }: Prop
             </label>
           )}
 
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-slate-50 px-3.5 py-3.5 text-sm text-brand-charcoal">
+            <input
+              type="checkbox"
+              checked={policyAccepted}
+              onChange={(e) => setPolicyAccepted(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-border text-brand-green accent-brand-green focus:ring-brand-green/30"
+            />
+            <span className="leading-relaxed text-muted-foreground">
+              I agree to Malfranza&apos;s refund terms in the{" "}
+              <Link
+                to="/booking-policy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-brand-green underline underline-offset-2 hover:opacity-90"
+                onClick={(e) => e.stopPropagation()}
+              >
+                booking policy
+              </Link>
+              . Refunds are processed manually by our team.
+            </span>
+          </label>
+
           {error && <p className="text-sm text-rose-700">{error}</p>}
 
           <div className="grid grid-cols-2 gap-2 pt-1">
@@ -165,7 +193,7 @@ export function RefundRequestDialog({ amount, onClose, onSubmit, pending }: Prop
             </button>
             <button
               type="submit"
-              disabled={pending}
+              disabled={pending || !policyAccepted}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-green px-3 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
             >
               {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}

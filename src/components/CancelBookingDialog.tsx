@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { Loader2, X } from "lucide-react";
 import type { CancellationPreview, GuestCancelInput } from "@/lib/cancellation";
 
@@ -12,10 +13,15 @@ type Props = {
 
 export function CancelBookingDialog({ preview, eventLabel, onClose, onConfirm, pending }: Props) {
   const [reason, setReason] = useState("");
+  const [policyAccepted, setPolicyAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function onYes() {
     setError(null);
+    if (!policyAccepted) {
+      setError("Please confirm you understand the cancellation and refund policy.");
+      return;
+    }
     try {
       await onConfirm({ reason: reason.trim() || undefined });
     } catch (err) {
@@ -84,6 +90,28 @@ export function CancelBookingDialog({ preview, eventLabel, onClose, onConfirm, p
           />
         </label>
 
+        <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-slate-50 px-3.5 py-3.5 text-sm text-brand-charcoal">
+          <input
+            type="checkbox"
+            checked={policyAccepted}
+            onChange={(e) => setPolicyAccepted(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-border text-brand-green accent-brand-green focus:ring-brand-green/30"
+          />
+          <span className="leading-relaxed text-muted-foreground">
+            I understand and agree to Malfranza&apos;s cancellation and refund terms in the{" "}
+            <Link
+              to="/booking-policy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-brand-green underline underline-offset-2 hover:opacity-90"
+              onClick={(e) => e.stopPropagation()}
+            >
+              booking policy
+            </Link>
+            .
+          </span>
+        </label>
+
         {error && <p className="mt-3 text-sm text-rose-700">{error}</p>}
 
         <div className="mt-5 grid grid-cols-2 gap-2">
@@ -98,7 +126,7 @@ export function CancelBookingDialog({ preview, eventLabel, onClose, onConfirm, p
           <button
             type="button"
             onClick={() => void onYes()}
-            disabled={pending}
+            disabled={pending || !policyAccepted}
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-60"
           >
             {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
