@@ -596,7 +596,8 @@ function BookingDrawerBody({ booking: b }: { booking: BookingRow }) {
           <Field label="Phone">{b.guest_phone}</Field>
           {b.user_account && (
             <Field label="Account">
-              {b.user_account.name} · {b.user_account.email}
+              <span className="block">{b.user_account.name}</span>
+              <span className="mt-0.5 block text-muted-foreground">{b.user_account.email}</span>
             </Field>
           )}
           <Field label="Party size">{b.guests}</Field>
@@ -889,10 +890,15 @@ function InsightDrawer({
   onClose: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
-      <button type="button" className="absolute inset-0 bg-black/40" aria-label="Close" onClick={onClose} />
-      <div className="relative z-10 flex h-full w-full max-w-md flex-col overflow-y-auto bg-white shadow-2xl">
-        <div className="sticky top-0 flex items-center justify-between border-b border-border bg-white px-5 py-4">
+    <div className="fixed inset-0 z-50">
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+        aria-label="Close"
+        onClick={onClose}
+      />
+      <div className="absolute right-0 top-0 flex h-full w-full max-w-md flex-col bg-white shadow-2xl sm:max-w-lg">
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
           <p className="text-sm font-semibold text-brand-charcoal">Booking details</p>
           <button
             type="button"
@@ -902,7 +908,7 @@ function InsightDrawer({
             Close
           </button>
         </div>
-        <div className="p-5">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-5">{children}</div>
       </div>
     </div>
   );
@@ -910,9 +916,9 @@ function InsightDrawer({
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <span className="text-sm text-brand-charcoal sm:text-right">{children}</span>
+    <div className="min-w-0">
+      <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="mt-0.5 break-words text-sm text-brand-charcoal [overflow-wrap:anywhere]">{children}</div>
     </div>
   );
 }
