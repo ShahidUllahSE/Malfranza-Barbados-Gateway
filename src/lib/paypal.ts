@@ -14,7 +14,16 @@ export async function createPayPalOrder(input: {
   amount: number;
   currency?: string;
   description?: string;
-}): Promise<{ orderId: string; status: string }> {
+  couponCode?: string;
+}): Promise<{
+  orderId: string;
+  status: string;
+  amount: number;
+  originalAmount: number;
+  discountPercent: number;
+  couponApplied: boolean;
+  couponCode: string | null;
+}> {
   return apiRequest("/payments/paypal/create-order", {
     method: "POST",
     body: JSON.stringify(input),

@@ -20,6 +20,7 @@ import {
   type TaxiFareSettings,
 } from "@/lib/bookings";
 import { capturePayPalOrder, createPayPalOrder } from "@/lib/paypal";
+import { isValidTestCouponFormat, previewCheckoutCoupon } from "@/lib/coupon";
 import { useUserAuth } from "@/context/UserAuthContext";
 import { clearAdminToken, clearDriverToken, setUserToken } from "@/lib/api";
 import { toast } from "sonner";
@@ -93,6 +94,9 @@ function TaxiPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
   const [confirmation, setConfirmation] = useState<TaxiBookingResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -208,7 +212,31 @@ function TaxiPage() {
           : selectedVehicle.fare,
       )
     : 0;
+  const ridePriced = previewCheckoutCoupon(rideFare, appliedCoupon);
+  const rideAmountDue = ridePriced.amount;
   const paypalClientId = ((import.meta.env.VITE_PAYPAL_CLIENT_ID as string | undefined) || "").trim();
+
+  function applyTaxiCoupon() {
+    setCouponError(null);
+    const raw = couponInput.trim();
+    if (!raw) {
+      setCouponError("Enter a coupon code");
+      return;
+    }
+    if (!isValidTestCouponFormat(raw)) {
+      setCouponError("Invalid coupon code");
+      setAppliedCoupon(null);
+      return;
+    }
+    setAppliedCoupon(raw.toUpperCase());
+    toast.success("Coupon applied — 99% off for this test checkout");
+  }
+
+  function clearTaxiCoupon() {
+    setAppliedCoupon(null);
+    setCouponInput("");
+    setCouponError(null);
+  }
 
   const handleSubmit = async (paymentReference: string) => {
     if (!selectedVehicle) {
@@ -688,11 +716,55 @@ function TaxiPage() {
                   <Link to="/booking-policy" className="font-semibold text-brand-green underline">
                     booking terms
                   </Link>{" "}
-                  and will pay ${rideFare.toFixed(2)} USD for this ride.
+                  and will pay ${rideAmountDue.toFixed(2)} USD for this ride.
                 </span>
               </label>
 
               {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+
+              <div className="mt-4 rounded-xl border border-border bg-slate-50 p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Coupon code
+                </p>
+                <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                  <input
+                    value={couponInput}
+                    onChange={(e) => {
+                      setCouponInput(e.target.value);
+                      setCouponError(null);
+                    }}
+                    placeholder="Enter coupon"
+                    disabled={!!appliedCoupon || submitting}
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-brand-green disabled:opacity-70"
+                  />
+                  {appliedCoupon ? (
+                    <button
+                      type="button"
+                      onClick={clearTaxiCoupon}
+                      disabled={submitting}
+                      className="h-11 shrink-0 rounded-xl border border-border px-4 text-sm font-semibold text-brand-charcoal hover:bg-white disabled:opacity-60"
+                    >
+                      Remove
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={applyTaxiCoupon}
+                      disabled={submitting || !couponInput.trim()}
+                      className="h-11 shrink-0 rounded-xl bg-brand-green px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                    >
+                      Apply
+                    </button>
+                  )}
+                </div>
+                {couponError && <p className="mt-2 text-sm text-rose-700">{couponError}</p>}
+                {ridePriced.couponApplied && (
+                  <p className="mt-2 text-sm font-medium text-brand-green">
+                    {ridePriced.discountPercent}% off · was ${ridePriced.originalAmount.toFixed(2)} · now $
+                    {rideAmountDue.toFixed(2)}
+                  </p>
+                )}
+              </div>
 
               <div className="mt-6 flex flex-col items-center">
                 <p className="max-w-md text-center text-sm text-muted-foreground">
@@ -717,6 +789,11 @@ function TaxiPage() {
                   <div
                     className={`mt-4 w-full max-w-sm ${submitting ? "pointer-events-none opacity-60" : ""}`}
                   >
+                    {ridePriced.couponApplied && (
+                      <p className="mb-3 text-center text-sm font-semibold text-brand-green">
+                        Paying ${rideAmountDue.toFixed(2)} (99% off)
+                      </p>
+                    )}
                     <PayPalScriptProvider
                       options={{
                         clientId: paypalClientId,
@@ -734,14 +811,15 @@ function TaxiPage() {
                           label: "paypal",
                           tagline: false,
                         }}
-                        disabled={submitting || rideFare < 0.5}
-                        forceReRender={[rideFare, termsAccepted, form.passengers]}
+                        disabled={submitting || rideAmountDue < 0.5}
+                        forceReRender={[rideAmountDue, termsAccepted, form.passengers, appliedCoupon]}
                         createOrder={async () => {
                           try {
                             const order = await createPayPalOrder({
                               amount: rideFare,
                               currency: "USD",
                               description: "Malfranza taxi booking",
+                              couponCode: appliedCoupon || undefined,
                             });
                             return order.orderId;
                           } catch (e) {

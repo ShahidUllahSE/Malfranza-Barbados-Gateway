@@ -35,6 +35,7 @@ import { VehicleOfferCard } from "@/components/taxi/VehicleOfferCard";
 import { fetchAgencyCommissionRate } from "@/lib/agency";
 import { registerAtCheckout } from "@/lib/user";
 import { capturePayPalOrder, createPayPalOrder } from "@/lib/paypal";
+import { isValidTestCouponFormat, previewCheckoutCoupon } from "@/lib/coupon";
 import { PayPalButtons, PayPalScriptProvider } from "@paypal/react-paypal-js";
 import { APARTMENTS as SEEDED_APTS } from "@/data/apartments";
 import {
@@ -1690,6 +1691,35 @@ function StepPayment(props: {
     paypalClientId,
   } = props;
 
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+
+  const priced = previewCheckoutCoupon(total, appliedCoupon);
+  const amountDue = priced.amount;
+
+  function applyCoupon() {
+    setCouponError(null);
+    const raw = couponInput.trim();
+    if (!raw) {
+      setCouponError("Enter a coupon code");
+      return;
+    }
+    if (!isValidTestCouponFormat(raw)) {
+      setCouponError("Invalid coupon code");
+      setAppliedCoupon(null);
+      return;
+    }
+    setAppliedCoupon(raw.toUpperCase());
+    toastSuccess("Coupon applied — 99% off for this test checkout");
+  }
+
+  function clearCoupon() {
+    setAppliedCoupon(null);
+    setCouponInput("");
+    setCouponError(null);
+  }
+
   return (
     <div>
       <h2 className="text-xl font-bold text-brand-green">Payment</h2>
@@ -1719,13 +1749,63 @@ function StepPayment(props: {
         </span>
       </label>
 
+      <div className="mt-4 rounded-2xl border border-border bg-white p-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Coupon code
+        </p>
+        <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+          <input
+            value={couponInput}
+            onChange={(e) => {
+              setCouponInput(e.target.value);
+              setCouponError(null);
+            }}
+            placeholder="Enter coupon"
+            disabled={!!appliedCoupon || paying}
+            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 text-sm outline-none transition focus:border-brand-green focus:bg-white focus:ring-2 focus:ring-brand-green/15 disabled:opacity-70"
+          />
+          {appliedCoupon ? (
+            <button
+              type="button"
+              onClick={clearCoupon}
+              disabled={paying}
+              className="h-11 shrink-0 rounded-xl border border-border px-4 text-sm font-semibold text-brand-charcoal hover:bg-slate-50 disabled:opacity-60"
+            >
+              Remove
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={applyCoupon}
+              disabled={paying || !couponInput.trim()}
+              className="h-11 shrink-0 rounded-xl bg-brand-green px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
+            >
+              Apply
+            </button>
+          )}
+        </div>
+        {couponError && <p className="mt-2 text-sm text-rose-700">{couponError}</p>}
+        {priced.couponApplied && (
+          <p className="mt-2 text-sm font-medium text-brand-green">
+            {priced.discountPercent}% off applied ({priced.code})
+          </p>
+        )}
+      </div>
+
       <div className="mt-4 flex flex-col gap-3 rounded-2xl border-2 border-brand-green/20 bg-brand-cream/50 p-5">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Amount due
             </p>
-            <p className="text-2xl font-bold text-brand-green">{money(total)}</p>
+            {priced.couponApplied ? (
+              <div className="mt-0.5">
+                <p className="text-sm text-muted-foreground line-through">{money(priced.originalAmount)}</p>
+                <p className="text-2xl font-bold text-brand-green">{money(amountDue)}</p>
+              </div>
+            ) : (
+              <p className="text-2xl font-bold text-brand-green">{money(amountDue)}</p>
+            )}
           </div>
           {paying && (
             <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -1756,8 +1836,8 @@ function StepPayment(props: {
             >
               <PayPalButtons
                 style={{ layout: "vertical", color: "gold", shape: "rect", label: "paypal", tagline: false }}
-                disabled={paying || total < 0.5}
-                forceReRender={[total, termsAccepted]}
+                disabled={paying || amountDue < 0.5}
+                forceReRender={[amountDue, termsAccepted, appliedCoupon]}
                 createOrder={async () => {
                   try {
                     const order = await createPayPalOrder({
@@ -1766,6 +1846,7 @@ function StepPayment(props: {
                       description: apt
                         ? `Malfranza stay — ${apt.name}`
                         : "Malfranza apartment booking",
+                      couponCode: appliedCoupon || undefined,
                     });
                     return order.orderId;
                   } catch (e: unknown) {
