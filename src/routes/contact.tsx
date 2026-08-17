@@ -6,7 +6,7 @@ import {
   Phone, MessageCircle, Mail, MapPin, Lock, ChevronRight, ArrowRight,
   Plus, Minus,
 } from "lucide-react";
-import stayGarden from "@/assets/rooms/apartment-1_tropical-escape/tropical-escape-02.jpg";
+import contactHero from "@/assets/ContactPage.png";
 import { createEnquiry } from "@/lib/bookings";
 import { getCurrentUser } from "@/lib/user";
 import { LocationMap } from "@/components/maps/LocationMap";
@@ -20,7 +20,7 @@ export const Route = createFileRoute("/contact")({
       { name: "description", content: "Get in touch with Malfranza — call, WhatsApp, email or send a message. We reply within hours." },
       { property: "og:title", content: "Contact Malfranza Apartments & Taxi" },
       { property: "og:description", content: "Reach out about apartment stays or taxi service in Barbados." },
-      { property: "og:image", content: stayGarden },
+      { property: "og:image", content: contactHero },
     ],
   }),
   component: ContactPage,
@@ -132,7 +132,7 @@ function ContactPage() {
             </p>
           </div>
           <div className="rounded-3xl overflow-hidden shadow-card">
-            <img src={stayGarden} alt="Tropical garden" className="w-full h-full object-cover aspect-[5/4]" />
+            <img src={contactHero} alt="Malfranza apartment bedroom" className="w-full h-full object-cover aspect-[5/4]" />
           </div>
         </div>
       </section>

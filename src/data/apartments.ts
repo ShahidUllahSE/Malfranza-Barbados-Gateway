@@ -100,7 +100,7 @@ function galleryFromModules(
 }
 
 function galleryFor(match: string): string[] {
-  const room = galleryFromModules(ROOM_IMAGE_MODULES, match, 8);
+  const room = galleryFromModules(ROOM_IMAGE_MODULES, match, 10);
   if (room.length > 0) return room;
 
   const m = match.toLowerCase();
@@ -346,7 +346,7 @@ function mapApiApartment(record: any): Apartment {
       units.length > 0
         ? Math.min(...units.map((u) => u.pricePerNight))
         : catalogFromRate(roomType),
-    images: uniquePhotoUrls(photos.length > 0 ? photos : seedImages).slice(0, 8),
+    images: uniquePhotoUrls(photos.length > 0 ? photos : seedImages).slice(0, 10),
     amenities: Array.isArray(record.amenities)
       ? record.amenities
       : (fallback?.amenities ?? []),

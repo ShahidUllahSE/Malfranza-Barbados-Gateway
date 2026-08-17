@@ -4,7 +4,7 @@ import {
   KeyRound, ShoppingBag, CheckCircle2, Sparkles, Zap, MapPin,
   Refrigerator, Microwave, Coffee, Shirt, Flame, CookingPot,
 } from "lucide-react";
-import amenitiesHero from "@/assets/updatedaminities.jpg";
+import amenitiesHero from "@/assets/AmmenitiesPage.png";
 import stay1br from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_34 PM.png";
 import stayBathroom from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_13 PM.png";
 import stayGarden from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_00 PM.png";

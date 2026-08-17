@@ -30,68 +30,76 @@ CURATED: list[tuple[str, str, Path, list[str]]] = [
     (
         "apartment-1",
         "tropical-escape",
-        ROOM1,
+        ROOT / "Tropical Escape\u200b",
         [
-            "Malfranza Apartment Number 1-10.jpg",
-            "Malfranza Apartment Number 1.jpg",
-            "Malfranza Apartment Number 1-25.jpg",
-            "Malfranza Apartment Number 1-35.jpg",
-            "Malfranza Apartment Number 1-34.jpg",
-            "Malfranza Apartment Number 1-33.jpg",
-            "Malfranza Apartment Number 1-23.jpg",
+            "ChatGPT Image Aug 17, 2026, 02_02_13 AM (1).png",
+            "ChatGPT Image Aug 17, 2026, 02_02_13 AM (2).png",
+            "ChatGPT Image Aug 17, 2026, 02_02_15 AM (3).png",
+            "ChatGPT Image Aug 17, 2026, 02_02_19 AM (7).png",
+            "ChatGPT Image Aug 17, 2026, 02_02_21 AM (8).png",
+            "ChatGPT Image Aug 17, 2026, 02_02_23 AM (10).png",
         ],
     ),
     (
         "apartment-2",
         "island-breeze",
-        ROOM2,
+        ROOT / "island breeze",
         [
-            "Malfranza Apartment Number 2-4.jpg",
-            "Malfranza Apartment Number 2-8.jpg",
-            "Malfranza Apartment Number 2-18.jpg",
-            "Malfranza Apartment Number 2-22.jpg",
-            "Malfranza Apartment Number 2-27.jpg",
-            "Malfranza Apartment Number 2-11.jpg",
+            "ChatGPT Image Aug 17, 2026, 02_46_46 PM (1).png",
+            "ChatGPT Image Aug 17, 2026, 02_46_46 PM (2).png",
+            "ChatGPT Image Aug 17, 2026, 02_46_46 PM (3).png",
+            "ChatGPT Image Aug 17, 2026, 02_46_46 PM (4).png",
+            "ChatGPT Image Aug 17, 2026, 02_46_47 PM (5).png",
+            "ChatGPT Image Aug 17, 2026, 02_46_47 PM (6).png",
+            "ChatGPT Image Aug 17, 2026, 02_46_47 PM (7).png",
         ],
     ),
     (
         "apartment-3",
         "palm-retreat",
-        ROOM3,
+        ROOT / "Palm Retreat\u200b",
         [
-            "Malfranza Apartment Number 3.jpg",
-            "Malfranza Apartment Number 3-32.jpg",
-            "Malfranza Apartment Number 3-30.jpg",
-            "Malfranza Apartment Number 3-14.jpg",
-            "Malfranza Apartment Number 3-22.jpg",
-            "Malfranza Apartment Number 3-13.jpg",
+            "ChatGPT Image Aug 17, 2026, 02_54_15 PM (1).png",
+            "ChatGPT Image Aug 17, 2026, 02_54_16 PM (2).png",
+            "ChatGPT Image Aug 17, 2026, 02_54_16 PM (4).png",
+            "ChatGPT Image Aug 17, 2026, 02_54_17 PM (6).png",
+            "ChatGPT Image Aug 17, 2026, 02_54_17 PM (7).png",
+            "ChatGPT Image Aug 17, 2026, 02_54_17 PM (8).png",
+            "ChatGPT Image Aug 17, 2026, 02_54_17 PM (9).png",
+            "ChatGPT Image Aug 17, 2026, 02_54_18 PM (10).png",
         ],
     ),
     (
         "apartment-4",
         "golden-serenity",
-        ROOM4,
+        ROOT / "Golden Serenity\u200b",
         [
-            "Malfranza Apartment Number 4-13.jpg",  # bedroom + TV hero
-            "Malfranza Apartment Number 4-12.jpg",  # wardrobe / bedroom
-            "Malfranza Apartment Number 4-32.jpg",  # dining
-            "Malfranza Apartment Number 4-35.jpg",  # kitchen
-            "Malfranza Apartment Number 4-17.jpg",  # bathroom vanity
-            "Malfranza Apartment Number 4-25.jpg",  # toilet last
+            "ChatGPT Image Aug 17, 2026, 03_26_53 PM (1).png",
+            "ChatGPT Image Aug 17, 2026, 03_26_53 PM (2).png",
+            "ChatGPT Image Aug 17, 2026, 03_26_54 PM (3).png",
+            "ChatGPT Image Aug 17, 2026, 03_26_54 PM (4).png",
+            "ChatGPT Image Aug 17, 2026, 03_26_55 PM (6).png",
+            "ChatGPT Image Aug 17, 2026, 03_26_55 PM (7).png",
+            "ChatGPT Image Aug 17, 2026, 03_26_56 PM (8).png",
+            "ChatGPT Image Aug 17, 2026, 03_26_56 PM (9).png",
+            "ChatGPT Image Aug 17, 2026, 03_26_56 PM (10).png",
         ],
     ),
     (
         "apartment-a-and-b",
         "sunset-suite",
-        ROOM_AB,
+        ROOT / "Sunset Suite\u200b",
         [
-            "Malfranza A AND B-9.jpg",  # bedroom hero
-            "Malfranza A AND B-10.jpg",  # bedroom + TV / AC
-            "Malfranza A AND B-30.jpg",  # dining
-            "Malfranza A AND B-31.jpg",  # kitchen
-            "Malfranza A AND B-22.jpg",  # exterior stairs
-            "Malfranza A AND B-19.jpg",  # closet
-            "Malfranza A AND B-4.jpg",  # washroom last
+            "ChatGPT Image Aug 17, 2026, 01_09_32 AM (1).png",
+            "ChatGPT Image Aug 17, 2026, 01_09_32 AM (2).png",
+            "ChatGPT Image Aug 17, 2026, 01_09_32 AM (3).png",
+            "ChatGPT Image Aug 17, 2026, 01_09_32 AM (4).png",
+            "ChatGPT Image Aug 17, 2026, 01_09_32 AM (5).png",
+            "ChatGPT Image Aug 17, 2026, 01_09_32 AM (8).png",
+            "ChatGPT Image Aug 17, 2026, 01_13_41 AM (2).png",
+            "ChatGPT Image Aug 17, 2026, 01_13_41 AM (3).png",
+            "ChatGPT Image Aug 17, 2026, 01_13_42 AM (5).png",
+            "ChatGPT Image Aug 17, 2026, 01_13_43 AM (6).png",
         ],
     ),
 ]

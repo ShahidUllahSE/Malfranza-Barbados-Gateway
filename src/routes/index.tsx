@@ -10,7 +10,7 @@ import heroImg from "@/assets/updatedBannerNew.jpg";
 import stayGlimpse from "@/assets/updateamin2.jpg";
 import stayAmenities from "@/assets/updatedaminities.jpg";
 import stayKitchen from "@/assets/rooms/apartment-1_tropical-escape/tropical-escape-05.jpg";
-import stay2br from "@/assets/rooms/apartment-a-and-b_sunset-suite/sunset-suite-01-malfranza-a-and-b-9.jpg";
+import stay2br from "@/assets/rooms/apartment-a-and-b_sunset-suite/sunset-suite-01.jpg";
 import stayBathroom from "@/assets/rooms/apartment-2_island-breeze/island-breeze-06.jpg";
 // Hidden for now — green building exterior (local + Cloudinary tropical-escape-02)
 // import stayGarden from "@/assets/rooms/apartment-1_tropical-escape/tropical-escape-02.jpg";
@@ -107,10 +107,6 @@ function isUsableImageSrc(src: unknown): src is string {
   if (!value) return false;
   if (value.includes("placeholder")) return false;
   if (value === "null" || value === "undefined") return false;
-  // Temporarily hide the green-building exterior (tropical-escape-02).
-  if (value.includes("tropical-escape-02")) return false;
-  // Replaced in the glimpse gallery by local updatedaminities.jpg.
-  if (value.includes("palm-retreat-02")) return false;
   return true;
 }
 
