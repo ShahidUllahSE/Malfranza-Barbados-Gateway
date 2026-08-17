@@ -35,7 +35,7 @@ import { VehicleOfferCard } from "@/components/taxi/VehicleOfferCard";
 import { fetchAgencyCommissionRate } from "@/lib/agency";
 import { registerAtCheckout } from "@/lib/user";
 import { capturePayPalOrder, createPayPalOrder } from "@/lib/paypal";
-import { isValidTestCouponFormat, previewCheckoutCoupon } from "@/lib/coupon";
+import { isValidTestCouponFormat, previewCheckoutCoupon, TEST_COUPON_PERCENT } from "@/lib/coupon";
 import { PayPalButtons, PayPalScriptProvider } from "@paypal/react-paypal-js";
 import { APARTMENTS as SEEDED_APTS } from "@/data/apartments";
 import {
@@ -1711,7 +1711,7 @@ function StepPayment(props: {
       return;
     }
     setAppliedCoupon(raw.toUpperCase());
-    toastSuccess("Coupon applied — 99% off for this test checkout");
+    toastSuccess(`Coupon applied — ${TEST_COUPON_PERCENT}% off for this test checkout`);
   }
 
   function clearCoupon() {

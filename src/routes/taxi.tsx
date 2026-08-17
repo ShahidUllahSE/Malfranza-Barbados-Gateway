@@ -20,7 +20,7 @@ import {
   type TaxiFareSettings,
 } from "@/lib/bookings";
 import { capturePayPalOrder, createPayPalOrder } from "@/lib/paypal";
-import { isValidTestCouponFormat, previewCheckoutCoupon } from "@/lib/coupon";
+import { isValidTestCouponFormat, previewCheckoutCoupon, TEST_COUPON_PERCENT } from "@/lib/coupon";
 import { useUserAuth } from "@/context/UserAuthContext";
 import { clearAdminToken, clearDriverToken, setUserToken } from "@/lib/api";
 import { toast } from "sonner";
@@ -229,7 +229,7 @@ function TaxiPage() {
       return;
     }
     setAppliedCoupon(raw.toUpperCase());
-    toast.success("Coupon applied — 99% off for this test checkout");
+    toast.success(`Coupon applied — ${TEST_COUPON_PERCENT}% off for this test checkout`);
   }
 
   function clearTaxiCoupon() {
@@ -793,7 +793,7 @@ function TaxiPage() {
                   >
                     {ridePriced.couponApplied && (
                       <p className="mb-3 text-center text-sm font-semibold text-brand-green">
-                        Paying ${rideAmountDue.toFixed(2)} (99% off)
+                        Paying ${rideAmountDue.toFixed(2)} ({TEST_COUPON_PERCENT}% off)
                       </p>
                     )}
                     <PayPalScriptProvider
