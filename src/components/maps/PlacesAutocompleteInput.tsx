@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { MapPin } from "lucide-react";
 import {
   BRAND_GREEN,
   BRAND_MAP_STYLE,
@@ -29,6 +30,8 @@ type AutocompleteProps = {
   ariaLabel?: string;
   regionCode?: string;
   trailing?: ReactNode;
+  /** Dropdown styling — use dark on green form panels. */
+  menuVariant?: "light" | "dark";
 };
 
 export type MapPickRole = "pickup" | "dropoff";
@@ -79,6 +82,28 @@ type SuggestionItem = {
   prediction?: any;
 };
 
+function readFormattableText(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "string") return value.trim();
+  const obj = value as { text?: unknown; toString?: () => string };
+  if (typeof obj.text === "string" && obj.text.trim()) return obj.text.trim();
+  if (typeof obj.toString === "function") {
+    const s = obj.toString();
+    if (s && s !== "[object Object]") return s.trim();
+  }
+  return "";
+}
+
+/** Full label shown in the dropdown — same string is written into the input on pick. */
+function formatPlacePredictionText(pred: any): string {
+  const full = readFormattableText(pred?.text);
+  if (full) return full;
+  const main = readFormattableText(pred?.mainText);
+  const secondary = readFormattableText(pred?.secondaryText);
+  if (main && secondary) return `${main}, ${secondary}`;
+  return main || secondary;
+}
+
 /**
  * Places suggestions (worldwide — no country lock). Dropdown is portaled to document.body
  * so parent overflow:hidden cards never clip it.
@@ -95,6 +120,7 @@ export function PlacesAutocompleteInput({
   ariaLabel,
   regionCode,
   trailing,
+  menuVariant = "light",
 }: AutocompleteProps) {
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -238,10 +264,7 @@ export function PlacesAutocompleteInput({
               .slice(0, 7)
               .map((s: any, i: number) => {
                 const pred = s.placePrediction;
-                const text =
-                  pred?.text?.toString?.() ||
-                  pred?.mainText?.toString?.() ||
-                  String(pred?.text?.text ?? pred ?? "");
+                const text = formatPlacePredictionText(pred);
                 const id = String(pred?.placeId ?? pred?.toPlace?.()?.id ?? `n-${i}-${text}`);
                 return { id, text, prediction: pred };
               })
@@ -299,10 +322,10 @@ export function PlacesAutocompleteInput({
   };
 
   const pick = (item: SuggestionItem) => {
-    // Keep the suggestion label the user clicked — Google's formattedAddress
-    // is often a different nearby street address (e.g. "Cosy Corner…" instead of
-    // "Malfranza Apartments…"). Coords still come from place details for routing.
-    onChange(item.text);
+    if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    // Keep the suggestion label the user clicked — never replace with formattedAddress.
+    const label = item.text;
+    onChange(label);
     setOpen(false);
     setSuggestions([]);
 
@@ -320,7 +343,7 @@ export function PlacesAutocompleteInput({
             const lng =
               typeof loc?.lng === "function" ? loc.lng() : typeof loc?.lng === "number" ? loc.lng : null;
             onPlace?.({
-              address: item.text,
+              address: label,
               location: lat != null && lng != null ? { lat, lng } : null,
             });
             return;
@@ -339,12 +362,12 @@ export function PlacesAutocompleteInput({
                 ?.AutocompleteSessionToken;
               if (Token) sessionRef.current = new Token();
               if (status !== placesStatusOk.current || !result) {
-                onPlace({ address: item.text, location: null });
+                onPlace({ address: label, location: null });
                 return;
               }
               const loc = result.geometry?.location;
               onPlace({
-                address: item.text,
+                address: label,
                 location: loc ? { lat: loc.lat(), lng: loc.lng() } : null,
               });
             },
@@ -352,10 +375,10 @@ export function PlacesAutocompleteInput({
           return;
         }
 
-        onPlace?.({ address: item.text, location: null });
+        onPlace?.({ address: label, location: null });
       } catch (e) {
         console.warn("[maps] place details", e);
-        onPlace?.({ address: item.text, location: null });
+        onPlace?.({ address: label, location: null });
       }
     })();
   };
@@ -373,22 +396,38 @@ export function PlacesAutocompleteInput({
               width: Math.max(menuPos.width, 220),
               zIndex: 99999,
             }}
-            className="max-h-72 overflow-auto rounded-xl border border-slate-200 bg-white py-1 text-brand-charcoal shadow-2xl"
+            className={
+              menuVariant === "dark"
+                ? "max-h-72 overflow-auto rounded-xl border border-white/15 bg-brand-green-deep py-1 text-white shadow-2xl"
+                : "max-h-72 overflow-auto rounded-xl border border-slate-200 bg-white py-1 text-brand-charcoal shadow-2xl"
+            }
           >
             {suggestions.map((s, i) => (
               <li key={s.id} role="option" aria-selected={i === highlight}>
                 <button
                   type="button"
-                  className={`w-full px-3 py-2.5 text-left text-sm ${
-                    i === highlight ? "bg-brand-cream" : "bg-white"
-                  } hover:bg-brand-cream`}
+                  className={`flex w-full items-start gap-2.5 px-3 py-2.5 text-left text-sm ${
+                    i === highlight
+                      ? menuVariant === "dark"
+                        ? "bg-white/10"
+                        : "bg-brand-cream"
+                      : menuVariant === "dark"
+                        ? "bg-transparent"
+                        : "bg-white"
+                  } ${menuVariant === "dark" ? "hover:bg-white/10" : "hover:bg-brand-cream"}`}
                   onMouseDown={(e) => {
                     e.preventDefault();
                     pick(s);
                   }}
                   onMouseEnter={() => setHighlight(i)}
                 >
-                  {s.text}
+                  <MapPin
+                    className={`mt-0.5 h-4 w-4 shrink-0 ${
+                      menuVariant === "dark" ? "text-brand-orange" : "text-brand-green"
+                    }`}
+                    aria-hidden
+                  />
+                  <span>{s.text}</span>
                 </button>
               </li>
             ))}

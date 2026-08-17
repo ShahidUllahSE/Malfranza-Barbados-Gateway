@@ -84,6 +84,10 @@ export type GoogleMapsApi = {
 /** Property / map center — Malfranza Apartments (Bing Maps pin). */
 export const HAGGATT_HALL_CENTER = { lat: 13.065842, lng: -59.49755 };
 
+/** Canonical address for airport pickup drop-off and taxi routing. */
+export const MALFRANZA_PROPERTY_ADDRESS =
+  "Malfranza Apartments, Rouen, Saint Michael Barbados";
+
 /** @deprecated Use HAGGATT_HALL_CENTER */
 export const OISTINS_CENTER = HAGGATT_HALL_CENTER;
 

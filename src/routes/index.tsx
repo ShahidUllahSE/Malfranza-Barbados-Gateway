@@ -760,6 +760,7 @@ function TextFormField({
           onChange={onChange}
           placeholder={placeholder}
           ariaLabel={label}
+          menuVariant={isDark ? "dark" : "light"}
           className={
             isDark
               ? "w-full bg-transparent text-sm font-medium text-white outline-none placeholder:text-white/40"

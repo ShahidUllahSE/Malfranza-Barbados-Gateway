@@ -441,6 +441,7 @@ function TaxiPage() {
                   onFocus={() => setMapTarget("pickup")}
                   placeholder="Type pickup address"
                   ariaLabel="From"
+                  menuVariant="dark"
                   className="bg-transparent text-sm text-white outline-none placeholder:text-white/40"
                   trailing={
                     <ChooseFromMapButton
@@ -469,6 +470,7 @@ function TaxiPage() {
                   onFocus={() => setMapTarget("dropoff")}
                   placeholder="Type drop-off address"
                   ariaLabel="To"
+                  menuVariant="dark"
                   className="bg-transparent text-sm text-white outline-none placeholder:text-white/40"
                   trailing={
                     <ChooseFromMapButton

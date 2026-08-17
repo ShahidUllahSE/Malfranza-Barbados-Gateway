@@ -45,6 +45,7 @@ import {
   roomTypeFromBedrooms,
   staySubtotal,
 } from "@/lib/pricing";
+import { MALFRANZA_PROPERTY_ADDRESS } from "@/lib/googleMaps";
 
 function aptImage(slug: string, photos: string[] | undefined) {
   if (photos && photos.length > 0) return photos[0];
@@ -202,8 +203,6 @@ function BookWizard() {
       setSelectedTaxiVehicle(null);
       return;
     }
-    const dropoffName =
-      apartments.find((a) => a.id === apartmentId)?.name ?? "Malfranza Rentals";
     let cancelled = false;
     const timer = window.setTimeout(() => {
       setTaxiSearching(true);
@@ -212,7 +211,7 @@ function BookWizard() {
         pickupDate: taxiDate,
         pickupTime: taxiTime,
         pickupLocation: "Grantley Adams International Airport (BGI), Barbados",
-        dropoffLocation: `${dropoffName}, Haggatt Hall, Barbados`,
+        dropoffLocation: MALFRANZA_PROPERTY_ADDRESS,
       })
         .then((result) => {
           if (cancelled) return;
@@ -234,7 +233,7 @@ function BookWizard() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [taxiOn, taxiDate, taxiTime, taxiPassengers, apartmentId, apartments]);
+  }, [taxiOn, taxiDate, taxiTime, taxiPassengers]);
 
   // Guest details + checkout path (guest | create account)
   const [checkoutPath, setCheckoutPath] = useState<"guest" | "account">("guest");
@@ -582,7 +581,7 @@ function BookWizard() {
         taxi: taxiOn
           ? {
               pickup: "Grantley Adams Intl. Airport (BGI)",
-              dropoff: `${selectedApt.name} — Haggatt Hall`,
+              dropoff: MALFRANZA_PROPERTY_ADDRESS,
               date: taxiDate,
               time: taxiTime,
               passengers: taxiPassengers,
@@ -614,7 +613,7 @@ function BookWizard() {
           const taxi = await createTaxiBooking({
             serviceType: "Airport Pickup",
             pickupLocation: "Grantley Adams Intl. Airport (BGI)",
-            dropoffLocation: `${selectedApt.name} — Haggatt Hall`,
+            dropoffLocation: MALFRANZA_PROPERTY_ADDRESS,
             pickupDate: taxiDate,
             pickupTime: taxiTime,
             passengers: taxiPassengers,
