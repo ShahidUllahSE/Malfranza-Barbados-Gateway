@@ -29,7 +29,7 @@ export const Route = createFileRoute("/contact")({
 const PHONE = "+1 (246) 234-4875";
 const PHONE_TEL = "+12462344875";
 const WHATSAPP_URL = `https://wa.me/12462344875`;
-const EMAIL = "info@malfranzaapartments.com";
+const EMAIL = "info@malfranzarentals.com";
 const ADDRESS = "Haggatt Hall, St. Michael, Barbados";
 const DIRECTIONS_URL =
   "https://www.bing.com/maps?&cp=13.065842~-59.49755&lvl=16.0&osid=e28d8445-566f-4447-920c-03c0044b7d0d&v=2&sV=2&form=S00027";
