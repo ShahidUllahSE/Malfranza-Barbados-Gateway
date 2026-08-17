@@ -6,7 +6,7 @@ import {
   CheckCircle2, ShieldCheck, Sparkles, ArrowRight,
 } from "lucide-react";
 import { APARTMENTS, fetchApartments, type Apartment } from "@/data/apartments";
-import heroImg from "@/assets/updatedBannerNew.jpg";
+import heroImg from "@/assets/updatedhomebanner.png";
 import stayGlimpse from "@/assets/updateamin2.jpg";
 import stayAmenities from "@/assets/updatedaminities.jpg";
 import stayKitchen from "@/assets/rooms/apartment-1_tropical-escape/tropical-escape-05.jpg";
@@ -218,7 +218,7 @@ function HomePage() {
       <section className="relative isolate overflow-hidden">
         <img
           src={heroImg}
-          alt="Bright Malfranza apartment interior"
+          alt="Malfranza apartments — Haggatt Hall, Barbados"
           className="absolute inset-0 h-full w-full object-cover"
           width={1600}
           height={1000}

@@ -135,7 +135,11 @@ const MIN_NIGHTS_MESSAGE = "Minimum stay is 1 night. Choose a check-out date at 
 
 
 function money(n: number) {
-  return `$${n.toFixed(0)}`;
+  const value = Number(n) || 0;
+  if (Math.abs(value - Math.round(value)) < 0.001) {
+    return `$${Math.round(value)}`;
+  }
+  return `$${value.toFixed(2)}`;
 }
 
 /* ---------------- Wizard ---------------- */
