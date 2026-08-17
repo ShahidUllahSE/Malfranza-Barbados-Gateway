@@ -747,6 +747,7 @@ function BookWizard() {
             nights={nights}
             guests={guests}
             roomTotal={roomTotal}
+            nightlyRate={selectedRate}
             taxiOn={taxiOn}
             pickupFee={pickupFee}
             bundleDiscount={bundleDiscount}
@@ -1121,8 +1122,8 @@ function StepRoom(props: {
         <div>
           <h2 className="text-xl font-bold text-brand-green">Pick your apartment</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Seasonal rates: 1-BR from ${RATE_TABLE["one-bedroom"].off} · 2-BR from $
-            {RATE_TABLE["two-bedroom"].off}. All-in — PayPal fee included.
+            Room rates: 1-BR ${RATE_TABLE["one-bedroom"]} · 2-BR ${RATE_TABLE["two-bedroom"]}.
+            All-in — PayPal fee included.
           </p>
         </div>
         {checkingAvail && (
@@ -1893,7 +1894,8 @@ function StepPayment(props: {
 
 function BookingSummary(props: {
   apt: Apartment | null; unitNames?: string[]; checkIn: string; checkOut: string; nights: number; guests: number;
-  roomTotal: number; taxiOn: boolean; pickupFee: number; bundleDiscount: number; total: number;
+  roomTotal: number; nightlyRate: number;
+  taxiOn: boolean; pickupFee: number; bundleDiscount: number; total: number;
   step: number;
   canContinue: boolean;
   accountBusy: boolean;
@@ -1901,7 +1903,8 @@ function BookingSummary(props: {
   className?: string;
 }) {
   const {
-    apt, unitNames, checkIn, checkOut, nights, guests, roomTotal, taxiOn, pickupFee, bundleDiscount, total,
+    apt, unitNames, checkIn, checkOut, nights, guests, roomTotal, nightlyRate,
+    taxiOn, pickupFee, bundleDiscount, total,
     step, canContinue, accountBusy, onContinue, className,
   } = props;
   const continueLabel = step === 3 ? "Continue to payment" : "Continue";
@@ -1938,7 +1941,15 @@ function BookingSummary(props: {
       </div>
 
       <div className="mt-4 space-y-1.5 border-t border-border pt-4 text-sm">
-        <SummaryRow label={`Room${nights ? ` × ${nights}` : ""}`}>{apt ? money(roomTotal) : "—"}</SummaryRow>
+        <SummaryRow
+          label={
+            nights > 0
+              ? `${nights} night${nights > 1 ? "s" : ""} × ${money(nightlyRate)}/night`
+              : "Room"
+          }
+        >
+          {apt ? money(roomTotal) : "—"}
+        </SummaryRow>
         {taxiOn && (
           <>
             <SummaryRow label="Airport pickup">{money(pickupFee)}</SummaryRow>

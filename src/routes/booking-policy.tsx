@@ -84,14 +84,11 @@ function BookingPolicyPage() {
               booking is due as advised in your booking confirmation.
             </p>
             <p>
-              All rates are quoted in US dollars (USD) per room, per night, and vary by room type and
-              season. The price shown at booking is the final price you pay, with no additional
-              processing fees added at checkout. One-bedroom apartments are US $
-              {RATE_TABLE["one-bedroom"].off} per night out of season and US $
-              {RATE_TABLE["one-bedroom"].peak} during our summer/peak period; the two-bedroom
-              apartment is US ${RATE_TABLE["two-bedroom"].off} out of season and US $
-              {RATE_TABLE["two-bedroom"].peak} during summer/peak. The rate applicable to your stay
-              is always displayed and confirmed before you pay.
+              All rates are quoted in US dollars (USD) per room, per night, and vary by room type.
+              The price shown at booking is the final price you pay, with no additional processing
+              fees added at checkout. One-bedroom apartments are US ${RATE_TABLE["one-bedroom"]} per
+              night; the two-bedroom apartment is US ${RATE_TABLE["two-bedroom"]} per night. The
+              rate applicable to your stay is always displayed and confirmed before you pay.
             </p>
           </Section>
 
