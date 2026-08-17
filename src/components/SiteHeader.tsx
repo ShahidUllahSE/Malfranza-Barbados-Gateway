@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   Menu,
@@ -19,6 +19,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 
 const navLinks = [
   { to: "/stays", label: "Stays" },
@@ -40,6 +41,9 @@ function userInitials(name: string) {
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  // PayPal card fields expand inline — a sticky header covers that form and blocks clicks.
+  const checkoutFlow = pathname.startsWith("/book") || pathname.startsWith("/taxi");
   const { user, admin, session, signOut, openAuthModal } = useUserAuth();
   const isStaff = session?.kind === "admin";
   const isDriver = session?.kind === "driver";
@@ -79,7 +83,12 @@ export function SiteHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/90 backdrop-blur-md">
+    <header
+      className={cn(
+        "w-full border-b border-border bg-background/90 backdrop-blur-md",
+        checkoutFlow ? "relative z-30" : "sticky top-0 z-50",
+      )}
+    >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:h-20 sm:px-6 lg:h-24 lg:px-8">
         <Link to="/" className="flex items-center" aria-label="Malfranza home">
           <Logo className="h-12 w-auto sm:h-16 lg:h-20" />

@@ -81,8 +81,11 @@ export type GoogleMapsApi = {
   };
 };
 
-// Central point used across the site.
-export const OISTINS_CENTER = { lat: 13.0656, lng: -59.5442 };
+/** Property / map center — Malfranza Apartments (Bing Maps pin). */
+export const HAGGATT_HALL_CENTER = { lat: 13.065842, lng: -59.49755 };
+
+/** @deprecated Use HAGGATT_HALL_CENTER */
+export const OISTINS_CENTER = HAGGATT_HALL_CENTER;
 
 // Light, desaturated brand map style.
 export const BRAND_MAP_STYLE: MapStyle[] = [

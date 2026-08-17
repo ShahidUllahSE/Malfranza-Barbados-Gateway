@@ -1,14 +1,17 @@
 import { useRouterState } from "@tanstack/react-router";
 
 const WHATSAPP_URL =
-  "https://wa.me/12468234567?text=" +
+  "https://wa.me/12462344875?text=" +
   encodeURIComponent("Hi Malfranza! I'd like help with a stay or taxi booking.");
 
 export function WhatsAppFloat() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   // Stay detail has a fixed mobile booking bar — lift the button above it.
   const aboveMobileBar = pathname.startsWith("/stays/") && pathname !== "/stays/";
-
+  // Hide over PayPal card fields so the float doesn't cover checkout controls.
+  if (pathname.startsWith("/book") || pathname.startsWith("/taxi")) {
+    return null;
+  }
   return (
     <a
       href={WHATSAPP_URL}

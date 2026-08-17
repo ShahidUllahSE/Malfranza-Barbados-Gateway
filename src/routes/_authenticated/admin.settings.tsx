@@ -14,7 +14,7 @@ export const Route = createFileRoute("/_authenticated/admin/settings")({
 });
 
 const EMPTY: TaxiFareSettings = {
-  fareFor1to4: 1.62,
+  fareFor1to4: 2.4,
   fareFor5to7: 2.4,
   fareFor8to10: 4,
   perKmUsd: 0,
@@ -40,7 +40,7 @@ function SettingsPage() {
     if (!settingsQ.data) return;
     const data = settingsQ.data;
     setForm({
-      fareFor1to4: data.fareFor1to4 ?? data.fareFor1Guest ?? 1.62,
+      fareFor1to4: data.fareFor5to7 ?? data.fareFor3Guests ?? 2.4,
       fareFor5to7: data.fareFor5to7 ?? data.fareFor3Guests ?? 2.4,
       fareFor8to10: data.fareFor8to10 ?? data.fareFor4PlusGuests ?? 4,
       perKmUsd: data.perKmUsd ?? 0,
@@ -52,6 +52,7 @@ function SettingsPage() {
     mutationFn: () =>
       updateAdminTaxiFareSettings({
         ...form,
+        fareFor1to4: form.fareFor5to7,
         perKmUsd: 0,
       }),
     onSuccess: (data) => {
@@ -89,7 +90,7 @@ function SettingsPage() {
         <h2 className="font-display font-bold text-brand-charcoal">Taxi rates (USD per km)</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Set the regulated rate by vehicle size. Fare = driving distance (Google Maps) × rate for
-          the van chosen, never below the minimum. The 8–10 seat tier is kept for later.
+          the van chosen, never below the minimum. Fleet: XL 7-seater and 12-seater only.
         </p>
 
         {settingsQ.isLoading ? (
@@ -104,14 +105,7 @@ function SettingsPage() {
               save.mutate();
             }}
           >
-            <div className="grid gap-3 sm:grid-cols-3">
-              <MoneyField
-                label="4-seater $/km"
-                hint="Up to 4 passengers"
-                value={form.fareFor1to4}
-                onChange={(v) => setNumber("fareFor1to4", v)}
-                step="0.01"
-              />
+            <div className="grid gap-3 sm:grid-cols-2">
               <MoneyField
                 label="XL 7-seater $/km"
                 hint="Up to 7 passengers"
@@ -120,8 +114,8 @@ function SettingsPage() {
                 step="0.01"
               />
               <MoneyField
-                label="8–10 seater $/km"
-                hint="Not offered yet"
+                label="12-seater $/km"
+                hint="Up to 12 passengers"
                 value={form.fareFor8to10}
                 onChange={(v) => setNumber("fareFor8to10", v)}
                 step="0.01"
@@ -144,16 +138,16 @@ function SettingsPage() {
                 Distance (km) × rate for the vehicle size, then floored by the minimum fare.
               </p>
               <p className="mt-2 text-muted-foreground">
-                Example: 4-seater · 10 km → 10 × ${form.fareFor1to4} = $
-                {Math.max(
-                  form.minimumFareUsd,
-                  Math.round(10 * form.fareFor1to4 * 100) / 100,
-                ).toFixed(2)}
-                {" · "}
-                XL · 10 km → 10 × ${form.fareFor5to7} = $
+                Example: XL 7 · 10 km → 10 × ${form.fareFor5to7} = $
                 {Math.max(
                   form.minimumFareUsd,
                   Math.round(10 * form.fareFor5to7 * 100) / 100,
+                ).toFixed(2)}
+                {" · "}
+                12-seater · 10 km → 10 × ${form.fareFor8to10} = $
+                {Math.max(
+                  form.minimumFareUsd,
+                  Math.round(10 * form.fareFor8to10 * 100) / 100,
                 ).toFixed(2)}
               </p>
             </div>

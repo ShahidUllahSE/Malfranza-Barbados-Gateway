@@ -23,7 +23,7 @@ export function SiteFooter() {
           <ul className="mt-5 space-y-3 text-sm">
             <li className="flex items-start gap-3">
               <Phone className="mt-0.5 h-4 w-4 shrink-0 text-brand-sage" />
-              <a href="tel:+12468234567" className="hover:text-white">+1 (246) 823-4567</a>
+              <a href="tel:+12462344875" className="hover:text-white">+1 (246) 234-4875</a>
             </li>
             <li className="flex items-start gap-3">
               <Mail className="mt-0.5 h-4 w-4 shrink-0 text-brand-sage" />
@@ -33,7 +33,7 @@ export function SiteFooter() {
             </li>
             <li className="flex items-start gap-3">
               <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand-sage" />
-              <span>Oistins, Christ Church<br />Barbados</span>
+              <span>Haggatt Hall, St. Michael<br />Barbados</span>
             </li>
           </ul>
         </div>
@@ -56,7 +56,7 @@ export function SiteFooter() {
         <div>
           <h4 className="text-sm font-semibold uppercase tracking-wider text-white">Let's Connect</h4>
           <a
-            href="https://wa.me/12468234567"
+            href="https://wa.me/12462344875"
             target="_blank"
             rel="noreferrer"
             className="mt-5 inline-flex items-center gap-3 rounded-xl bg-white/10 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-white/20"
@@ -71,7 +71,7 @@ export function SiteFooter() {
             <a href="#" aria-label="Instagram" className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/20">
               <Instagram className="h-4 w-4" />
             </a>
-            <a href="https://wa.me/12468234567" aria-label="WhatsApp" className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/20">
+            <a href="https://wa.me/12462344875" aria-label="WhatsApp" className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/20">
               <MessageCircle className="h-4 w-4" />
             </a>
           </div>

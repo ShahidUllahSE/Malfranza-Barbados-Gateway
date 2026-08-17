@@ -266,14 +266,12 @@ export function guestFareFromSettings(settings: TaxiFareSettings, passengers: nu
   return vehicleFareFromSettings(settings, passengers);
 }
 
-/** Per-km rate by vehicle capacity: ≤4 → 4-seater, ≤7 → XL, else 8–10 tier. */
+/** Per-km rate by vehicle capacity: ≤7 → XL 7-seater, else 12-seater. */
 export function vehicleFareFromSettings(settings: TaxiFareSettings, capacity: number): number {
-  const fare1to4 = settings.fareFor1to4 ?? settings.fareFor1Guest ?? 1.62;
   const fare5to7 = settings.fareFor5to7 ?? settings.fareFor3Guests ?? 2.4;
-  const fare8to10 = settings.fareFor8to10 ?? settings.fareFor4PlusGuests ?? 4;
-  if (capacity <= 4) return fare1to4;
+  const fare12 = settings.fareFor8to10 ?? settings.fareFor4PlusGuests ?? 4;
   if (capacity <= 7) return fare5to7;
-  return fare8to10;
+  return fare12;
 }
 
 export function calculateGuestTaxiFare(
@@ -334,6 +332,7 @@ export type EnquiryInput = {
   phone?: string;
   interestedIn: string;
   preferredDates?: string;
+  preferredDateEnd?: string;
   message: string;
 };
 
@@ -346,6 +345,7 @@ export async function createEnquiry(input: EnquiryInput) {
       phone: input.phone,
       interestedIn: input.interestedIn,
       preferredDate: input.preferredDates,
+      preferredDateEnd: input.preferredDateEnd,
       message: input.message,
     }),
     userAuth: !!getUserToken(),

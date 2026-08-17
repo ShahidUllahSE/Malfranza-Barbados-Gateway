@@ -378,7 +378,7 @@ function DriverForm({
           value={vehicleLabel}
           onChange={(e) => setVehicleLabel(e.target.value)}
           className={inputClass}
-          placeholder="4-seater car"
+          placeholder="XL — 7 seats"
         />
       </Field>
       <Field label="Passenger capacity">

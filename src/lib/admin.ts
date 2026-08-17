@@ -299,7 +299,11 @@ export async function listEnquiries() {
     phone: enquiry.phone ?? null,
     user_account: mapLinkedUser(enquiry),
     interested_in: enquiry.interestedIn,
-    preferred_dates: enquiry.preferredDate ? toDateOnly(enquiry.preferredDate) : null,
+    preferred_dates: enquiry.preferredDate
+      ? enquiry.preferredDateEnd
+        ? `${toDateOnly(enquiry.preferredDate)} → ${toDateOnly(enquiry.preferredDateEnd)}`
+        : toDateOnly(enquiry.preferredDate)
+      : null,
     message: enquiry.message,
     status: enquiry.status as EnquiryStatus,
     admin_notes: enquiry.adminNotes ?? null,
