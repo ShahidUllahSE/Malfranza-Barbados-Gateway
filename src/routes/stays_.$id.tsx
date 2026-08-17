@@ -18,13 +18,12 @@ import {
 import {
   averageNightly,
   catalogFromRate,
-  RATE_TABLE,
   roomTypeFromApartmentType,
   roomTypeFromBedrooms,
 } from "@/lib/pricing";
 import { StarlinkBadge, isStarlinkAmenity, prioritizeStarlinkAmenities } from "@/components/StarlinkBadge";
 import { AreaMap } from "@/components/maps/AreaMap";
-import { OISTINS_CENTER } from "@/lib/googleMaps";
+import { HAGGATT_HALL_CENTER } from "@/lib/googleMaps";
 import {
   Dialog,
   DialogContent,
@@ -47,7 +46,7 @@ export const Route = createFileRoute("/stays_/$id")({
     return {
       meta: [
         { title },
-        { name: "description", content: `${apt.name} in Oistins, Barbados. From $${apt.pricePerNight}/night.` },
+        { name: "description", content: `${apt.name} in Haggatt Hall, St. Michael, Barbados. From $${apt.pricePerNight}/night.` },
         { property: "og:title", content: title },
         { property: "og:description", content: `${apt.name} · From $${apt.pricePerNight}/night` },
         { property: "og:image", content: apt.images[0] },
@@ -413,7 +412,7 @@ function ApartmentDetailPage() {
             {apt.name}
           </h1>
           <p className="mt-2 inline-flex items-center gap-1.5 text-muted-foreground">
-            <MapPin className="h-4 w-4 text-brand-orange" /> Oistins, Christ Church, Barbados
+            <MapPin className="h-4 w-4 text-brand-orange" /> Haggatt Hall, St. Michael
           </p>
           <div className="mt-3">
             <StarlinkBadge />
@@ -443,9 +442,6 @@ function ApartmentDetailPage() {
             </a>
             <span className="text-center text-sm text-muted-foreground sm:text-left">
               From <span className="font-semibold text-brand-green">${catalogFromRate(pricedType)}</span> / night
-              <span className="block text-xs sm:inline sm:before:content-['·_']">
-                Peak up to ${RATE_TABLE[pricedType].peak}
-              </span>
             </span>
           </div>
           {error && !checkIn && (
@@ -624,15 +620,15 @@ function ApartmentDetailPage() {
             <h2 className="text-2xl font-bold">Location</h2>
             <p className="mt-1 inline-flex items-center gap-1.5 text-sm text-muted-foreground">
               <MapPin className="h-4 w-4 shrink-0 text-brand-green" />
-              Oistins, Christ Church, Barbados
+              Haggatt Hall, St. Michael
             </p>
           </div>
         </div>
         <div className="relative mt-5 h-[260px] overflow-hidden rounded-2xl border border-border bg-brand-cream shadow-card sm:h-[320px]">
-          <AreaMap center={OISTINS_CENTER} zoom={14} radius={550} className="absolute inset-0 h-full w-full" />
+          <AreaMap center={HAGGATT_HALL_CENTER} zoom={14} radius={550} className="absolute inset-0 h-full w-full" />
           <div className="absolute bottom-3 left-3 right-3 rounded-xl bg-white/95 px-4 py-3 shadow-card backdrop-blur sm:bottom-4 sm:left-4 sm:right-auto sm:max-w-sm">
             <p className="text-sm font-semibold text-brand-green">Exact address provided after booking.</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">Central Oistins — minutes from the highway and the airport.</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">Haggatt Hall — minutes from the highway and Bridgetown.</p>
           </div>
         </div>
       </section>

@@ -10,7 +10,7 @@ import stayGarden from "@/assets/rooms/apartment-1_tropical-escape/tropical-esca
 import { createEnquiry } from "@/lib/bookings";
 import { getCurrentUser } from "@/lib/user";
 import { LocationMap } from "@/components/maps/LocationMap";
-import { OISTINS_CENTER } from "@/lib/googleMaps";
+import { HAGGATT_HALL_CENTER } from "@/lib/googleMaps";
 
 
 export const Route = createFileRoute("/contact")({
@@ -26,26 +26,33 @@ export const Route = createFileRoute("/contact")({
   component: ContactPage,
 });
 
-const PHONE = "+1 (246) 123-4567";
-const PHONE_TEL = "+12461234567";
-const WHATSAPP_URL = `https://wa.me/12461234567`;
+const PHONE = "+1 (246) 234-4875";
+const PHONE_TEL = "+12462344875";
+const WHATSAPP_URL = `https://wa.me/12462344875`;
 const EMAIL = "info@malfranzaapartments.com";
-const ADDRESS = "Near Grantley Adams Intl. Airport (BGI), Oistins, Christ Church, Barbados";
-const DIRECTIONS_URL = "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent("Oistins, Christ Church, Barbados");
+const ADDRESS = "Haggatt Hall, St. Michael, Barbados";
+const DIRECTIONS_URL =
+  "https://www.bing.com/maps?&cp=13.065842~-59.49755&lvl=16.0&osid=e28d8445-566f-4447-920c-03c0044b7d0d&v=2&sV=2&form=S00027";
 
-const contactSchema = z.object({
-  fullName: z.string().trim().min(1, "Please enter your name").max(100),
-  email: z.string().trim().email("Enter a valid email").max(255),
-  phone: z.string().trim().max(40).optional().or(z.literal("")),
-  interest: z.enum(["Apartment Stay", "Taxi Service", "Both", "Other"]),
-  date: z.string().max(40).optional().or(z.literal("")),
-  message: z.string().trim().min(1, "Please add a short message").max(1000),
-});
+const contactSchema = z
+  .object({
+    fullName: z.string().trim().min(1, "Please enter your name").max(100),
+    email: z.string().trim().email("Enter a valid email").max(255),
+    phone: z.string().trim().max(40).optional().or(z.literal("")),
+    interest: z.enum(["Apartment Stay", "Taxi Service", "Both", "Other"]),
+    dateFrom: z.string().max(40).optional().or(z.literal("")),
+    dateTo: z.string().max(40).optional().or(z.literal("")),
+    message: z.string().trim().min(1, "Please add a short message").max(1000),
+  })
+  .refine((data) => !data.dateFrom || !data.dateTo || data.dateTo >= data.dateFrom, {
+    message: "End date must be on or after the start date",
+    path: ["dateTo"],
+  });
 
 type FormState = {
   fullName: string; email: string; phone: string;
   interest: "Apartment Stay" | "Taxi Service" | "Both" | "Other" | "";
-  date: string; message: string;
+  dateFrom: string; dateTo: string; message: string;
 };
 
 const FAQS = [
@@ -57,7 +64,7 @@ const FAQS = [
 
 function ContactPage() {
   const [form, setForm] = useState<FormState>({
-    fullName: "", email: "", phone: "", interest: "", date: "", message: "",
+    fullName: "", email: "", phone: "", interest: "", dateFrom: "", dateTo: "", message: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -94,11 +101,12 @@ function ContactPage() {
         email: result.data.email,
         phone: result.data.phone || undefined,
         interestedIn: result.data.interest,
-        preferredDates: result.data.date || undefined,
+        preferredDates: result.data.dateFrom || undefined,
+        preferredDateEnd: result.data.dateTo || undefined,
         message: result.data.message,
       });
       toast.success(`Message sent — reference ${ref}`);
-      setForm({ fullName: "", email: "", phone: "", interest: "", date: "", message: "" });
+      setForm({ fullName: "", email: "", phone: "", interest: "", dateFrom: "", dateTo: "", message: "" });
 
     } catch {
       toast.error("Something went wrong. Please try again.");
@@ -139,7 +147,7 @@ function ContactPage() {
             icon={MapPin}
             title="Our Location"
             primary="Near Grantley Adams Intl. Airport"
-            note="Oistins, Christ Church, Barbados"
+            note="Haggatt Hall, St. Michael"
             link={{ href: DIRECTIONS_URL, label: "Get Directions" }}
           />
         </div>
@@ -172,11 +180,23 @@ function ContactPage() {
                   <option>Other</option>
                 </select>
               </Field>
-              <div className="md:col-span-2">
-                <Field label="Stay Dates or Transport Request" error={errors.date}>
-                  <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="input" />
-                </Field>
-              </div>
+              <Field label="From date" error={errors.dateFrom}>
+                <input
+                  type="date"
+                  value={form.dateFrom}
+                  onChange={(e) => setForm({ ...form, dateFrom: e.target.value })}
+                  className="input"
+                />
+              </Field>
+              <Field label="To date" error={errors.dateTo}>
+                <input
+                  type="date"
+                  value={form.dateTo}
+                  min={form.dateFrom || undefined}
+                  onChange={(e) => setForm({ ...form, dateTo: e.target.value })}
+                  className="input"
+                />
+              </Field>
               <div className="md:col-span-2">
                 <Field label="Message" required error={errors.message}>
                   <textarea rows={5} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} maxLength={1000} className="input resize-none" placeholder="Tell us about your trip or question…" />
@@ -210,7 +230,7 @@ function ContactPage() {
 
           {/* Map */}
           <div className="relative flex flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-card min-h-[320px] sm:min-h-[420px]">
-            <LocationMap center={OISTINS_CENTER} zoom={15} className="absolute inset-0 h-full w-full" />
+            <LocationMap center={HAGGATT_HALL_CENTER} zoom={15} className="absolute inset-0 h-full w-full" />
             <div className="relative mt-auto border-t border-border bg-white p-4 sm:absolute sm:inset-auto sm:left-4 sm:bottom-4 sm:max-w-sm sm:rounded-2xl sm:border sm:bg-white/95 sm:p-5 sm:shadow-card sm:backdrop-blur">
               <div className="flex items-start gap-3">
                 <div className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-cream">

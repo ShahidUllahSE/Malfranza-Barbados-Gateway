@@ -212,7 +212,7 @@ function BookWizard() {
         pickupDate: taxiDate,
         pickupTime: taxiTime,
         pickupLocation: "Grantley Adams International Airport (BGI), Barbados",
-        dropoffLocation: `${dropoffName}, Oistins, Barbados`,
+        dropoffLocation: `${dropoffName}, Haggatt Hall, Barbados`,
       })
         .then((result) => {
           if (cancelled) return;
@@ -582,7 +582,7 @@ function BookWizard() {
         taxi: taxiOn
           ? {
               pickup: "Grantley Adams Intl. Airport (BGI)",
-              dropoff: `${selectedApt.name} — Oistins`,
+              dropoff: `${selectedApt.name} — Haggatt Hall`,
               date: taxiDate,
               time: taxiTime,
               passengers: taxiPassengers,
@@ -614,7 +614,7 @@ function BookWizard() {
           const taxi = await createTaxiBooking({
             serviceType: "Airport Pickup",
             pickupLocation: "Grantley Adams Intl. Airport (BGI)",
-            dropoffLocation: `${selectedApt.name} — Oistins`,
+            dropoffLocation: `${selectedApt.name} — Haggatt Hall`,
             pickupDate: taxiDate,
             pickupTime: taxiTime,
             passengers: taxiPassengers,
@@ -1079,7 +1079,7 @@ function StepDates(props: {
 
       {nights >= MIN_NIGHTS && (
         <div className="mt-6 inline-flex items-center gap-2 rounded-full bg-brand-cream px-4 py-2 text-sm font-semibold text-brand-green">
-          <CalendarIcon className="h-4 w-4" /> {nights} night{nights>1?"s":""} in Oistins
+          <CalendarIcon className="h-4 w-4" /> {nights} night{nights>1?"s":""} in Haggatt Hall
         </div>
       )}
     </div>
@@ -1123,7 +1123,7 @@ function StepRoom(props: {
           <h2 className="text-xl font-bold text-brand-green">Pick your apartment</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Seasonal rates: 1-BR from ${RATE_TABLE["one-bedroom"].off} · 2-BR from $
-            {RATE_TABLE["two-bedroom"].off} (peak higher). All-in — PayPal fee included.
+            {RATE_TABLE["two-bedroom"].off}. All-in — PayPal fee included.
           </p>
         </div>
         {checkingAvail && (

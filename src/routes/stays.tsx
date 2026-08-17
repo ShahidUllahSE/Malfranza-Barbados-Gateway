@@ -26,9 +26,9 @@ export const Route = createFileRoute("/stays")({
   head: () => ({
     meta: [
       { title: "Stays in Barbados — One & Two-Bedroom Apartments | Malfranza" },
-      { name: "description", content: "Browse comfortable, well-located one- and two-bedroom apartments in Oistins, Barbados. Clean, quiet, and close to the airport." },
+      { name: "description", content: "Browse comfortable, well-located one- and two-bedroom apartments in Haggatt Hall, St. Michael, Barbados. Clean, quiet, and close to shops and the highway." },
       { property: "og:title", content: "Stays in Barbados — Malfranza Apartments" },
-      { property: "og:description", content: "Comfortable one- and two-bedroom apartments in Oistins, Barbados." },
+      { property: "og:description", content: "Comfortable one- and two-bedroom apartments in Haggatt Hall, St. Michael, Barbados." },
     ],
   }),
   component: StaysPage,

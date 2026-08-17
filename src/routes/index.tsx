@@ -6,11 +6,14 @@ import {
   CheckCircle2, ShieldCheck, Sparkles, ArrowRight,
 } from "lucide-react";
 import { APARTMENTS, fetchApartments, type Apartment } from "@/data/apartments";
-import heroImg from "@/assets/update images/Hero homepage (1).jpg";
+import heroImg from "@/assets/updatedBannerNew.jpg";
+import stayGlimpse from "@/assets/updateamin2.jpg";
+import stayAmenities from "@/assets/updatedaminities.jpg";
 import stayKitchen from "@/assets/rooms/apartment-1_tropical-escape/tropical-escape-05.jpg";
 import stay2br from "@/assets/rooms/apartment-a-and-b_sunset-suite/sunset-suite-01-malfranza-a-and-b-9.jpg";
 import stayBathroom from "@/assets/rooms/apartment-2_island-breeze/island-breeze-06.jpg";
-import stayGarden from "@/assets/rooms/apartment-1_tropical-escape/tropical-escape-02.jpg";
+// Hidden for now — green building exterior (local + Cloudinary tropical-escape-02)
+// import stayGarden from "@/assets/rooms/apartment-1_tropical-escape/tropical-escape-02.jpg";
 import stayTropical from "@/assets/rooms/apartment-3_palm-retreat/palm-retreat-01.jpg";
 import stay1br from "@/assets/rooms/apartment-2_island-breeze/island-breeze-01.jpg";
 import taxiVan from "@/assets/update images/Vehicle Photo (1).jpg";
@@ -28,9 +31,9 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Malfranza Apartments & Taxi | Comfortable Stays & Reliable Rides in Barbados" },
-      { name: "description", content: "Book comfortable one- and two-bedroom apartments in Oistins, Barbados, plus reliable taxi service for airport transfers and daily rides." },
+      { name: "description", content: "Book comfortable one- and two-bedroom apartments in Haggatt Hall, St. Michael, Barbados, plus reliable taxi service for airport transfers and daily rides." },
       { property: "og:title", content: "Malfranza Apartments & Taxi — Barbados" },
-      { property: "og:description", content: "Clean stays. Reliable service. Local hospitality — right in Oistins, Barbados." },
+      { property: "og:description", content: "Clean stays. Reliable service. Local hospitality — in Haggatt Hall, St. Michael, Barbados." },
       { property: "og:image", content: heroImg },
       { property: "og:type", content: "website" },
     ],
@@ -46,7 +49,7 @@ const categories = [
 ];
 
 const galleryImages = [
-  stayGarden, stayKitchen, stay2br,
+  stayGlimpse, stayAmenities, /* stayGarden, */ stayKitchen, stay2br,
   stayTropical, stayBathroom, stay1br,
 ];
 
@@ -104,6 +107,10 @@ function isUsableImageSrc(src: unknown): src is string {
   if (!value) return false;
   if (value.includes("placeholder")) return false;
   if (value === "null" || value === "undefined") return false;
+  // Temporarily hide the green-building exterior (tropical-escape-02).
+  if (value.includes("tropical-escape-02")) return false;
+  // Replaced in the glimpse gallery by local updatedaminities.jpg.
+  if (value.includes("palm-retreat-02")) return false;
   return true;
 }
 
@@ -136,7 +143,8 @@ function HomePage() {
     const preferred = apartments
       .flatMap((a) => a.images.slice(0, 2))
       .filter(isUsableImageSrc);
-    const merged: string[] = [];
+    // Lead with the stay glimpse photo, then the amenities living-area photo.
+    const merged: string[] = [stayGlimpse, stayAmenities];
     for (const src of [...preferred, ...galleryImages]) {
       if (!isUsableImageSrc(src)) continue;
       if (merged.includes(src)) continue;
@@ -227,7 +235,7 @@ function HomePage() {
             <div className="flex items-center gap-2.5">
               <span className="h-px w-8 bg-brand-orange" />
               <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/90">
-                Oistins · Barbados
+                Haggatt Hall · Barbados
               </span>
             </div>
             <h1 className="mt-4 text-3xl leading-[1.05] text-white sm:text-5xl lg:text-6xl">

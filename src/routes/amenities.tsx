@@ -4,10 +4,11 @@ import {
   KeyRound, ShoppingBag, CheckCircle2, Sparkles, Zap, MapPin,
   Refrigerator, Microwave, Coffee, Shirt, Flame, CookingPot,
 } from "lucide-react";
-import stayKitchen from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_20 PM.png";
+import amenitiesHero from "@/assets/updatedaminities.jpg";
 import stay1br from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_34 PM.png";
 import stayBathroom from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_13 PM.png";
 import stayGarden from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_00 PM.png";
+import stayKitchen from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_20 PM.png";
 import { StarlinkBadge } from "@/components/StarlinkBadge";
 
 export const Route = createFileRoute("/amenities")({
@@ -17,7 +18,7 @@ export const Route = createFileRoute("/amenities")({
       { name: "description", content: "Everything you need for a comfortable stay in Barbados — Starlink internet, AC, full kitchen, Smart TV, parking, laundry and more." },
       { property: "og:title", content: "Amenities — Malfranza Apartments" },
       { property: "og:description", content: "Thoughtfully equipped apartments with modern amenities for an easy, relaxing stay." },
-      { property: "og:image", content: stayKitchen },
+      { property: "og:image", content: amenitiesHero },
     ],
   }),
   component: AmenitiesPage,
@@ -79,8 +80,8 @@ function AmenitiesPage() {
           </div>
           <div className="rounded-3xl overflow-hidden shadow-card">
             <img
-              src={stayKitchen}
-              alt="Bright kitchen and dining area"
+              src={amenitiesHero}
+              alt="Apartment living area with kitchen and seating"
               className="w-full h-full object-cover aspect-[5/4]"
             />
           </div>

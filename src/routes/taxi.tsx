@@ -509,7 +509,7 @@ function TaxiPage() {
                       onChange={(e) => setForm({ ...form, passengers: Number(e.target.value) })}
                       className="w-full bg-transparent text-sm text-white outline-none [color-scheme:dark]"
                     >
-                      {Array.from({ length: 7 }, (_, i) => i + 1).map((n) => (
+                      {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
                         <option key={n} value={n} className="bg-brand-green-deep text-white">{n} passenger{n > 1 ? "s" : ""}</option>
                       ))}
                     </select>
@@ -870,14 +870,14 @@ function TaxiPage() {
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {[
                 {
-                  label: "4-seater",
-                  value: fareSettings.fareFor1to4 ?? fareSettings.fareFor1Guest ?? 1.62,
-                  active: (selectedVehicle?.passengerCapacity ?? 0) > 0 && (selectedVehicle?.passengerCapacity ?? 0) <= 4,
-                },
-                {
                   label: "XL · 7 seats",
                   value: fareSettings.fareFor5to7 ?? fareSettings.fareFor3Guests ?? 2.4,
-                  active: (selectedVehicle?.passengerCapacity ?? 0) > 4 && (selectedVehicle?.passengerCapacity ?? 0) <= 7,
+                  active: (selectedVehicle?.passengerCapacity ?? 0) > 0 && (selectedVehicle?.passengerCapacity ?? 0) <= 7,
+                },
+                {
+                  label: "12-seater",
+                  value: fareSettings.fareFor8to10 ?? fareSettings.fareFor4PlusGuests ?? 4,
+                  active: (selectedVehicle?.passengerCapacity ?? 0) > 7,
                 },
               ].map((tier) => (
                 <div
