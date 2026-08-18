@@ -36,6 +36,49 @@ export type AgencyCommissionSummary = {
   commissionOwed: number;
 };
 
+export async function startAgencySignup(input: {
+  agencyName: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  password: string;
+}): Promise<{ email: string; expiresInSeconds: number; emailSent: boolean; message: string }> {
+  return apiRequest("/agencies/register", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function verifyAgencySignupOtp(input: {
+  email: string;
+  code: string;
+}): Promise<{ agency: AgencyIdentity; token: string }> {
+  const result = await apiRequest<{ agency: AgencyIdentity; token: string }>(
+    "/agencies/register/verify-otp",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
+  clearUserToken();
+  clearAdminToken();
+  clearDriverToken();
+  setAgencyToken(result.token);
+  return result;
+}
+
+export async function resendAgencySignupOtp(email: string): Promise<{
+  email: string;
+  expiresInSeconds: number;
+  emailSent: boolean;
+  message: string;
+}> {
+  return apiRequest("/agencies/register/resend-otp", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
 export async function registerTravelAgency(input: {
   agencyName: string;
   contactName: string;

@@ -1,8 +1,12 @@
 import { Link } from "@tanstack/react-router";
 import { Phone, Mail, MapPin, Facebook, Instagram, MessageCircle } from "lucide-react";
 import { Logo } from "./Logo";
+import { useUserAuth } from "@/context/UserAuthContext";
 
 export function SiteFooter() {
+  const { session, openAuthModal } = useUserAuth();
+  const isAgency = session?.kind === "agency";
+
   return (
     <footer className="mt-16 bg-brand-green text-white/90 sm:mt-20 lg:mt-24">
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-4 lg:px-8">
@@ -46,6 +50,7 @@ export function SiteFooter() {
             <li><Link to="/amenities" className="text-white/80 hover:text-white">Amenities</Link></li>
             <li><Link to="/contact" className="text-white/80 hover:text-white">Contact</Link></li>
             <li><Link to="/agency" className="text-white/80 hover:text-white">Travel agent portal</Link></li>
+            <li><Link to="/agency/signup" className="text-white/80 hover:text-white">Travel agent signup</Link></li>
             <li><Link to="/privacy" className="text-white/80 hover:text-white">Privacy Policy</Link></li>
             <li><Link to="/booking-policy" className="text-white/80 hover:text-white">Booking Policy</Link></li>
             <li><Link to="/terms" className="text-white/80 hover:text-white">Terms &amp; Conditions</Link></li>
@@ -74,6 +79,56 @@ export function SiteFooter() {
             <a href="https://wa.me/12462344875" aria-label="WhatsApp" className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/20">
               <MessageCircle className="h-4 w-4" />
             </a>
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t border-white/10">
+        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+          <div className="rounded-2xl bg-white/10 p-5 sm:p-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-xl">
+                <h4 className="text-sm font-semibold uppercase tracking-wider text-white">
+                  Travel agents
+                </h4>
+                <p className="mt-2 text-sm text-white/80">
+                  Create your own agency account, verify your email, then use the same site Sign in
+                  to open your portal and get a booking code.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {isAgency ? (
+                  <Link
+                    to="/agency"
+                    className="inline-flex items-center justify-center rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-brand-green hover:bg-white/90"
+                  >
+                    Open agency portal
+                  </Link>
+                ) : (
+                  <>
+                    <Link
+                      to="/agency/signup"
+                      className="inline-flex items-center justify-center rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-brand-green hover:bg-white/90"
+                    >
+                      Create travel agent account
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        openAuthModal({
+                          mode: "signin",
+                          redirectTo: "/agency",
+                          reason: "Sign in with your travel agent email and password.",
+                        })
+                      }
+                      className="inline-flex items-center justify-center rounded-xl border border-white/40 px-5 py-2.5 text-sm font-semibold text-white hover:bg-white/10"
+                    >
+                      Sign in
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>

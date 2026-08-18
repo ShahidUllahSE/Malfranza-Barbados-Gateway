@@ -16,6 +16,8 @@ export class ApiError extends Error {
 }
 
 const FIELD_LABELS: Record<string, string> = {
+  agencyName: "Agency name",
+  contactName: "Contact name",
   name: "Full name",
   email: "Email",
   password: "Password",
@@ -26,6 +28,12 @@ function friendlyFieldMessage(path: string, message: string): string {
   const label = FIELD_LABELS[path] ?? path;
   const lower = message.toLowerCase();
 
+  if (path === "agencyName" && lower.includes("too small")) {
+    return "Please enter the agency name.";
+  }
+  if (path === "contactName" && lower.includes("too small")) {
+    return "Please enter the contact name.";
+  }
   if (path === "phone" && lower.includes("too small")) {
     return "Enter a valid phone number (at least 6 characters) or leave it blank.";
   }

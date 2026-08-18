@@ -61,8 +61,7 @@ function AgencyPortalPage() {
     openAuthModal({
       mode: "signin",
       redirectTo: "/agency",
-      reason:
-        "Sign in with the email and password provided by Malfranza admin to open your agency portal.",
+      reason: "Sign in with your travel agent email and password.",
     });
   }, [isAgency, isResetMode, openAuthModal]);
 
@@ -188,23 +187,35 @@ function AgencyPortalPage() {
         <div className="max-w-md">
           <h1 className="font-display text-2xl font-bold text-brand-charcoal">Agency portal</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Use the site <strong>Sign in</strong> with the travel-agent email and password created
-            by Malfranza admin. There is no separate agent login or public sign-up.
+            Use the site <strong>Sign in</strong> with your travel-agent email and password.
+            New agents can create an account from the footer or{" "}
+            <Link to="/agency/signup" className="font-semibold text-brand-green hover:underline">
+              travel agent signup
+            </Link>
+            .
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() =>
-            openAuthModal({
-              mode: "signin",
-              redirectTo: "/agency",
-              reason: "Sign in with your agency credentials from Malfranza admin.",
-            })
-          }
-          className="rounded-full bg-brand-green px-6 py-2.5 text-sm font-semibold text-white hover:opacity-90"
-        >
-          Sign in
-        </button>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={() =>
+              openAuthModal({
+                mode: "signin",
+                redirectTo: "/agency",
+                reason: "Sign in with your agency credentials.",
+              })
+            }
+            className="rounded-full bg-brand-green px-6 py-2.5 text-sm font-semibold text-white hover:opacity-90"
+          >
+            Sign in
+          </button>
+          <Link
+            to="/agency/signup"
+            className="rounded-full border border-brand-green px-6 py-2.5 text-sm font-semibold text-brand-green hover:bg-brand-green/5"
+          >
+            Create account
+          </Link>
+        </div>
         <Link to="/" className="text-sm font-semibold text-brand-green hover:underline">
           Back to home
         </Link>
@@ -248,7 +259,7 @@ function AgencyPortalPage() {
                 {agency.agencyCode}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Enter this code when booking for a guest. Issued by Malfranza admin.
+                Enter this code when booking for a guest.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
