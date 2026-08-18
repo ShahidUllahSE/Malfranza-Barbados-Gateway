@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   CircleOff,
@@ -19,6 +19,7 @@ import {
   updateDriver,
   type AdminDriver,
 } from "@/lib/drivers";
+import { fetchAdminTaxiFareSettings, vehicleFareFromSettings } from "@/lib/bookings";
 import { AdminPageHeader, AdminTableShell, AdminTd, AdminTh } from "@/components/admin/AdminBits";
 import {
   DropdownMenu,
@@ -111,6 +112,9 @@ function DriversPage() {
                     <p className="text-xs text-muted-foreground">
                       {driver.vehicleLabel || "Van"}
                       {driver.passengerCapacity ? ` · ${driver.passengerCapacity} seats` : ""}
+                      {driver.pricePerKmUsd
+                        ? ` · $${Number(driver.pricePerKmUsd).toFixed(2)}/km`
+                        : ""}
                     </p>
                   )}
                 </Link>
@@ -151,6 +155,7 @@ function DriversPage() {
               <AdminTh className="w-[12%]">Phone</AdminTh>
               <AdminTh className="w-[14%]">Vehicle</AdminTh>
               <AdminTh className="w-[8%]">Seats</AdminTh>
+              <AdminTh className="w-[10%]">$/km</AdminTh>
               <AdminTh className="w-[10%]">Status</AdminTh>
               <AdminTh className="w-[12%]">Availability</AdminTh>
               <AdminTh className="w-[8%]">
@@ -187,6 +192,11 @@ function DriversPage() {
                 <AdminTd className="text-sm text-muted-foreground">
                   {driver.passengerCapacity ?? "—"}
                 </AdminTd>
+                <AdminTd className="text-sm font-medium text-brand-charcoal">
+                  {driver.pricePerKmUsd != null
+                    ? `$${Number(driver.pricePerKmUsd).toFixed(2)}`
+                    : "—"}
+                </AdminTd>
                 <AdminTd>
                   <StatusBadge active={driver.isActive} onLabel="Active" offLabel="Inactive" />
                 </AdminTd>
@@ -211,7 +221,7 @@ function DriversPage() {
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">
+                <td colSpan={9} className="px-3 py-8 text-center text-muted-foreground">
                   {q.isLoading ? "Loading…" : "No drivers yet. Add your first driver."}
                 </td>
               </tr>
@@ -306,8 +316,39 @@ function DriverForm({
   const [password, setPassword] = useState("");
   const [vehicleLabel, setVehicleLabel] = useState(initial?.vehicleLabel ?? "");
   const [passengerCapacity, setPassengerCapacity] = useState(initial?.passengerCapacity ?? 4);
+  const [pricePerKmUsd, setPricePerKmUsd] = useState(
+    initial?.pricePerKmUsd != null ? String(initial.pricePerKmUsd) : "",
+  );
+  const [rateTouched, setRateTouched] = useState(initial?.pricePerKmUsd != null);
   const [isActive, setIsActive] = useState(initial?.isActive ?? true);
   const [isAvailable, setIsAvailable] = useState(initial?.isAvailable ?? true);
+
+  const faresQ = useQuery({
+    queryKey: ["admin", "taxi-fare-settings"],
+    queryFn: fetchAdminTaxiFareSettings,
+  });
+  const xlRate = faresQ.data ? vehicleFareFromSettings(faresQ.data, 7) : 2.4;
+  const coachRate = faresQ.data ? vehicleFareFromSettings(faresQ.data, 12) : 4;
+
+  function defaultRateForCapacity(capacity: number) {
+    return capacity <= 7 ? xlRate : coachRate;
+  }
+
+  const ratePresets = [
+    { value: xlRate, label: `$${xlRate.toFixed(2)} · XL 7-seater` },
+    { value: coachRate, label: `$${coachRate.toFixed(2)} · 12-seater` },
+  ].filter((preset, index, all) => all.findIndex((p) => p.value === preset.value) === index);
+
+  const parsedRate = Number(pricePerKmUsd);
+  const selectedPreset =
+    Number.isFinite(parsedRate) && ratePresets.some((p) => Math.abs(p.value - parsedRate) < 0.001)
+      ? String(parsedRate)
+      : "custom";
+
+  useEffect(() => {
+    if (rateTouched) return;
+    setPricePerKmUsd(String(defaultRateForCapacity(passengerCapacity)));
+  }, [passengerCapacity, xlRate, coachRate, rateTouched]);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -319,6 +360,7 @@ function DriverForm({
           password,
           vehicleLabel: vehicleLabel.trim() || undefined,
           passengerCapacity,
+          pricePerKmUsd: Number(pricePerKmUsd),
           isAvailable,
         });
         return;
@@ -329,6 +371,7 @@ function DriverForm({
         phone: phone.trim(),
         vehicleLabel: vehicleLabel.trim() || null,
         passengerCapacity,
+        pricePerKmUsd: Number(pricePerKmUsd),
         isActive,
         isAvailable,
         ...(password.trim() ? { password: password.trim() } : {}),
@@ -349,6 +392,11 @@ function DriverForm({
         e.preventDefault();
         if (mode === "create" && password.trim().length < 8) {
           toast.error("Password must be at least 8 characters");
+          return;
+        }
+        const rate = Number(pricePerKmUsd);
+        if (!Number.isFinite(rate) || rate <= 0) {
+          toast.error("Enter a price per km greater than 0");
           return;
         }
         save.mutate();
@@ -393,6 +441,49 @@ function DriverForm({
             </option>
           ))}
         </select>
+      </Field>
+      <Field label="Price per km (USD)">
+        <select
+          value={selectedPreset}
+          onChange={(e) => {
+            const next = e.target.value;
+            if (next === "custom") {
+              setRateTouched(true);
+              return;
+            }
+            setRateTouched(true);
+            setPricePerKmUsd(next);
+          }}
+          className={inputClass}
+        >
+          {ratePresets.map((preset) => (
+            <option key={preset.value} value={String(preset.value)}>
+              {preset.label}
+            </option>
+          ))}
+          <option value="custom">Custom amount</option>
+        </select>
+        <div className="relative mt-2">
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+            $
+          </span>
+          <input
+            required
+            type="number"
+            min={0.01}
+            step="0.01"
+            value={pricePerKmUsd}
+            onChange={(e) => {
+              setRateTouched(true);
+              setPricePerKmUsd(e.target.value);
+            }}
+            className={`${inputClass} pl-7`}
+            placeholder="2.40"
+          />
+        </div>
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          Guest fare for this van = driving distance × this rate (never below the Settings minimum).
+        </p>
       </Field>
       <Field label={mode === "create" ? "Password" : "New password (optional)"}>
         <input

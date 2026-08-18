@@ -193,6 +193,7 @@ export type PublicTaxiVehicle = {
   isAvailable: boolean;
   fitsParty: boolean;
   fare: number;
+  perKmUsd?: number;
   busyUntil?: string | null;
   bookedSlots?: Array<{ date: string; time: string; until?: string }>;
 };
@@ -286,8 +287,12 @@ export function calculateVehicleTaxiFare(
   settings: TaxiFareSettings,
   capacity: number,
   distanceKm: number | null | undefined,
+  perKmUsd?: number | null,
 ): number {
-  const perKm = vehicleFareFromSettings(settings, capacity);
+  const perKm =
+    perKmUsd != null && Number(perKmUsd) > 0
+      ? Number(perKmUsd)
+      : vehicleFareFromSettings(settings, capacity);
   const total = Math.max(0, Number(distanceKm) || 0) * perKm;
   return Math.max(settings.minimumFareUsd, Math.round(total * 100) / 100);
 }

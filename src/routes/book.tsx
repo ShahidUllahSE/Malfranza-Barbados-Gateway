@@ -39,11 +39,10 @@ import { isValidTestCouponFormat, previewCheckoutCoupon, TEST_COUPON_PERCENT } f
 import { PayPalButtons, PayPalScriptProvider } from "@paypal/react-paypal-js";
 import { APARTMENTS as SEEDED_APTS } from "@/data/apartments";
 import {
-  averageNightly,
   catalogFromRate,
   combinedNightlyForUnits,
+  listingFromRate,
   RATE_TABLE,
-  roomTypeFromApartmentType,
   roomTypeFromBedrooms,
   staySubtotal,
   staySubtotalForUnits,
@@ -336,8 +335,15 @@ function BookWizard() {
   const selectedRate =
     selectedUnits.length > 0
       ? combinedNightlyForUnits(selectedUnits)
-      : checkIn && checkOut && nights > 0
-        ? averageNightly(pricedType, checkIn, checkOut)
+      : selectedApt
+        ? listingFromRate({
+            type: selectedApt.type,
+            pricePerNight: selectedApt.price_per_night,
+            units: selectedApt.units.map((unit) => ({
+              bedrooms: unit.bedrooms,
+              pricePerNight: unit.price_per_night,
+            })),
+          })
         : catalogFromRate(pricedType);
 
   const pickupFee = taxiOn
@@ -367,9 +373,14 @@ function BookWizard() {
                 bathrooms: unit.bathrooms,
               };
             });
-          const typeRate = catalogFromRate(
-            roomTypeFromApartmentType(apartment.type),
-          );
+          const typeRate = listingFromRate({
+            type: apartment.type,
+            pricePerNight: apartment.pricePerNight,
+            units: units.map((unit: { bedrooms: number; price_per_night: number }) => ({
+              bedrooms: unit.bedrooms,
+              pricePerNight: unit.price_per_night,
+            })),
+          });
           return {
             id: apartment._id,
             slug: apartment.slug,
@@ -1171,7 +1182,14 @@ function StepRoom(props: {
                     pricePerNight: unit.price_per_night,
                   })),
                 )
-              : catalogFromRate(roomTypeFromApartmentType(a.type ?? undefined));
+              : listingFromRate({
+                  type: a.type ?? undefined,
+                  pricePerNight: a.price_per_night,
+                  units: a.units.map((unit) => ({
+                    bedrooms: unit.bedrooms,
+                    pricePerNight: unit.price_per_night,
+                  })),
+                });
           const total = nightly * nights;
           return (
             <li key={a.id}>

@@ -98,13 +98,34 @@ export function staySubtotalForUnits(
   return Math.round(nightly * nights.length * 100) / 100;
 }
 
-/** Listing-card nightly rate from apartment type (not cheapest bookable unit). */
+/** Listing-card nightly rate. Prefer cheapest bookable unit so “from” matches the rooms. */
 export function listingFromRate(input: {
   type: string | undefined;
   pricePerNight?: number | null;
+  units?: { bedrooms: number; pricePerNight?: number | null; isActive?: boolean }[] | null;
 }): number {
+  const units = (input.units ?? []).filter((unit) => unit.isActive !== false);
+  if (units.length > 0) {
+    return Math.min(
+      ...units.map((unit) => unitNightlyRate(unit.bedrooms, unit.pricePerNight)),
+    );
+  }
   if (input.pricePerNight != null && Number(input.pricePerNight) > 0) {
     return Number(input.pricePerNight);
   }
   return catalogFromRate(roomTypeFromApartmentType(input.type));
+}
+
+/** Alias for listing “from” rate — always the cheapest bookable option. */
+export function startingNightlyRate(input: {
+  type?: string;
+  pricePerNight?: number | null;
+  bedrooms?: number;
+  units?: { bedrooms: number; pricePerNight?: number | null; isActive?: boolean }[] | null;
+}): number {
+  return listingFromRate({
+    type: input.type,
+    pricePerNight: input.pricePerNight,
+    units: input.units,
+  });
 }

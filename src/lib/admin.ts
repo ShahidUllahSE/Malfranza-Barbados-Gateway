@@ -1,4 +1,5 @@
 import { apiRequest, getCurrentAdmin } from "@/lib/api";
+import { compressImageForUpload } from "@/lib/image-upload";
 
 export type AptBookingStatus = "pending" | "confirmed" | "checked_in" | "checked_out" | "cancelled";
 export type TaxiStatus =
@@ -438,8 +439,9 @@ export type ApartmentUnitInput = {
 };
 
 export async function uploadApartmentImage(file: File) {
+  const prepared = await compressImageForUpload(file);
   const form = new FormData();
-  form.append("image", file);
+  form.append("image", prepared);
   return apiRequest<{ url: string; publicId: string }>("/admin/media/images", {
     method: "POST",
     auth: true,

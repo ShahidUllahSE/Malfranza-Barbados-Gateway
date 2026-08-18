@@ -225,6 +225,8 @@ function TaxiTripDetailPage() {
                   .map((d) => (
                     <option key={d.id} value={d.id}>
                       {d.name}
+                      {d.vehicleLabel ? ` · ${d.vehicleLabel}` : ""}
+                      {d.pricePerKmUsd != null ? ` · $${Number(d.pricePerKmUsd).toFixed(2)}/km` : ""}
                       {d.phone ? ` · ${d.phone}` : ""}
                     </option>
                   ))}
@@ -267,6 +269,8 @@ function TaxiTripDetailPage() {
                   .map((d) => (
                     <option key={d.id} value={d.id}>
                       {d.name}
+                      {d.vehicleLabel ? ` · ${d.vehicleLabel}` : ""}
+                      {d.pricePerKmUsd != null ? ` · $${Number(d.pricePerKmUsd).toFixed(2)}/km` : ""}
                       {d.phone ? ` · ${d.phone}` : ""}
                     </option>
                   ))}

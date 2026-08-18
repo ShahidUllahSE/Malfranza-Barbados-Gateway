@@ -81,6 +81,8 @@ export function parseApiErrorPayload(
     // Only remap real login failures — other 401s (expired token, auth required, etc.) keep server text.
     message = "Incorrect email or password. Please try again.";
     fieldErrors.password = message;
+  } else if (status === 413) {
+    message = "That photo is too large. Try a smaller JPEG or PNG (under 20 MB).";
   } else if (status === 401 && /sign in required|authentication required|access token/i.test(message)) {
     message = "Please sign in again to continue.";
   }

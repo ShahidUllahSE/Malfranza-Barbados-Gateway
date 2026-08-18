@@ -548,7 +548,7 @@ function ApartmentForm({
       <FormField label="Photos">
         <div className="space-y-3 rounded-xl border border-brand-sage/40 bg-brand-sage/10 p-3">
           <p className="text-xs text-muted-foreground">
-            Upload from your device or paste a public image URL.
+            Upload a JPEG, PNG, or WebP. Large camera photos are resized automatically.
           </p>
           <div className="flex flex-wrap gap-2">
             <button

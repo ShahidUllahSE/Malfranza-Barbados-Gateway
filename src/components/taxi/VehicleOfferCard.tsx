@@ -99,6 +99,11 @@ export function VehicleOfferCard({
           <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             {currency} · {passengers} guest{passengers === 1 ? "" : "s"}
           </p>
+          {vehicle.perKmUsd != null && Number(vehicle.perKmUsd) > 0 && (
+            <p className="mt-0.5 text-[11px] font-semibold text-brand-charcoal">
+              ${Number(vehicle.perKmUsd).toFixed(2)}/km
+            </p>
+          )}
         </div>
       </div>
 

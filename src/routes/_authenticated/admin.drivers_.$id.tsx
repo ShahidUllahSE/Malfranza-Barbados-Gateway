@@ -114,6 +114,9 @@ function DriverDetailPage() {
               <p className="mt-1 text-sm text-muted-foreground">
                 {driver.email} · {driver.phone}
                 {driver.vehicleLabel ? ` · ${driver.vehicleLabel}` : ""}
+                {driver.pricePerKmUsd != null
+                  ? ` · $${Number(driver.pricePerKmUsd).toFixed(2)}/km`
+                  : ""}
               </p>
             </div>
           ) : null}

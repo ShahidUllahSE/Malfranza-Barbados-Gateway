@@ -436,6 +436,7 @@ function OfflineTaxiForm({ onClose, onCreated }: { onClose: () => void; onCreate
             <option key={d.id} value={d.id}>
               {d.name}
               {d.vehicleLabel ? ` · ${d.vehicleLabel}` : ""}
+              {d.pricePerKmUsd != null ? ` · $${Number(d.pricePerKmUsd).toFixed(2)}/km` : ""}
             </option>
           ))}
         </select>

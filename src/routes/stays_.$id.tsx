@@ -19,6 +19,7 @@ import {
   averageNightly,
   catalogFromRate,
   combinedNightlyForUnits,
+  listingFromRate,
   roomTypeFromApartmentType,
   roomTypeFromBedrooms,
   unitNightlyRate,
@@ -195,13 +196,17 @@ function ApartmentDetailPage() {
     }
 
     if (apt.units.length > 0) {
-      return catalogFromRate(roomTypeFromApartmentType(apt.type));
+      return listingFromRate({
+        type: apt.type,
+        pricePerNight: apt.pricePerNight,
+        units: apt.units,
+      });
     }
 
     return checkIn && checkOut
       ? averageNightly(pricedType, checkIn, checkOut)
       : catalogFromRate(pricedType);
-  }, [apt.type, apt.units.length, selectedUnits, checkIn, checkOut, pricedType]);
+  }, [apt.type, apt.pricePerNight, apt.units, selectedUnits, checkIn, checkOut, pricedType]);
   const combinedMaxGuests =
     selectedUnits.length > 0
       ? apt.unitsExclusive

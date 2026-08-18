@@ -101,6 +101,12 @@ function galleryFromModules(
 }
 
 function galleryFor(match: string): string[] {
+  const numbered = galleryFromModules(
+    ROOM_IMAGE_MODULES,
+    new RegExp(`^${match.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}-\\d+\\.(jpe?g|png|webp)$`, "i"),
+    10,
+  );
+  if (numbered.length > 0) return numbered;
   const room = galleryFromModules(ROOM_IMAGE_MODULES, match, 10);
   if (room.length > 0) return room;
 
@@ -168,7 +174,7 @@ const AMENITIES_2BR = [...SHARED_AMENITIES] as const;
  * Live data still comes from the API when available.
  *
  * Room 1 Tropical Escape · Room 2 Island Breeze · Room 3 Palm Retreat
- * Room 4 Golden Serenity · Room A&B Sunset Suite
+ * Room 4 Golden Serenity · Sunset Suite (two-bedroom)
  */
 export const APARTMENTS: Apartment[] = [
   {
@@ -247,9 +253,9 @@ export const APARTMENTS: Apartment[] = [
     id: "apartment-a-and-b",
     mongoId: "",
     name: "Sunset Suite",
-    subtitle: "Room A & B",
+    subtitle: "Two-bedroom",
     description:
-      "Sunset Suite — Room A and Room B at Malfranza, Oistins. Book either room on its own, or both together.",
+      "Sunset Suite — a two-bedroom apartment at Malfranza, Oistins. Both rooms are included at one rate. Starlink internet throughout.",
     type: "two-bedroom",
     guests: 4,
     beds: 2,
@@ -259,28 +265,7 @@ export const APARTMENTS: Apartment[] = [
     images: galleryFor("sunset-suite"),
     amenities: [...AMENITIES_2BR],
     unitsExclusive: false,
-    units: [
-      {
-        id: "room-a",
-        name: "Room A",
-        description: "Independently bookable room in Sunset Suite.",
-        bedrooms: 1,
-        bathrooms: 1,
-        maxGuests: 2,
-        pricePerNight: catalogFromRate("one-bedroom"),
-        isActive: true,
-      },
-      {
-        id: "room-b",
-        name: "Room B",
-        description: "Independently bookable room in Sunset Suite.",
-        bedrooms: 1,
-        bathrooms: 1,
-        maxGuests: 2,
-        pricePerNight: catalogFromRate("one-bedroom"),
-        isActive: true,
-      },
-    ],
+    units: [],
   },
 ];
 
@@ -337,6 +322,7 @@ function mapApiApartment(record: any): Apartment {
       Number(record.pricePerNight) > 0
         ? Number(record.pricePerNight)
         : fallback?.pricePerNight,
+    units,
   });
   return {
     id: record.slug,
@@ -355,6 +341,6 @@ function mapApiApartment(record: any): Apartment {
       ? record.amenities
       : (fallback?.amenities ?? []),
     unitsExclusive: Boolean(record.unitsExclusive) || fallback?.unitsExclusive === true,
-    units: units.length > 0 ? units : (fallback?.units ?? []),
+    units: Array.isArray(record.units) ? units : (fallback?.units ?? []),
   };
 }

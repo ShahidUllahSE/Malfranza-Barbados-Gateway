@@ -208,6 +208,7 @@ function TaxiPage() {
               fareSettings,
               selectedVehicle.passengerCapacity,
               vehicleResult?.distanceKm ?? 0,
+              selectedVehicle.perKmUsd,
             )
           : selectedVehicle.fare,
       )
@@ -604,6 +605,7 @@ function TaxiPage() {
                           fareSettings,
                           v.passengerCapacity,
                           vehicleResult.distanceKm,
+                          v.perKmUsd,
                         ),
                       ),
                     )
@@ -630,6 +632,7 @@ function TaxiPage() {
                             fareSettings,
                             vehicle.passengerCapacity,
                             vehicleResult.distanceKm,
+                            vehicle.perKmUsd,
                           )
                         : vehicle.fare,
                   }}
@@ -660,7 +663,11 @@ function TaxiPage() {
             >
               <h3 className="text-lg font-bold text-brand-charcoal">Confirm & pay</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                {selectedVehicle.vehicleLabel} · up to {selectedVehicle.passengerCapacity} guests · $
+                {selectedVehicle.vehicleLabel} · up to {selectedVehicle.passengerCapacity} guests
+                {selectedVehicle.perKmUsd != null
+                  ? ` · $${Number(selectedVehicle.perKmUsd).toFixed(2)}/km`
+                  : ""}
+                {" · $"}
                 {rideFare.toFixed(2)}{" "}
                 {vehicleResult?.currency ?? "USD"}
                 {` · ${form.passengers} guest${form.passengers === 1 ? "" : "s"}`}
@@ -864,26 +871,40 @@ function TaxiPage() {
       {fareSettings && (
         <section className="mx-auto mt-10 max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="rounded-2xl border border-border bg-white p-5 shadow-card sm:p-6">
-            <h2 className="text-lg font-bold text-brand-green sm:text-xl">Rates by vehicle (USD / km)</h2>
+            <h2 className="text-lg font-bold text-brand-green sm:text-xl">Rate for this ride (USD / km)</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Regulated Malfranza rates — total fare is driving distance × the rate for the van you
-              choose (minimum ${Number(fareSettings.minimumFareUsd).toFixed(2)}).
+              Each van has its own $/km set when the driver is created. Total fare is driving
+              distance × that van’s rate (minimum ${Number(fareSettings.minimumFareUsd).toFixed(2)}).
             </p>
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {[
-                {
-                  label: "XL · 7 seats",
-                  value: fareSettings.fareFor5to7 ?? fareSettings.fareFor3Guests ?? 2.4,
-                  active: (selectedVehicle?.passengerCapacity ?? 0) > 0 && (selectedVehicle?.passengerCapacity ?? 0) <= 7,
-                },
-                {
-                  label: "12-seater",
-                  value: fareSettings.fareFor8to10 ?? fareSettings.fareFor4PlusGuests ?? 4,
-                  active: (selectedVehicle?.passengerCapacity ?? 0) > 7,
-                },
-              ].map((tier) => (
+              {(vehicleResult?.vehicles.length
+                ? vehicleResult.vehicles.map((vehicle) => ({
+                    key: vehicle.id,
+                    label: vehicle.vehicleLabel,
+                    value: vehicle.perKmUsd ?? (vehicle.passengerCapacity <= 7
+                      ? fareSettings.fareFor5to7 ?? fareSettings.fareFor3Guests ?? 2.4
+                      : fareSettings.fareFor8to10 ?? fareSettings.fareFor4PlusGuests ?? 4),
+                    active: selectedVehicle?.id === vehicle.id,
+                  }))
+                : [
+                    {
+                      key: "xl-7",
+                      label: "XL · 7 seats",
+                      value: fareSettings.fareFor5to7 ?? fareSettings.fareFor3Guests ?? 2.4,
+                      active:
+                        (selectedVehicle?.passengerCapacity ?? 0) > 0 &&
+                        (selectedVehicle?.passengerCapacity ?? 0) <= 7,
+                    },
+                    {
+                      key: "12-seater",
+                      label: "12-seater",
+                      value: fareSettings.fareFor8to10 ?? fareSettings.fareFor4PlusGuests ?? 4,
+                      active: (selectedVehicle?.passengerCapacity ?? 0) > 7,
+                    },
+                  ]
+              ).map((tier) => (
                 <div
-                  key={tier.label}
+                  key={tier.key}
                   className={`rounded-xl px-3 py-3 text-center ${
                     tier.active ? "bg-brand-green text-white" : "bg-brand-cream/80"
                   }`}
