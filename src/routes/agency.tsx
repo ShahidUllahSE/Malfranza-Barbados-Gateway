@@ -188,11 +188,7 @@ function AgencyPortalPage() {
           <h1 className="font-display text-2xl font-bold text-brand-charcoal">Agency portal</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Use the site <strong>Sign in</strong> with your travel-agent email and password.
-            New agents can create an account from the footer or{" "}
-            <Link to="/agency/signup" className="font-semibold text-brand-green hover:underline">
-              travel agent signup
-            </Link>
-            .
+            New agents can create an account from the footer.
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-3">
@@ -209,12 +205,19 @@ function AgencyPortalPage() {
           >
             Sign in
           </button>
-          <Link
-            to="/agency/signup"
+          <button
+            type="button"
+            onClick={() =>
+              openAuthModal({
+                mode: "agency-signup",
+                redirectTo: "/agency",
+                reason: "Create a travel agent account — we’ll email a code to verify your address.",
+              })
+            }
             className="rounded-full border border-brand-green px-6 py-2.5 text-sm font-semibold text-brand-green hover:bg-brand-green/5"
           >
             Create account
-          </Link>
+          </button>
         </div>
         <Link to="/" className="text-sm font-semibold text-brand-green hover:underline">
           Back to home

@@ -21,7 +21,7 @@ import locationBanner from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_00 PM.png"
 import { PlacesAutocompleteInput } from "@/components/maps/PlacesAutocompleteInput";
 
 const homeSearchSchema = z.object({
-  auth: z.enum(["signin", "signup", "setup", "forgot", "reset"]).optional(),
+  auth: z.enum(["signin", "signup", "setup", "forgot", "reset", "agency-signup"]).optional(),
   token: z.string().optional(),
   redirect: z.string().optional(),
 });

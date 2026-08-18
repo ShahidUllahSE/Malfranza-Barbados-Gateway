@@ -25,6 +25,8 @@ import {
   FilterChip,
   RefBadge,
   TableShimmer,
+  AdminPager,
+  useAdminPage,
 } from "@/components/admin/AdminBits";
 
 export const Route = createFileRoute("/_authenticated/admin/bookings")({
@@ -86,6 +88,8 @@ function BookingsPage() {
     }
     return items;
   }, [all, status, search, fromDate, toDate]);
+
+  const pager = useAdminPage(rows, `${status}|${search}|${fromDate}|${toDate}`);
 
   const openBooking = rows.find((r) => r.id === openId) ?? null;
 
@@ -174,14 +178,22 @@ function BookingsPage() {
       ) : (
         <AdminTableCard
           footer={
-            rows.length > 0
-              ? `Showing ${rows.length} booking${rows.length === 1 ? "" : "s"}`
-              : undefined
+            rows.length > 0 ? (
+              <AdminPager
+                page={pager.page}
+                pages={pager.pages}
+                total={pager.total}
+                from={pager.from}
+                to={pager.to}
+                onPage={pager.setPage}
+                noun="bookings"
+              />
+            ) : undefined
           }
         >
           {/* Mobile cards */}
           <div className="divide-y divide-slate-100 lg:hidden">
-            {rows.map((b) => {
+            {pager.slice.map((b) => {
               const anyB = b as any;
               return (
                 <button
@@ -241,7 +253,7 @@ function BookingsPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((b) => {
+              {pager.slice.map((b) => {
                 const anyB = b as any;
                 const accountEmail = anyB.user_account?.email as string | undefined;
                 const aptLabel = [

@@ -35,7 +35,7 @@ function mapLinkedUser(record: any) {
 }
 
 export async function listApartmentBookings() {
-  const result = await apiRequest<{ items: any[] }>("/admin/bookings?limit=100", { auth: true });
+  const result = await apiRequest<{ items: any[] }>("/admin/bookings?limit=500", { auth: true });
   return result.items.map((booking) => ({
     id: booking._id,
     booking_reference: booking.bookingReference,
@@ -211,7 +211,7 @@ function mapTaxiBooking(booking: any): AdminTaxiBooking {
 }
 
 export async function listTaxiBookings() {
-  const result = await apiRequest<{ items: any[] }>("/admin/taxi?limit=100", { auth: true });
+  const result = await apiRequest<{ items: any[] }>("/admin/taxi?limit=500", { auth: true });
   return result.items.map(mapTaxiBooking);
 }
 
@@ -290,7 +290,7 @@ function mapLinkedDriver(record: any) {
 }
 
 export async function listEnquiries() {
-  const result = await apiRequest<{ items: any[] }>("/admin/enquiries?limit=100", { auth: true });
+  const result = await apiRequest<{ items: any[] }>("/admin/enquiries?limit=500", { auth: true });
   return result.items.map((enquiry) => ({
     id: enquiry._id,
     reference: enquiry.reference,

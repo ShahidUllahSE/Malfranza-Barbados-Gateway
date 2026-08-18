@@ -50,7 +50,21 @@ export function SiteFooter() {
             <li><Link to="/amenities" className="text-white/80 hover:text-white">Amenities</Link></li>
             <li><Link to="/contact" className="text-white/80 hover:text-white">Contact</Link></li>
             <li><Link to="/agency" className="text-white/80 hover:text-white">Travel agent portal</Link></li>
-            <li><Link to="/agency/signup" className="text-white/80 hover:text-white">Travel agent signup</Link></li>
+            <li>
+              <button
+                type="button"
+                onClick={() =>
+                  openAuthModal({
+                    mode: "agency-signup",
+                    redirectTo: "/agency",
+                    reason: "Create a travel agent account — we’ll email a code to verify your address.",
+                  })
+                }
+                className="text-white/80 hover:text-white"
+              >
+                Travel agent signup
+              </button>
+            </li>
             <li><Link to="/privacy" className="text-white/80 hover:text-white">Privacy Policy</Link></li>
             <li><Link to="/booking-policy" className="text-white/80 hover:text-white">Booking Policy</Link></li>
             <li><Link to="/terms" className="text-white/80 hover:text-white">Terms &amp; Conditions</Link></li>
@@ -63,7 +77,7 @@ export function SiteFooter() {
           <a
             href="https://wa.me/12462344875"
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             className="mt-5 inline-flex items-center gap-3 rounded-xl bg-white/10 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-white/20"
           >
             <MessageCircle className="h-5 w-5 text-brand-sage" />
@@ -76,7 +90,13 @@ export function SiteFooter() {
             <a href="#" aria-label="Instagram" className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/20">
               <Instagram className="h-4 w-4" />
             </a>
-            <a href="https://wa.me/12462344875" aria-label="WhatsApp" className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/20">
+            <a
+              href="https://wa.me/12462344875"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Chat on WhatsApp: 1 (246) 234-4875"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/20"
+            >
               <MessageCircle className="h-4 w-4" />
             </a>
           </div>
@@ -106,12 +126,19 @@ export function SiteFooter() {
                   </Link>
                 ) : (
                   <>
-                    <Link
-                      to="/agency/signup"
+                    <button
+                      type="button"
+                      onClick={() =>
+                        openAuthModal({
+                          mode: "agency-signup",
+                          redirectTo: "/agency",
+                          reason: "Create a travel agent account — we’ll email a code to verify your address.",
+                        })
+                      }
                       className="inline-flex items-center justify-center rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-brand-green hover:bg-white/90"
                     >
                       Create travel agent account
-                    </Link>
+                    </button>
                     <button
                       type="button"
                       onClick={() =>

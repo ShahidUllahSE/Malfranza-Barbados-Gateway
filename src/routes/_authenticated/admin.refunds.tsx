@@ -21,6 +21,8 @@ import {
   RefBadge,
   StatusPill,
   TableShimmer,
+  AdminPager,
+  useAdminPage,
 } from "@/components/admin/AdminBits";
 import { ActionBtn, Drawer } from "./admin.bookings";
 
@@ -72,6 +74,7 @@ function AdminRefundsPage() {
     () => (status === "all" ? allItems : allItems.filter((item) => item.refundStatus === status)),
     [allItems, status],
   );
+  const pager = useAdminPage(items, `${status}|${kind}`);
   const openItem = useMemo(
     () => items.find((item) => `${item.kind}:${item.id}` === openId) ?? null,
     [items, openId],
@@ -140,10 +143,22 @@ function AdminRefundsPage() {
         <TableShimmer rows={6} cols={6} />
       ) : (
         <AdminTableCard
-          footer={items.length ? `Showing ${items.length} refund record${items.length === 1 ? "" : "s"}` : undefined}
+          footer={
+            items.length > 0 ? (
+              <AdminPager
+                page={pager.page}
+                pages={pager.pages}
+                total={pager.total}
+                from={pager.from}
+                to={pager.to}
+                onPage={pager.setPage}
+                noun="refunds"
+              />
+            ) : undefined
+          }
         >
           <div className="divide-y divide-slate-100 lg:hidden">
-            {items.map((item) => (
+            {pager.slice.map((item) => (
               <button
                 key={`${item.kind}:${item.id}`}
                 type="button"
@@ -182,7 +197,7 @@ function AdminRefundsPage() {
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
+              {pager.slice.map((item) => (
                 <AdminTr
                   key={`${item.kind}:${item.id}`}
                   onClick={() => {

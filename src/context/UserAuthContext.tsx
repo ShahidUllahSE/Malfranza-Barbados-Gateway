@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { bootstrapAdmin, type AdminIdentity, type DriverIdentity } from "@/lib/api";
-import { ApiError, validateLoginForm, validateRegisterForm } from "@/lib/api-errors";
+import { ApiError, validateLoginForm, validateRegisterForm, validateAgencyRegisterForm } from "@/lib/api-errors";
 import {
   clearAllTokens,
   loginSession,
@@ -24,8 +24,13 @@ import {
   verifySignupOtp,
   type UserIdentity,
 } from "@/lib/user";
+import {
+  resendAgencySignupOtp,
+  startAgencySignup,
+  verifyAgencySignupOtp,
+} from "@/lib/agency";
 
-type AuthMode = "signin" | "signup" | "setup" | "forgot" | "reset";
+type AuthMode = "signin" | "signup" | "agency-signup" | "setup" | "forgot" | "reset";
 type SignupStep = "form" | "otp";
 
 type OpenAuthOptions = {
@@ -56,7 +61,7 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
   const authSearch = useRouterState({
     select: (s) => {
       const search = s.location.search as {
-        auth?: "signin" | "signup" | "setup" | "forgot" | "reset";
+        auth?: "signin" | "signup" | "setup" | "forgot" | "reset" | "agency-signup";
         redirect?: string;
         token?: string;
       };
@@ -73,6 +78,7 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<AuthMode>("signin");
   const [name, setName] = useState("");
+  const [agencyName, setAgencyName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
@@ -116,6 +122,9 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
     setRedirectTo(options.redirectTo ?? null);
     setResetToken(options.resetToken ?? "");
     setConfirmPassword("");
+    if (options.mode === "agency-signup") {
+      setAgencyName("");
+    }
     clearErrors();
     setOpen(true);
   }, [clearErrors]);
@@ -128,6 +137,7 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
     setOtpCode("");
     setSignupStep("form");
     setBootstrapKey("");
+    setAgencyName("");
     setAuthReason(null);
     setRedirectTo(null);
     clearErrors();
@@ -177,10 +187,12 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
       resetToken: authSearch.token,
       reason:
         authSearch.redirect === "/admin"
-          ? "Sign in with your staff account to open the admin dashboard."
+          ? "Sign in with your admin account to open the admin dashboard."
           : authSearch.auth === "reset"
             ? "Choose a new password for your Malfranza account."
-            : undefined,
+            : authSearch.auth === "agency-signup"
+              ? "Create a travel agent account — we’ll email a code to verify your address."
+              : undefined,
     });
     navigate({
       to: "/",
@@ -229,7 +241,20 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
         toastError("Please fix the highlighted fields.");
         return;
       }
-    } else if (mode === "signup" && signupStep === "otp") {
+    } else if (mode === "agency-signup" && signupStep === "form") {
+      const clientErrors = validateAgencyRegisterForm({
+        agencyName,
+        contactName: name,
+        email,
+        password,
+        phone,
+      });
+      if (Object.keys(clientErrors).length > 0) {
+        setFieldErrors(clientErrors);
+        toastError("Please fix the highlighted fields.");
+        return;
+      }
+    } else if ((mode === "signup" || mode === "agency-signup") && signupStep === "otp") {
       if (!/^\d{6}$/.test(otpCode.trim())) {
         setFieldErrors({ code: "Enter the 6-digit code from your email" });
         toastError("Enter the 6-digit verification code.");
@@ -282,6 +307,19 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      if (mode === "agency-signup" && signupStep === "form") {
+        const result = await startAgencySignup({
+          agencyName: agencyName.trim(),
+          contactName: name.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
+          password,
+        });
+        setSignupStep("otp");
+        toastSuccess("Check your email", result.message);
+        return;
+      }
+
       if (mode === "signup" && signupStep === "otp") {
         const identity = await verifySignupOtp({
           email: email.trim(),
@@ -299,6 +337,25 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
         closeAuthModal();
         toastSuccess("Account verified", "You're signed in.");
         if (nextPath) navigateToRedirect(nextPath);
+        return;
+      }
+
+      if (mode === "agency-signup" && signupStep === "otp") {
+        const result = await verifyAgencySignupOtp({
+          email: email.trim(),
+          code: otpCode.trim(),
+        });
+        setSession({
+          kind: "agency",
+          role: "agency",
+          agency: result.agency,
+          admin: null,
+          user: null,
+          driver: null,
+        });
+        closeAuthModal();
+        toastSuccess("Account verified", "Opening your travel agent portal.");
+        navigate({ to: "/agency" });
         return;
       }
 
@@ -362,7 +419,10 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
     clearErrors();
     setBusy(true);
     try {
-      const result = await resendSignupOtp(email.trim());
+      const result =
+        mode === "agency-signup"
+          ? await resendAgencySignupOtp(email.trim())
+          : await resendSignupOtp(email.trim());
       toastSuccess("Code resent", result.message);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -404,11 +464,13 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
         ? "Reset your password"
         : mode === "reset"
           ? "Choose a new password"
-          : mode === "signup" && signupStep === "otp"
+          : (mode === "signup" || mode === "agency-signup") && signupStep === "otp"
             ? "Verify your email"
-            : mode === "signup"
-              ? "Create account"
-              : "Sign in";
+            : mode === "agency-signup"
+              ? "Create travel agent account"
+              : mode === "signup"
+                ? "Create account"
+                : "Sign in";
 
   const description =
     authReason
@@ -418,17 +480,19 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
         ? "We'll email a link to reset your password if that address is registered."
         : mode === "reset"
           ? "Enter a new password for your account."
-          : mode === "signup" && signupStep === "otp"
+          : (mode === "signup" || mode === "agency-signup") && signupStep === "otp"
             ? `Enter the 6-digit code we sent to ${email.trim() || "your email"}.`
-            : mode === "signup"
-              ? "Create a guest account — we’ll email a code to verify your address."
-              : "One sign-in for guests, travel agents, drivers, and staff.");
+            : mode === "agency-signup"
+              ? "Create a travel agent account — we’ll email a code to verify your address."
+              : mode === "signup"
+                ? "Create a guest account — we’ll email a code to verify your address."
+                : null);
 
   return (
     <UserAuthContext.Provider value={value}>
       {children}
       <Dialog open={open} onOpenChange={(next) => (next ? setOpen(true) : closeAuthModal())}>
-        <DialogContent className="max-w-md rounded-2xl border-border p-0 overflow-hidden sm:max-h-[min(90dvh,720px)]">
+        <DialogContent className="max-w-md overflow-y-auto rounded-2xl border-border p-0 sm:max-h-[min(90dvh,720px)]">
           <div className="p-6 sm:p-8">
             <DialogHeader className="text-center sm:text-center">
               <DialogTitle className="text-2xl font-display font-bold text-brand-charcoal">
@@ -506,7 +570,7 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
                     {busy ? "Saving…" : "Update password"}
                   </button>
                 </>
-              ) : mode === "signup" && signupStep === "otp" ? (
+              ) : (mode === "signup" || mode === "agency-signup") && signupStep === "otp" ? (
                 <>
                   <AuthField label="Verification code" error={fieldErrors.code}>
                     <input
@@ -556,6 +620,49 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
                 </>
               ) : (
                 <>
+                  {mode === "agency-signup" && (
+                    <>
+                      <AuthField label="Agency name" error={fieldErrors.agencyName}>
+                        <input
+                          type="text"
+                          required
+                          value={agencyName}
+                          onChange={(e) => {
+                            setAgencyName(e.target.value);
+                            if (fieldErrors.agencyName) setFieldErrors((prev) => ({ ...prev, agencyName: "" }));
+                          }}
+                          className={inputClass(!!fieldErrors.agencyName)}
+                          placeholder="Your agency or company"
+                        />
+                      </AuthField>
+                      <AuthField label="Contact name" error={fieldErrors.contactName}>
+                        <input
+                          type="text"
+                          required
+                          value={name}
+                          onChange={(e) => {
+                            setName(e.target.value);
+                            if (fieldErrors.contactName) setFieldErrors((prev) => ({ ...prev, contactName: "" }));
+                          }}
+                          className={inputClass(!!fieldErrors.contactName)}
+                          placeholder="Your full name"
+                        />
+                      </AuthField>
+                      <AuthField label="Phone" error={fieldErrors.phone}>
+                        <input
+                          type="tel"
+                          required
+                          value={phone}
+                          onChange={(e) => {
+                            setPhone(e.target.value);
+                            if (fieldErrors.phone) setFieldErrors((prev) => ({ ...prev, phone: "" }));
+                          }}
+                          className={inputClass(!!fieldErrors.phone)}
+                          placeholder="+1 246 000 0000"
+                        />
+                      </AuthField>
+                    </>
+                  )}
                   {mode === "signup" && (
                     <>
                       <AuthField label="Full name" error={fieldErrors.name}>
@@ -644,7 +751,7 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
                       ? "Please wait…"
                       : mode === "setup"
                         ? "Create admin"
-                        : mode === "signup"
+                        : mode === "signup" || mode === "agency-signup"
                           ? "Continue"
                           : "Sign in"}
                   </button>
@@ -655,14 +762,26 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
             <div className="mt-6 text-center text-sm text-muted-foreground">
               {mode === "signin" ? (
                 <>
-                  New guest?{" "}
-                  <button
-                    type="button"
-                    onClick={() => switchMode("signup")}
-                    className="cursor-pointer font-semibold text-brand-green hover:underline"
-                  >
-                    Create an account
-                  </button>
+                  <p>
+                    New guest?{" "}
+                    <button
+                      type="button"
+                      onClick={() => switchMode("signup")}
+                      className="cursor-pointer font-semibold text-brand-green hover:underline"
+                    >
+                      Create an account
+                    </button>
+                  </p>
+                  <p className="mt-2">
+                    Travel agent?{" "}
+                    <button
+                      type="button"
+                      onClick={() => switchMode("agency-signup")}
+                      className="cursor-pointer font-semibold text-brand-green hover:underline"
+                    >
+                      Create an agency account
+                    </button>
+                  </p>
                 </>
               ) : mode === "forgot" || mode === "reset" ? (
                 <>

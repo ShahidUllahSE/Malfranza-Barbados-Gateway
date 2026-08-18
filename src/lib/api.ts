@@ -211,3 +211,91 @@ export function getCurrentDriver(): Promise<DriverIdentity> {
 export function getCurrentAgency(): Promise<AgencyIdentity> {
   return apiRequest<AgencyIdentity>("/agencies/me", { agencyAuth: true });
 }
+
+export type AdminAccount = {
+  id: string;
+  email: string;
+  role: "admin" | "staff";
+  isActive: boolean;
+  createdAt: string;
+  lastLoginAt: string | null;
+};
+
+export async function listAdminAccounts(): Promise<AdminAccount[]> {
+  const result = await apiRequest<{ items: AdminAccount[] }>("/admin/admins", { auth: true });
+  return result.items;
+}
+
+export async function createAdminAccount(input: {
+  email: string;
+  password: string;
+}): Promise<AdminAccount> {
+  const result = await apiRequest<{ admin: AdminAccount }>("/admin/admins", {
+    method: "POST",
+    auth: true,
+    body: JSON.stringify(input),
+  });
+  return result.admin;
+}
+
+export async function setAdminAccountActive(id: string, isActive: boolean) {
+  return apiRequest<{ id: string; email: string; role: "admin" | "staff"; isActive: boolean }>(
+    `/admin/admins/${id}/active`,
+    {
+      method: "PATCH",
+      auth: true,
+      body: JSON.stringify({ isActive }),
+    },
+  );
+}
+
+export type DirectoryKind = "guest" | "admin" | "agency" | "driver";
+export type DirectoryStatus = "active" | "blocked" | "deleted";
+
+export type DirectoryAccount = {
+  id: string;
+  kind: DirectoryKind;
+  name: string;
+  email: string;
+  phone: string | null;
+  detail: string | null;
+  status: DirectoryStatus;
+  stayBookings: number;
+  taxiBookings: number;
+  lastLoginAt: string | null;
+  createdAt: string;
+};
+
+export async function listDirectoryAccounts(): Promise<DirectoryAccount[]> {
+  const result = await apiRequest<{ items: DirectoryAccount[] }>("/admin/users", { auth: true });
+  return result.items;
+}
+
+export async function setDirectoryAccountActive(
+  kind: DirectoryKind,
+  id: string,
+  isActive: boolean,
+) {
+  return apiRequest<{ id: string; kind: DirectoryKind; status: DirectoryStatus }>(
+    `/admin/users/${kind}/${id}/active`,
+    {
+      method: "PATCH",
+      auth: true,
+      body: JSON.stringify({ isActive }),
+    },
+  );
+}
+
+export async function deleteDirectoryAccount(kind: DirectoryKind, id: string) {
+  return apiRequest<{ id: string; kind: DirectoryKind; status: DirectoryStatus }>(
+    `/admin/users/${kind}/${id}`,
+    { method: "DELETE", auth: true },
+  );
+}
+
+export async function restoreDirectoryAccount(kind: DirectoryKind, id: string) {
+  return apiRequest<{ id: string; kind: DirectoryKind; status: DirectoryStatus }>(
+    `/admin/users/${kind}/${id}/restore`,
+    { method: "PATCH", auth: true },
+  );
+}

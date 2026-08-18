@@ -143,7 +143,7 @@ export function SiteHeader() {
                   <p className="truncate text-xs font-normal text-muted-foreground">{displayEmail}</p>
                   {isStaff ? (
                     <p className="mt-1 text-[11px] font-medium uppercase tracking-wide text-brand-green">
-                      {admin?.role ?? "staff"}
+                      {admin?.role ?? "admin"}
                     </p>
                   ) : null}
                 </DropdownMenuLabel>

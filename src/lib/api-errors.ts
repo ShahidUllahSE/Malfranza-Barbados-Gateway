@@ -113,6 +113,34 @@ export function validateRegisterForm(input: {
   return errors;
 }
 
+export function validateAgencyRegisterForm(input: {
+  agencyName: string;
+  contactName: string;
+  email: string;
+  password: string;
+  phone: string;
+}): Record<string, string> {
+  const errors: Record<string, string> = {};
+
+  if (input.agencyName.trim().length < 2) {
+    errors.agencyName = "Please enter the agency name.";
+  }
+  if (input.contactName.trim().length < 2) {
+    errors.contactName = "Please enter the contact name.";
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim())) {
+    errors.email = "Please enter a valid email address.";
+  }
+  if (input.password.length < 8) {
+    errors.password = "Password must be at least 8 characters.";
+  }
+  if (input.phone.trim().length < 6) {
+    errors.phone = "Enter a valid phone number (at least 6 characters).";
+  }
+
+  return errors;
+}
+
 export function validateLoginForm(input: { email: string; password: string }): Record<string, string> {
   const errors: Record<string, string> = {};
 

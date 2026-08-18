@@ -160,6 +160,7 @@ function AdminDashboard() {
               <QuickLink to="/admin/bookings" label="Bookings" />
               <QuickLink to="/admin/refunds" label="Refunds" />
               <QuickLink to="/admin/taxi" label="Taxi" />
+              <QuickLink to="/admin/users" label="Users" />
               <QuickLink to="/admin/enquiries" label="Enquiries" />
             </div>
           </div>

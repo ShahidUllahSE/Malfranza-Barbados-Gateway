@@ -19,6 +19,8 @@ import {
   AdminTr,
   AdminEmptyState,
   TableShimmer,
+  AdminPager,
+  useAdminPage,
 } from "@/components/admin/AdminBits";
 
 export const Route = createFileRoute("/_authenticated/admin/agencies")({
@@ -173,6 +175,8 @@ function AdminAgenciesPage() {
     return list;
   }, [agencies, periodByCode, search]);
 
+  const pager = useAdminPage(rows, search);
+
   const totalOwed = report?.totals.commissionOwed ?? 0;
   const totalStays = report?.totals.bookings ?? 0;
 
@@ -180,7 +184,7 @@ function AdminAgenciesPage() {
     <div className="space-y-4">
       <AdminPageHeader
         title="Travel agencies"
-        description="Create agents here (admin only). They use the same site Sign in as guests and staff."
+        description="Create agents here. They use the same site Sign in as guests."
         meta={
           <button
             type="button"
@@ -447,7 +451,7 @@ function AdminAgenciesPage() {
           <>
             {/* Mobile list */}
             <div className="divide-y divide-slate-100 lg:hidden">
-              {rows.map((a: any) => (
+              {pager.slice.map((a: any) => (
                 <div key={a.id} className="space-y-2 px-4 py-3">
                   <div className="flex items-start justify-between gap-2">
                     <div>
@@ -509,7 +513,7 @@ function AdminAgenciesPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((a: any) => (
+                {pager.slice.map((a: any) => (
                   <AdminTr key={a.id}>
                     <AdminTd className="!py-2.5">
                       <span className="font-semibold text-brand-charcoal">{a.agencyName}</span>
@@ -552,10 +556,15 @@ function AdminAgenciesPage() {
             </AdminTableShell>
 
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 bg-slate-50/60 px-4 py-2.5 text-xs text-muted-foreground">
-              <span>
-                {rows.length} agent{rows.length === 1 ? "" : "s"} shown · period{" "}
-                <span className="font-medium text-brand-charcoal">{periodLabel}</span>
-              </span>
+              <AdminPager
+                page={pager.page}
+                pages={pager.pages}
+                total={pager.total}
+                from={pager.from}
+                to={pager.to}
+                onPage={pager.setPage}
+                noun="agents"
+              />
               <span>
                 Total commission to pay:{" "}
                 <span className="font-bold text-brand-orange">{money(totalOwed)}</span>

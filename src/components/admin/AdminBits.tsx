@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { AdminTaxiBooking, AptBookingStatus, TaxiStatus, EnquiryStatus } from "@/lib/admin";
@@ -204,6 +204,78 @@ export function AdminTableShell({
   );
 }
 
+export const ADMIN_PAGE_SIZE = 20;
+
+export function useAdminPage<T>(rows: T[], resetKey: string, pageSize = ADMIN_PAGE_SIZE) {
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setPage(1);
+  }, [resetKey, pageSize]);
+
+  const total = rows.length;
+  const pages = Math.max(1, Math.ceil(total / pageSize) || 1);
+  const safePage = Math.min(Math.max(1, page), pages);
+  const slice = rows.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const from = total === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const to = Math.min(safePage * pageSize, total);
+
+  return { page: safePage, setPage, pages, slice, total, pageSize, from, to };
+}
+
+export function AdminPager({
+  page,
+  pages,
+  total,
+  from,
+  to,
+  onPage,
+  noun,
+}: {
+  page: number;
+  pages: number;
+  total: number;
+  from: number;
+  to: number;
+  onPage: (page: number) => void;
+  noun?: string;
+}) {
+  if (total === 0) return null;
+  return (
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-xs text-muted-foreground">
+        Showing {from}–{to} of {total}
+        {noun ? ` ${noun}` : ""}
+      </p>
+      {pages > 1 && (
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            disabled={page <= 1}
+            onClick={() => onPage(page - 1)}
+            className="inline-flex h-8 items-center gap-1 rounded-lg px-2.5 text-xs font-semibold text-brand-charcoal transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+            Prev
+          </button>
+          <span className="min-w-[5.5rem] text-center text-xs font-semibold text-brand-charcoal">
+            Page {page} of {pages}
+          </span>
+          <button
+            type="button"
+            disabled={page >= pages}
+            onClick={() => onPage(page + 1)}
+            className="inline-flex h-8 items-center gap-1 rounded-lg px-2.5 text-xs font-semibold text-brand-charcoal transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Next
+            <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AdminTableCard({
   children,
   footer,
@@ -216,7 +288,7 @@ export function AdminTableCard({
       {children}
       {footer && (
         <div className="border-t border-slate-100 bg-slate-50/50 px-4 py-3 text-xs text-muted-foreground sm:px-5">
-          {footer}
+          {typeof footer === "string" ? footer : footer}
         </div>
       )}
     </div>
@@ -227,7 +299,7 @@ export function AdminTh({
   children,
   className = "",
 }: {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   className?: string;
 }) {
   return (

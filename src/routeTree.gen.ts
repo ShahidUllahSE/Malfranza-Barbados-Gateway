@@ -29,6 +29,7 @@ import { Route as MyBookingsReferenceRouteImport } from './routes/my-bookings_.$
 import { Route as AgencySignupRouteImport } from './routes/agency_.signup'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
+import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
 import { Route as AuthenticatedAdminTaxiRouteImport } from './routes/_authenticated/admin.taxi'
 import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin.settings'
 import { Route as AuthenticatedAdminReportsRouteImport } from './routes/_authenticated/admin.reports'
@@ -148,6 +149,11 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
+const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
   getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
 const AuthenticatedAdminTaxiRoute = AuthenticatedAdminTaxiRouteImport.update({
@@ -307,6 +313,7 @@ export interface FileRoutesByFullPath {
   '/admin/reports': typeof AuthenticatedAdminReportsRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/taxi': typeof AuthenticatedAdminTaxiRoute
+  '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/admin/channels/airbnb': typeof AuthenticatedAdminChannelsAirbnbRoute
   '/admin/channels/booking': typeof AuthenticatedAdminChannelsBookingRoute
@@ -347,6 +354,7 @@ export interface FileRoutesByTo {
   '/admin/reports': typeof AuthenticatedAdminReportsRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/taxi': typeof AuthenticatedAdminTaxiRoute
+  '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/admin/channels/airbnb': typeof AuthenticatedAdminChannelsAirbnbRoute
   '/admin/channels/booking': typeof AuthenticatedAdminChannelsBookingRoute
@@ -391,6 +399,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/reports': typeof AuthenticatedAdminReportsRoute
   '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/_authenticated/admin/taxi': typeof AuthenticatedAdminTaxiRoute
+  '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/admin/channels/airbnb': typeof AuthenticatedAdminChannelsAirbnbRoute
   '/_authenticated/admin/channels/booking': typeof AuthenticatedAdminChannelsBookingRoute
@@ -435,6 +444,7 @@ export interface FileRouteTypes {
     | '/admin/reports'
     | '/admin/settings'
     | '/admin/taxi'
+    | '/admin/users'
     | '/admin/'
     | '/admin/channels/airbnb'
     | '/admin/channels/booking'
@@ -475,6 +485,7 @@ export interface FileRouteTypes {
     | '/admin/reports'
     | '/admin/settings'
     | '/admin/taxi'
+    | '/admin/users'
     | '/admin'
     | '/admin/channels/airbnb'
     | '/admin/channels/booking'
@@ -518,6 +529,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/reports'
     | '/_authenticated/admin/settings'
     | '/_authenticated/admin/taxi'
+    | '/_authenticated/admin/users'
     | '/_authenticated/admin/'
     | '/_authenticated/admin/channels/airbnb'
     | '/_authenticated/admin/channels/booking'
@@ -691,6 +703,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/users': {
+      id: '/_authenticated/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AuthenticatedAdminUsersRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/taxi': {
@@ -884,6 +903,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminReportsRoute: typeof AuthenticatedAdminReportsRoute
   AuthenticatedAdminSettingsRoute: typeof AuthenticatedAdminSettingsRoute
   AuthenticatedAdminTaxiRoute: typeof AuthenticatedAdminTaxiRoute
+  AuthenticatedAdminUsersRoute: typeof AuthenticatedAdminUsersRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAdminDriversIdRoute: typeof AuthenticatedAdminDriversIdRoute
   AuthenticatedAdminInsightsSlugRoute: typeof AuthenticatedAdminInsightsSlugRoute
@@ -903,6 +923,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminReportsRoute: AuthenticatedAdminReportsRoute,
   AuthenticatedAdminSettingsRoute: AuthenticatedAdminSettingsRoute,
   AuthenticatedAdminTaxiRoute: AuthenticatedAdminTaxiRoute,
+  AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedAdminDriversIdRoute: AuthenticatedAdminDriversIdRoute,
   AuthenticatedAdminInsightsSlugRoute: AuthenticatedAdminInsightsSlugRoute,

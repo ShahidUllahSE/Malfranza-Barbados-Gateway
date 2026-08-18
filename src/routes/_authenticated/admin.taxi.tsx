@@ -23,6 +23,8 @@ import {
   FilterChip,
   RefBadge,
   TableShimmer,
+  AdminPager,
+  useAdminPage,
 } from "@/components/admin/AdminBits";
 
 export const Route = createFileRoute("/_authenticated/admin/taxi")({
@@ -84,6 +86,8 @@ function TaxiPage() {
     }
     return items;
   }, [all, status, search]);
+
+  const pager = useAdminPage(rows, `${status}|${search}`);
 
   function openTrip(id: string) {
     navigate({ to: "/admin/taxi/$id", params: { id } });
@@ -152,11 +156,21 @@ function TaxiPage() {
       ) : (
         <AdminTableCard
           footer={
-            rows.length > 0 ? `Showing ${rows.length} trip${rows.length === 1 ? "" : "s"}` : undefined
+            rows.length > 0 ? (
+              <AdminPager
+                page={pager.page}
+                pages={pager.pages}
+                total={pager.total}
+                from={pager.from}
+                to={pager.to}
+                onPage={pager.setPage}
+                noun="trips"
+              />
+            ) : undefined
           }
         >
           <div className="divide-y divide-slate-100 lg:hidden">
-            {rows.map((b) => (
+            {pager.slice.map((b) => (
               <button
                 key={b.id}
                 type="button"
@@ -199,7 +213,7 @@ function TaxiPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((b) => (
+              {pager.slice.map((b) => (
                 <AdminTr key={b.id} onClick={() => openTrip(b.id)}>
                   <AdminTd>
                     <RefBadge>{b.booking_reference}</RefBadge>

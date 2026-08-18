@@ -21,6 +21,8 @@ import {
   FilterChip,
   RefBadge,
   TableShimmer,
+  AdminPager,
+  useAdminPage,
 } from "@/components/admin/AdminBits";
 import { ActionBtn, Drawer } from "./admin.bookings";
 
@@ -86,6 +88,8 @@ function EnquiriesPage() {
     });
   }, [all, filter, search]);
 
+  const pager = useAdminPage(rows, `${filter}|${search}`);
+
   const openEnquiry = useMemo(
     () => all.find((e) => e.id === openId) ?? null,
     [all, openId],
@@ -149,13 +153,21 @@ function EnquiriesPage() {
       ) : (
         <AdminTableCard
           footer={
-            rows.length > 0
-              ? `Showing ${rows.length} enquir${rows.length === 1 ? "y" : "ies"}`
-              : undefined
+            rows.length > 0 ? (
+              <AdminPager
+                page={pager.page}
+                pages={pager.pages}
+                total={pager.total}
+                from={pager.from}
+                to={pager.to}
+                onPage={pager.setPage}
+                noun="enquiries"
+              />
+            ) : undefined
           }
         >
           <div className="divide-y divide-slate-100 lg:hidden">
-            {rows.map((e) => (
+            {pager.slice.map((e) => (
               <button
                 key={e.id}
                 type="button"
@@ -192,7 +204,7 @@ function EnquiriesPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((e) => (
+              {pager.slice.map((e) => (
                 <AdminTr key={e.id} onClick={() => openDetail(e)}>
                   <AdminTd>
                     <RefBadge>{e.reference}</RefBadge>

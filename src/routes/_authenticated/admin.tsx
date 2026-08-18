@@ -18,6 +18,7 @@ import {
   PanelLeft,
   Building2,
   CircleDollarSign,
+  UserRound,
 } from "lucide-react";
 import { getCurrentAdmin } from "@/lib/api";
 import { Logo } from "@/components/Logo";
@@ -55,6 +56,7 @@ const NAV: NavEntry[] = [
   { to: "/admin/calendar", label: "Calendar", icon: CalendarDays },
   { to: "/admin/taxi", label: "Taxi Trips", icon: Car },
   { to: "/admin/drivers", label: "Drivers", icon: Users },
+  { to: "/admin/users", label: "Users", icon: UserRound },
   { to: "/admin/enquiries", label: "Enquiries", icon: MessageSquare },
   { to: "/admin/reports", label: "Reports", icon: BarChart3 },
   {

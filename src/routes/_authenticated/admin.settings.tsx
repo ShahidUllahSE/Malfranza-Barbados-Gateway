@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getCurrentAdmin } from "@/lib/api";
+import { getCurrentAdmin, listAdminAccounts, createAdminAccount, setAdminAccountActive } from "@/lib/api";
 import {
   fetchAdminTaxiFareSettings,
   updateAdminTaxiFareSettings,
@@ -24,16 +24,31 @@ const EMPTY: TaxiFareSettings = {
 function SettingsPage() {
   const qc = useQueryClient();
   const [email, setEmail] = useState("");
+  const [meId, setMeId] = useState("");
   const settingsQ = useQuery({
     queryKey: ["admin", "taxi-fare-settings"],
     queryFn: fetchAdminTaxiFareSettings,
   });
   const [form, setForm] = useState<TaxiFareSettings>(EMPTY);
+  const [newAdmin, setNewAdmin] = useState({
+    email: "",
+    password: "",
+  });
+
+  const accountsQ = useQuery({
+    queryKey: ["admin", "admins"],
+    queryFn: listAdminAccounts,
+  });
 
   useEffect(() => {
     getCurrentAdmin()
-      .then((admin) => setEmail(admin.email))
-      .catch(() => setEmail(""));
+      .then((admin) => {
+        setEmail(admin.email);
+        setMeId(admin.id);
+      })
+      .catch(() => {
+        setEmail("");
+      });
   }, []);
 
   useEffect(() => {
@@ -61,6 +76,26 @@ function SettingsPage() {
       toast.success("Taxi fares saved — guest bookings will use these rates");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save fares"),
+  });
+
+  const createAccount = useMutation({
+    mutationFn: () => createAdminAccount(newAdmin),
+    onSuccess: (admin) => {
+      toast.success(`Admin created · ${admin.email}. They can sign in with the site Sign in.`);
+      setNewAdmin({ email: "", password: "" });
+      qc.invalidateQueries({ queryKey: ["admin", "admins"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not create admin"),
+  });
+
+  const toggleActive = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      setAdminAccountActive(id, isActive),
+    onSuccess: (admin) => {
+      toast.success(admin.isActive ? `${admin.email} activated` : `${admin.email} deactivated`);
+      qc.invalidateQueries({ queryKey: ["admin", "admins"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not update admin"),
   });
 
   function setNumber(key: keyof TaxiFareSettings, value: string) {
@@ -163,12 +198,103 @@ function SettingsPage() {
         )}
       </div>
 
-      <div className="rounded-2xl bg-white shadow-card p-5 max-w-lg">
+      <div className="max-w-2xl rounded-2xl bg-white p-5 shadow-card sm:p-6">
         <h2 className="font-display font-bold text-brand-charcoal">Team access</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Additional admins can be granted access after they create an account. Contact support to
-          add teammates in bulk.
+        <p className="mt-1 text-sm text-muted-foreground">
+          Create another admin. They sign in with the same site Sign in using this email and
+          password.
         </p>
+        <form
+          className="mt-4 grid gap-3 sm:grid-cols-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            createAccount.mutate();
+          }}
+        >
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-brand-charcoal">Email</span>
+            <input
+              required
+              type="email"
+              value={newAdmin.email}
+              onChange={(e) => setNewAdmin((f) => ({ ...f, email: e.target.value }))}
+              className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green/20"
+              placeholder="admin@malfranza.com"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-brand-charcoal">Password</span>
+            <input
+              required
+              type="password"
+              minLength={8}
+              value={newAdmin.password}
+              onChange={(e) => setNewAdmin((f) => ({ ...f, password: e.target.value }))}
+              className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green/20"
+              placeholder="At least 8 characters"
+            />
+          </label>
+          <div className="sm:col-span-2">
+            <button
+              type="submit"
+              disabled={createAccount.isPending}
+              className="h-10 cursor-pointer rounded-lg bg-brand-green px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
+            >
+              {createAccount.isPending ? "Creating…" : "Add admin"}
+            </button>
+          </div>
+        </form>
+
+        <div className="mt-6 overflow-x-auto">
+          {accountsQ.isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading team…</p>
+          ) : accountsQ.isError ? (
+            <p className="text-sm text-red-600">Couldn’t load admin accounts.</p>
+          ) : (
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-muted-foreground">
+                  <th className="py-2 font-medium">Email</th>
+                  <th className="py-2 font-medium">Status</th>
+                  <th className="py-2 font-medium"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {(accountsQ.data ?? []).map((admin) => (
+                  <tr key={admin.id} className="border-b border-slate-50">
+                    <td className="py-2.5 text-brand-charcoal">
+                      {admin.email}
+                      {admin.id === meId ? (
+                        <span className="ml-2 text-xs text-muted-foreground">(you)</span>
+                      ) : null}
+                    </td>
+                    <td className="py-2.5">
+                      {admin.isActive ? (
+                        <span className="text-brand-green">Active</span>
+                      ) : (
+                        <span className="text-muted-foreground">Inactive</span>
+                      )}
+                    </td>
+                    <td className="py-2.5 text-right">
+                      {admin.id === meId ? null : (
+                        <button
+                          type="button"
+                          disabled={toggleActive.isPending}
+                          onClick={() =>
+                            toggleActive.mutate({ id: admin.id, isActive: !admin.isActive })
+                          }
+                          className="text-xs font-semibold text-brand-green hover:underline disabled:opacity-60"
+                        >
+                          {admin.isActive ? "Deactivate" : "Activate"}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
     </div>
   );

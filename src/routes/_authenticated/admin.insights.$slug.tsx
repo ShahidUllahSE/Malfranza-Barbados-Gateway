@@ -34,6 +34,8 @@ import {
   TableShimmer,
   AdminPanel,
   Shimmer,
+  AdminPager,
+  useAdminPage,
 } from "@/components/admin/AdminBits";
 
 const SLUGS = [
@@ -498,14 +500,27 @@ function BookingDetailTable({
   setOpenId: (id: string | null) => void;
   showPayment?: boolean;
 }) {
+  const pager = useAdminPage(rows, `${title}|${rows.length}`);
   return (
     <AdminPanel title={title} description={`${rows.length} record${rows.length === 1 ? "" : "s"}`}>
       {rows.length === 0 ? (
         <AdminEmptyState message={empty} />
       ) : (
-        <AdminTableCard footer={`Showing ${rows.length} booking${rows.length === 1 ? "" : "s"}`}>
+        <AdminTableCard
+          footer={
+            <AdminPager
+              page={pager.page}
+              pages={pager.pages}
+              total={pager.total}
+              from={pager.from}
+              to={pager.to}
+              onPage={pager.setPage}
+              noun="bookings"
+            />
+          }
+        >
           <div className="divide-y divide-slate-100 lg:hidden">
-            {rows.map((b) => (
+            {pager.slice.map((b) => (
               <button
                 key={b.id}
                 type="button"
@@ -543,7 +558,7 @@ function BookingDetailTable({
               </tr>
             </thead>
             <tbody>
-              {rows.map((b) => (
+              {pager.slice.map((b) => (
                 <AdminTr key={b.id} onClick={() => setOpenId(b.id)}>
                   <AdminTd nowrap>
                     <RefBadge>{b.booking_reference}</RefBadge>
@@ -665,15 +680,28 @@ function BookingDrawerBody({ booking: b }: { booking: BookingRow }) {
 
 function TaxiDetailTable({ rows }: { rows: Awaited<ReturnType<typeof listTaxiBookings>> }) {
   const navigate = useNavigate();
+  const pager = useAdminPage(rows, String(rows.length));
 
   return (
     <AdminPanel title="Today's taxi trips" description={`${rows.length} trip${rows.length === 1 ? "" : "s"}`}>
       {rows.length === 0 ? (
         <AdminEmptyState message="No taxi trips scheduled for today" />
       ) : (
-        <AdminTableCard>
+        <AdminTableCard
+          footer={
+            <AdminPager
+              page={pager.page}
+              pages={pager.pages}
+              total={pager.total}
+              from={pager.from}
+              to={pager.to}
+              onPage={pager.setPage}
+              noun="trips"
+            />
+          }
+        >
           <div className="divide-y divide-slate-100 lg:hidden">
-            {rows.map((t) => (
+            {pager.slice.map((t) => (
               <Link
                 key={t.id}
                 to="/admin/taxi/$id"
@@ -710,7 +738,7 @@ function TaxiDetailTable({ rows }: { rows: Awaited<ReturnType<typeof listTaxiBoo
               </tr>
             </thead>
             <tbody>
-              {rows.map((t) => (
+              {pager.slice.map((t) => (
                 <AdminTr
                   key={t.id}
                   onClick={() => navigate({ to: "/admin/taxi/$id", params: { id: t.id } })}
