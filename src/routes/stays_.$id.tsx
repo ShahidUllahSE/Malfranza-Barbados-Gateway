@@ -18,8 +18,10 @@ import {
 import {
   averageNightly,
   catalogFromRate,
+  combinedNightlyForUnits,
   roomTypeFromApartmentType,
   roomTypeFromBedrooms,
+  unitNightlyRate,
 } from "@/lib/pricing";
 import { StarlinkBadge, isStarlinkAmenity, prioritizeStarlinkAmenities } from "@/components/StarlinkBadge";
 import { AreaMap } from "@/components/maps/AreaMap";
@@ -187,10 +189,19 @@ function ApartmentDetailPage() {
     selectedUnits.length > 0
       ? roomTypeFromBedrooms(selectedUnits[0]!.bedrooms)
       : roomTypeFromApartmentType(apt.type);
-  const combinedPrice =
-    checkIn && checkOut
+  const combinedPrice = useMemo(() => {
+    if (selectedUnits.length > 0) {
+      return combinedNightlyForUnits(selectedUnits);
+    }
+
+    if (apt.units.length > 0) {
+      return catalogFromRate(roomTypeFromApartmentType(apt.type));
+    }
+
+    return checkIn && checkOut
       ? averageNightly(pricedType, checkIn, checkOut)
       : catalogFromRate(pricedType);
+  }, [apt.type, apt.units.length, selectedUnits, checkIn, checkOut, pricedType]);
   const combinedMaxGuests =
     selectedUnits.length > 0
       ? apt.unitsExclusive
@@ -441,7 +452,7 @@ function ApartmentDetailPage() {
               Pick dates first
             </a>
             <span className="text-center text-sm text-muted-foreground sm:text-left">
-              From <span className="font-semibold text-brand-green">${catalogFromRate(pricedType)}</span> / night
+              From <span className="font-semibold text-brand-green">${combinedPrice}</span> / night
             </span>
           </div>
           {error && !checkIn && (
@@ -488,7 +499,7 @@ function ApartmentDetailPage() {
                 {apt.units.map((unit) => {
                   const selected = selectedUnitIds.includes(unit.id);
                   const occupancyUnit = occupancy?.units?.find((item) => item.id === unit.id);
-                  const unitRate = catalogFromRate(roomTypeFromBedrooms(unit.bedrooms));
+                  const unitRate = unitNightlyRate(unit.bedrooms, unit.pricePerNight);
                   return (
                     <button
                       key={unit.id}

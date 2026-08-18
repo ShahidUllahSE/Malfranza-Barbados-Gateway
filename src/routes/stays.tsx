@@ -9,7 +9,6 @@ import {
 import { StarlinkBadge, prioritizeStarlinkAmenities, isStarlinkAmenity } from "@/components/StarlinkBadge";
 import { fetchApartments, type Apartment } from "@/data/apartments";
 import { fetchApartmentOccupancy, type ApartmentOccupancy } from "@/lib/bookings";
-import { catalogFromRate, roomTypeFromApartmentType } from "@/lib/pricing";
 import heroImg from "@/assets/bookaroom.png";
 
 const staysSearchSchema = z.object({
@@ -380,10 +379,7 @@ function ApartmentCard({
 }) {
   const navigate = useNavigate();
   const displayed = prioritizeStarlinkAmenities(apt.amenities).slice(0, 6);
-  const fromRate =
-    apt.units.length > 0
-      ? apt.pricePerNight
-      : catalogFromRate(roomTypeFromApartmentType(apt.type));
+  const fromRate = apt.pricePerNight;
   const ranges = occupancy?.blockedRanges ?? [];
   const unavailableForSearch = searchDates ? occupancy?.available === false : false;
   const occupiedNow = occupancy?.occupiedNow === true;

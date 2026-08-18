@@ -110,6 +110,15 @@ function isUsableImageSrc(src: unknown): src is string {
   return true;
 }
 
+/** Master Room Schedule — homepage shows all five in this order. */
+const FEATURED_ROOM_ORDER = [
+  "apartment-1",
+  "apartment-2",
+  "apartment-3",
+  "apartment-4",
+  "apartment-a-and-b",
+] as const;
+
 function HomePage() {
   const navigate = useNavigate();
   // Seed instantly so first paint isn't blank while the API loads.
@@ -125,7 +134,9 @@ function HomePage() {
     };
   }, []);
 
-  const featuredStays = apartments.slice(0, 4).map((a) => ({
+  const featuredStays = FEATURED_ROOM_ORDER.map((id) => apartments.find((a) => a.id === id))
+    .filter((a): a is Apartment => Boolean(a))
+    .map((a) => ({
     id: a.id,
     img: a.images[0],
     name: a.name,
@@ -406,7 +417,7 @@ function HomePage() {
             </div>
 
             {/* Desktop grid */}
-            <div className="mt-8 hidden gap-5 sm:grid sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-8 hidden gap-5 sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               {featuredStays.map((s) => (
                 <Link
                   key={s.id}

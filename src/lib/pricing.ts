@@ -67,3 +67,44 @@ export function averageNightly(
   if (nights.length === 0) return catalogFromRate(roomType);
   return RATE_TABLE[roomType];
 }
+
+export function unitNightlyRate(
+  bedrooms: number,
+  storedPrice?: number | null,
+): number {
+  if (storedPrice != null && Number(storedPrice) > 0) return Number(storedPrice);
+  return catalogFromRate(roomTypeFromBedrooms(bedrooms));
+}
+
+/** Combined nightly rate when one or more bookable units are selected. */
+export function combinedNightlyForUnits(
+  units: { bedrooms: number; pricePerNight?: number | null }[],
+): number {
+  return units.reduce(
+    (sum, unit) => sum + unitNightlyRate(unit.bedrooms, unit.pricePerNight),
+    0,
+  );
+}
+
+/** Stay subtotal for one or more units (each charged per room, per night). */
+export function staySubtotalForUnits(
+  units: { bedrooms: number; pricePerNight?: number | null }[],
+  checkIn: string,
+  checkOut: string,
+): number {
+  const nights = stayNights(checkIn, checkOut);
+  if (nights.length === 0 || units.length === 0) return 0;
+  const nightly = combinedNightlyForUnits(units);
+  return Math.round(nightly * nights.length * 100) / 100;
+}
+
+/** Listing-card nightly rate from apartment type (not cheapest bookable unit). */
+export function listingFromRate(input: {
+  type: string | undefined;
+  pricePerNight?: number | null;
+}): number {
+  if (input.pricePerNight != null && Number(input.pricePerNight) > 0) {
+    return Number(input.pricePerNight);
+  }
+  return catalogFromRate(roomTypeFromApartmentType(input.type));
+}

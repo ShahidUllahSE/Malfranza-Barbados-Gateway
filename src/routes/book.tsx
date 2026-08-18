@@ -41,9 +41,13 @@ import { APARTMENTS as SEEDED_APTS } from "@/data/apartments";
 import {
   averageNightly,
   catalogFromRate,
+  combinedNightlyForUnits,
   RATE_TABLE,
+  roomTypeFromApartmentType,
   roomTypeFromBedrooms,
   staySubtotal,
+  staySubtotalForUnits,
+  unitNightlyRate,
 } from "@/lib/pricing";
 import { MALFRANZA_PROPERTY_ADDRESS } from "@/lib/googleMaps";
 
@@ -90,6 +94,7 @@ type Apartment = {
   name: string;
   subtitle: string | null;
   description: string | null;
+  type: string;
   price_per_night: number;
   max_guests: number;
   bedrooms: number;
@@ -324,12 +329,16 @@ function BookWizard() {
         : "one-bedroom";
   const roomTotal =
     selectedApt && nights > 0 && checkIn && checkOut
-      ? staySubtotal(pricedType, checkIn, checkOut)
+      ? selectedUnits.length > 0
+        ? staySubtotalForUnits(selectedUnits, checkIn, checkOut)
+        : staySubtotal(pricedType, checkIn, checkOut)
       : 0;
   const selectedRate =
-    checkIn && checkOut && nights > 0
-      ? averageNightly(pricedType, checkIn, checkOut)
-      : catalogFromRate(pricedType);
+    selectedUnits.length > 0
+      ? combinedNightlyForUnits(selectedUnits)
+      : checkIn && checkOut && nights > 0
+        ? averageNightly(pricedType, checkIn, checkOut)
+        : catalogFromRate(pricedType);
 
   const pickupFee = taxiOn
     ? Number(selectedTaxiVehicle?.fare ?? taxiVehicles?.fare ?? airportPickupFare)
@@ -359,7 +368,7 @@ function BookWizard() {
               };
             });
           const typeRate = catalogFromRate(
-            roomTypeFromBedrooms(Number(apartment.bedrooms) || 1),
+            roomTypeFromApartmentType(apartment.type),
           );
           return {
             id: apartment._id,
@@ -367,10 +376,8 @@ function BookWizard() {
             name: apartment.name,
             subtitle: null,
             description: null,
-            price_per_night:
-              units.length > 0
-                ? Math.min(...units.map((unit: Apartment["units"][number]) => unit.price_per_night))
-                : typeRate,
+            type: apartment.type ?? "one-bedroom",
+            price_per_night: typeRate,
             max_guests: apartment.maxGuests,
             bedrooms: apartment.bedrooms,
             photos: apartment.photos ?? [],
@@ -1156,7 +1163,15 @@ function StepRoom(props: {
             aptSelectedUnits.length > 0
               ? roomTypeFromBedrooms(aptSelectedUnits[0]!.bedrooms)
               : roomTypeFromBedrooms(a.bedrooms);
-          const nightly = catalogFromRate(pricedType);
+          const nightly =
+            aptSelectedUnits.length > 0
+              ? combinedNightlyForUnits(
+                  aptSelectedUnits.map((unit) => ({
+                    bedrooms: unit.bedrooms,
+                    pricePerNight: unit.price_per_night,
+                  })),
+                )
+              : catalogFromRate(roomTypeFromApartmentType(a.type ?? undefined));
           const total = nightly * nights;
           return (
             <li key={a.id}>
@@ -1237,7 +1252,7 @@ function StepRoom(props: {
                         {a.units.map((unit) => {
                           const unitUnavailable = availability[`${a.id}:${unit.id}`] === false;
                           const unitSelected = apartmentId === a.id && unitIds.includes(unit.id);
-                          const unitRate = catalogFromRate(roomTypeFromBedrooms(unit.bedrooms));
+                          const unitRate = unitNightlyRate(unit.bedrooms, unit.price_per_night);
                           return (
                             <button
                               key={unit.id}

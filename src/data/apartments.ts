@@ -2,8 +2,9 @@ import { apiRequest } from "@/lib/api";
 import { uniquePhotoUrls } from "@/lib/photos";
 import {
   catalogFromRate,
-  roomTypeFromApartmentType,
+  listingFromRate,
   roomTypeFromBedrooms,
+  unitNightlyRate,
 } from "@/lib/pricing";
 
 export type Apartment = {
@@ -254,7 +255,7 @@ export const APARTMENTS: Apartment[] = [
     beds: 2,
     baths: 2,
     sizeSqM: 95,
-    pricePerNight: catalogFromRate("one-bedroom"),
+    pricePerNight: catalogFromRate("two-bedroom"),
     images: galleryFor("sunset-suite"),
     amenities: [...AMENITIES_2BR],
     unitsExclusive: false,
@@ -324,13 +325,19 @@ function mapApiApartment(record: any): Apartment {
             bedrooms,
             bathrooms: unit.bathrooms,
             maxGuests: unit.maxGuests,
-            pricePerNight: catalogFromRate(roomTypeFromBedrooms(bedrooms)),
+            pricePerNight: unitNightlyRate(bedrooms, unit.pricePerNight),
             isActive: unit.isActive !== false,
           };
         })
     : [];
-  const roomType = roomTypeFromApartmentType(record.type);
   const seedImages = fallback?.images ?? [];
+  const displayRate = listingFromRate({
+    type: record.type,
+    pricePerNight:
+      Number(record.pricePerNight) > 0
+        ? Number(record.pricePerNight)
+        : fallback?.pricePerNight,
+  });
   return {
     id: record.slug,
     mongoId: String(record._id ?? ""),
@@ -342,10 +349,7 @@ function mapApiApartment(record: any): Apartment {
     beds: record.bedrooms,
     baths: record.bathrooms,
     sizeSqM: record.sizeSqM ?? fallback?.sizeSqM ?? 0,
-    pricePerNight:
-      units.length > 0
-        ? Math.min(...units.map((u) => u.pricePerNight))
-        : catalogFromRate(roomType),
+    pricePerNight: displayRate,
     images: uniquePhotoUrls(photos.length > 0 ? photos : seedImages).slice(0, 10),
     amenities: Array.isArray(record.amenities)
       ? record.amenities
