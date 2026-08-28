@@ -1,0 +1,500 @@
+Appendix A — Checkout Messaging & User Journey
+(Deliverable from Janelle)
+This is the exact on-screen copy and flow for the two-option checkout (dev tasks 4 & 5).
+Build to this wording.
+The choice screen (shown after the guest completes their booking details, before
+payment)
+Heading: How would you like to check out?
+Two options, side by side:
+Option 1 — Continue as guest
+Book now, no password needed. We'll email your confirmation and a secure link so you can
+view your booking anytime.
+Button: Continue as guest
+Option 2 — Create an account
+Save your details for faster booking next time, and manage all your stays and rides in one
+place.
+Button: Create account
+Journey A — Continue as guest
+Guest taps Continue as guest.
+Guest proceeds straight to payment — no password step.
+On successful payment, the system silently creates an account tied to the email they
+entered.
+Guest sees the on-screen confirmation:
+1.
+2.
+3.
+4.
+A M P L I F I A I · M A L F R A N Z A P R O J E C T 8 / 24
+You're booked! A confirmation and your booking details are on the way to [their email].
+We've also set up secure access to your booking — check your email for a link to view
+or manage it under My Bookings.
+Guest receives the confirmation email containing: booking details, and a temporary
+password or magic link to access My Bookings.
+Guest can click through anytime to log in and see their booking.
+Journey B — Create an account
+Guest taps Create account.
+Guest sets a password (email is already captured from their booking details).
+Account is created and the guest is logged in immediately.
+Guest proceeds to payment.
+On successful payment, guest sees:
+You're booked! Your confirmation is on its way to [their email]. You can view and
+manage this booking anytime under My Bookings.
+Guest is already logged in — My Bookings is immediately available.
+Rules that apply to both journeys
+An account is always created — the only difference is whether the guest sets a
+password now (Journey B) or gets one emailed (Journey A). This is what makes the My
+Bookings tab work for every guest.
+Each account is tied to a unique identifier so a logged-in guest sees only their own
+bookings.
+The email verification OTP on sign-up (already built) applies to Journey B.
+Do not force a login before booking. The guest reaches the choice screen only after
+entering their booking details.
+The confirmation email is part of the wider onboarding sequence (confirmation →
+reminder → check-in rules) — see Section C.
+Room naming — sample options (final names confirmed in Azar's room schedule)
+Keep names simple and tropical, paired with the room number for clarity. Samples:
+Room 1 — Tropical Escape
+5.
+6.
+1.
+2.
+3.
+4.
+5.
+6.
+•
+•
+•
+•
+•
+•
+A M P L I F I A I · M A L F R A N Z A P R O J E C T 9 / 24
+Room 2 — Island Breeze
+Room 3 — Palm Retreat
+Room 4 (2-bed) — Sunset Suite
+Final names come from the room schedule Azar is preparing; these are placeholders to
+build the structure against.
+Appendix B — Complete Email Notification
+Specification
+Every automated email the platform must send, grouped by recipient. Build all of these.
+Each entry gives the trigger, who receives it, the subject line, and what the email contains. All
+emails send from the confirmed Malfranza domain (see task 16). Where a subject shows
+[brackets], insert the live value.
+Legend for content fields — include these where listed: booking reference, guest name,
+apartment name, check-in/check-out dates, number of guests, total paid, taxi/pickup
+details, property address, contact number (1 246 234 4875 / 231 4875), and a link to My
+Bookings.
+GROUP 1 — Guest / Customer Emails
+Email 1 — Account verification (OTP) - Trigger: guest creates an account (Journey B) or the
+background account is created (Journey A) - Recipient: guest - Subject: Verify your
+Malfranza account - Content: welcome line, the OTP / verification code, short note that it
+confirms their email, expiry note.
+Email 2 — Guest-checkout access (temporary password / magic link) - Trigger: guest
+completes a booking via "Continue as guest" and the background account is created -
+Recipient: guest - Subject: Access your Malfranza booking - Content: confirmation that
+secure access is set up, the temporary password or magic link, link to My Bookings, prompt
+to set a permanent password.
+Email 3 — Apartment booking confirmation - Trigger: successful payment on an apartment
+stay - Recipient: guest - Subject: Your Malfranza booking is confirmed — [booking reference]
+- Content: booking reference, apartment name, check-in/check-out dates, number of
+guests, total paid, property address, check-in instructions summary, contact number, My
+Bookings link. If airport pickup was added, include the pickup summary and the 5% bundle
+note.
+•
+•
+•
+A M P L I F I A I · M A L F R A N Z A P R O J E C T 10 / 24
+Email 4 — Taxi / airport pickup confirmation - Trigger: successful taxi or airport-pickup
+booking (standalone, or added to a stay) - Recipient: guest - Subject: Your Malfranza ride is
+confirmed — [date] - Content: pickup date/time, flight number (if airport pickup), pickup and
+drop-off locations, party size, vehicle type, price, driver-to-be-assigned note, contact
+number.
+Email 5 — Payment receipt - Trigger: successful payment (apartment or taxi) - Recipient:
+guest - Subject: Your Malfranza payment receipt — [booking reference] - Content: itemised
+amount paid, payment method (PayPal/card), date, booking reference. May be combined
+with the confirmation email if preferred, but the receipt detail must be present.
+Email 6 — Upcoming stay reminder - Trigger: scheduled, ahead of check-in (e.g. 48 hours
+before — confirm timing with Janelle) - Recipient: guest - Subject: Your Malfranza stay is
+coming up — [check-in date] - Content: reminder of dates, apartment, check-in time and
+rules, directions/address, airport pickup reminder if booked, contact number.
+Email 7 — Check-in instructions / rules - Trigger: scheduled, day before or morning of
+check-in (confirm timing) - Recipient: guest - Subject: Getting into your Malfranza
+apartment - Content: self-check-in steps, access details, house rules (no smoking, no pets,
+no parties), Wi-Fi note (Starlink), parking note, contact number for issues.
+Email 8 — Upcoming ride reminder - Trigger: scheduled, ahead of a booked taxi/pickup
+(confirm timing) - Recipient: guest - Subject: Your Malfranza ride is tomorrow — [date/time] -
+Content: pickup time and location, vehicle, assigned driver name and contact if available,
+party size, price, contact number.
+Email 9 — Booking modified - Trigger: a booking is changed (dates, apartment, ride details)
+by guest or admin - Recipient: guest - Subject: Your Malfranza booking has been updated —
+[booking reference] - Content: what changed (old vs new), updated totals if any, My
+Bookings link.
+Email 10 — Booking cancelled - Trigger: a booking is cancelled by guest or admin -
+Recipient: guest - Subject: Your Malfranza booking has been cancelled — [booking
+reference] - Content: confirmation of cancellation, the cancellation-fee outcome per the
+booking policy, any refund detail, contact number.
+Email 11 — Password reset - Trigger: guest requests a password reset - Recipient: guest -
+Subject: Reset your Malfranza password - Content: reset link, expiry, ignore-if-not-requested
+note.
+Email 12 — Inquiry acknowledgement - Trigger: guest submits an inquiry via the site -
+Recipient: guest - Subject: We've received your message — Malfranza - Content:
+confirmation the inquiry was received, expected response time, contact number. (Inquiry
+itself is emailed to the owner — see Group 4.)
+A M P L I F I A I · M A L F R A N Z A P R O J E C T 11 / 24
+GROUP 2 — Travel Agency Emails
+Email 13 — Agency sign-up verification / welcome - Trigger: a travel agency signs up on the
+site - Recipient: travel agency - Subject: Welcome to the Malfranza agency programme -
+Content: welcome, account verification if applicable, confirmation their account is active,
+link to the agency portal.
+Email 14 — Agency booking code issued - Trigger: agency account is approved/created
+and the unique code is auto-generated - Recipient: travel agency - Subject: Your Malfranza
+booking code — [code] - Content: their unique auto-generated booking code, how to use it
+at booking, the 10% commission terms, portal link.
+Email 15 — New booking made under agency code - Trigger: a guest completes a booking
+using that agency's code - Recipient: travel agency - Subject: New booking under your code
+— [booking reference] - Content: booking reference, dates, apartment/ride, booking value,
+the 10% commission earned on it, running total link in portal. (Guest personal data limited to
+what the agency needs.)
+Email 16 — Commission statement / summary - Trigger: scheduled (e.g. monthly) or on
+demand from the owner - Recipient: travel agency - Subject: Your Malfranza commission
+summary — [period] - Content: list of bookings in the period under their code, total booking
+value, total 10% commission owed/paid, portal link.
+Email 17 — Agency password reset - Trigger: agency requests a reset - Recipient: travel
+agency - Subject: Reset your Malfranza agency password - Content: reset link, expiry, ignore
+note.
+GROUP 3 — Driver Emails
+Email 18 — New trip assigned - Trigger: admin assigns a taxi/pickup trip to the driver
+(manual assignment) - Recipient: assigned driver - Subject: New trip assigned — [date/time]
+- Content: pickup date/time, pickup and drop-off locations, flight number if airport pickup,
+party size, vehicle to use, guest name and contact, any special requirements. This is in
+addition to the in-app notification (task 23).
+Email 19 — Trip updated - Trigger: an assigned trip's details change - Recipient: assigned
+driver - Subject: Trip updated — [date/time] - Content: what changed (time, location, party
+size, vehicle), full updated trip details.
+Email 20 — Trip cancelled - Trigger: an assigned trip is cancelled - Recipient: assigned driver
+- Subject: Trip cancelled — [date/time] - Content: which trip, confirmation it's off their
+schedule.
+Email 21 — Upcoming trip reminder - Trigger: scheduled, ahead of an assigned trip (confirm
+timing) - Recipient: assigned driver - Subject: Reminder: trip tomorrow — [date/time] -
+Content: pickup time, locations, guest, party size, vehicle.
+A M P L I F I A I · M A L F R A N Z A P R O J E C T 12 / 24
+GROUP 4 — Admin / Owner (Gregory) Emails
+Email 22 — New apartment booking received - Trigger: any new apartment booking (direct,
+or via agency code, or synced from an OTA where possible) - Recipient: owner/admin -
+Subject: New booking — [apartment], [dates] - Content: full booking details, guest details,
+source/channel or agency code, total, link to admin.
+Email 23 — New taxi / pickup booking received - Trigger: any new taxi or airport-pickup
+booking - Recipient: owner/admin - Subject: New ride booking — [date/time] - Content: full
+ride details, party size, vehicle, guest details, price, reminder to assign a driver, link to admin.
+Email 24 — New agency sign-up - Trigger: a travel agency signs up - Recipient: owner/
+admin - Subject: New travel agency signed up — [agency name] - Content: agency details,
+their auto-generated code, link to review in admin.
+Email 25 — Booking cancelled / modified (owner copy) - Trigger: any cancellation or
+modification - Recipient: owner/admin - Subject: Booking [cancelled/updated] — [booking
+reference] - Content: what changed, cancellation-fee/refund outcome, updated calendar
+note.
+Email 26 — New inquiry received - Trigger: a guest submits an inquiry / uses the WhatsAppto-email fallback - Recipient: owner/admin - Subject: New inquiry from [name] - Content:
+the full inquiry, guest name and contact, so the owner can respond directly.
+Email 27 — Payment received / payout note - Trigger: successful payment - Recipient:
+owner/admin (optional but recommended) - Subject: Payment received — [booking
+reference] - Content: amount, method, booking reference, guest.
+Build Notes for All Emails
+Every email must be on the Malfranza brand (logo, colours, footer with contact details
+and address).
+Every email sends from the confirmed domain (task 16) — never an Amplifi address.
+All scheduled emails (reminders, statements) need their timing confirmed with Janelle;
+sensible defaults are noted above but treat them as provisional.
+Where content includes personal data, share only what that recipient needs (guests get
+full detail; agencies get booking value + commission, not unnecessary guest personal
+data; drivers get what they need to complete the trip).
+Confirmation, receipt, and reminder emails may be combined where it reads better, as
+long as no required content is dropped.
+•
+•
+•
+•
+•
+A M P L I F I A I · M A L F R A N Z A P R O J E C T 13 / 24
+Janelle will supply final copy/wording for the guest-facing onboarding emails
+(confirmation, reminder, check-in); this appendix defines the full set, triggers, and
+required content to build against in the meantime.
+Appendix C — Full Email Copy (Ready to Send)
+Every email written out in full, ready to build. Anything in [SQUARE BRACKETS] is a
+placeholder the system fills with the live value. Greeting default is "Hi [GUEST FIRST NAME],".
+Every email ends with the standard signature and footer below.
+Standard signature (all emails):
+Warm regards, The Malfranza Team Malfranza Apartments & Taxi [PHONE: 1 246 234 4875 / 1
+246 231 4875] · [EMAIL] · [WEBSITE]
+Standard footer (all emails): Malfranza Apartments & Taxi, Barbados · You're receiving this
+email because you booked or created an account with us. · [Manage preferences] · [Privacy
+Policy]
+GROUP 1 — GUEST / CUSTOMER EMAILS
+EMAIL 1 — Account Verification (OTP) Subject: Verify your Malfranza account
+Hi [GUEST FIRST NAME],
+Welcome to Malfranza Apartments & Taxi! Please confirm your email address to activate
+your account.
+Your verification code is:
+[OTP CODE]
+Enter this code on the site to verify your account. The code expires in [EXPIRY, e.g. 15 minutes].
+If you didn't create an account with us, you can safely ignore this email.
+[SIGNATURE] · [FOOTER]
+•
+A M P L I F I A I · M A L F R A N Z A P R O J E C T 14 / 24
+EMAIL 2 — Guest-Checkout Access (Temporary Password / Magic Link) Subject: Access
+your Malfranza booking
+Hi [GUEST FIRST NAME],
+Thanks for booking with Malfranza! We've set up secure access to your booking so you can
+view or manage it anytime.
+You can log in with this temporary password:
+[TEMPORARY PASSWORD]
+Or simply click below to go straight to your booking:
+[VIEW MY BOOKING — MAGIC LINK]
+For your security, we recommend setting your own password once you log in. Just head to
+your account settings.
+[SIGNATURE] · [FOOTER]
+EMAIL 3 — Apartment Booking Confirmation Subject: Your Malfranza booking is confirmed —
+[BOOKING REFERENCE]
+Hi [GUEST FIRST NAME],
+Thank you for booking with Malfranza Apartments & Taxi! We're delighted to host you and
+can't wait to welcome you. Your reservation is confirmed and the details are below.
+Booking reference: [BOOKING REFERENCE] Apartment: [APARTMENT NAME] Check-in: [CHECKIN DATE], from [CHECK-IN TIME] Check-out: [CHECK-OUT DATE], by [CHECK-OUT TIME] Guests:
+[NUMBER OF GUESTS] Total paid: [TOTAL PAID]
+Address: [PROPERTY ADDRESS]
+[IF AIRPORT PICKUP ADDED:] Airport pickup: Added — you saved 5% on your stay. We'll confirm
+your pickup details separately. Arrival: [DATE/TIME], Flight: [FLIGHT NUMBER].
+A few things to know before you arrive: our apartments are self-check-in, powered by solar
+energy and served by Starlink high-speed internet, with free parking on site. We'll send your
+check-in instructions closer to the date.
+You can view or manage your booking anytime here: [MY BOOKINGS LINK]
+If you have any questions, just reply to this email or call us at [PHONE].
+[SIGNATURE] · [FOOTER]
+A M P L I F I A I · M A L F R A N Z A P R O J E C T 15 / 24
+EMAIL 4 — Taxi / Airport Pickup Confirmation Subject: Your Malfranza ride is confirmed —
+[PICKUP DATE]
+Hi [GUEST FIRST NAME],
+Your ride with Malfranza is booked and confirmed. Here are your details:
+Booking reference: [BOOKING REFERENCE] Date & time: [PICKUP DATE/TIME] [IF AIRPORT
+PICKUP:] Flight number: [FLIGHT NUMBER] Pickup location: [PICKUP LOCATION] Drop-off
+location: [DROP-OFF LOCATION] Passengers: [PARTY SIZE] Vehicle: [VEHICLE TYPE] Total paid:
+[TOTAL PAID]
+We'll assign your driver ahead of your trip and share their details closer to the time. If your
+plans change, please let us know as early as possible by calling [PHONE].
+You can view this ride anytime here: [MY BOOKINGS LINK]
+[SIGNATURE] · [FOOTER]
+EMAIL 5 — Payment Receipt Subject: Your Malfranza payment receipt — [BOOKING
+REFERENCE]
+Hi [GUEST FIRST NAME],
+Thank you for your payment. Here is your receipt for your records.
+Booking reference: [BOOKING REFERENCE] Date: [PAYMENT DATE] Payment method: [PAYMENT
+METHOD — PayPal / Visa / Mastercard / Amex]
+Itemised breakdown: [LINE ITEM: Apartment — [APARTMENT NAME], [NIGHTS] nights] —
+[AMOUNT] [LINE ITEM: Airport pickup (if added)] — [AMOUNT] [LINE ITEM: Bundle discount (5%, if
+applied)] — –[AMOUNT] [LINE ITEM: Taxi/ride (if applicable)] — [AMOUNT] Total paid: [TOTAL
+PAID]
+This confirms payment against booking [BOOKING REFERENCE]. No further action is needed.
+[SIGNATURE] · [FOOTER]
+EMAIL 6 — Upcoming Stay Reminder Subject: Your Malfranza stay is coming up — [CHECK-IN
+DATE]
+Hi [GUEST FIRST NAME],
+We're looking forward to welcoming you soon! This is a friendly reminder about your
+upcoming stay.
+A M P L I F I A I · M A L F R A N Z A P R O J E C T 16 / 24
+Apartment: [APARTMENT NAME] Check-in: [CHECK-IN DATE], from [CHECK-IN TIME] Check-out:
+[CHECK-OUT DATE], by [CHECK-OUT TIME] Address: [PROPERTY ADDRESS]
+[IF AIRPORT PICKUP BOOKED:] Your airport pickup is set for [PICKUP DATE/TIME] — we'll share
+your driver's details shortly.
+We'll send your full check-in instructions separately. In the meantime, if there's anything we
+can do to make your stay better, just reply or call [PHONE].
+Safe travels, and see you soon!
+[SIGNATURE] · [FOOTER]
+EMAIL 7 — Check-In Instructions / Rules Subject: Getting into your Malfranza apartment
+Hi [GUEST FIRST NAME],
+Your stay is almost here! Here's everything you need for a smooth self-check-in.
+Apartment: [APARTMENT NAME] Address: [PROPERTY ADDRESS] Check-in: [CHECK-IN DATE],
+from [CHECK-IN TIME]
+Getting in: [SELF-CHECK-IN STEPS / ACCESS DETAILS] Wi-Fi: High-speed internet powered by
+Starlink — [NETWORK NAME / PASSWORD] Parking: Free on-site parking for guests with their
+own transport.
+A few house rules to keep everyone comfortable: - No smoking inside the apartments - No
+pets - No parties on the premises
+If anything comes up during your stay, we're just a call away at [PHONE].
+Enjoy your stay!
+[SIGNATURE] · [FOOTER]
+EMAIL 8 — Upcoming Ride Reminder Subject: Your Malfranza ride is tomorrow — [PICKUP
+DATE/TIME]
+Hi [GUEST FIRST NAME],
+Just a reminder that your ride with Malfranza is coming up.
+Date & time: [PICKUP DATE/TIME] Pickup location: [PICKUP LOCATION] Drop-off location:
+[DROP-OFF LOCATION] Passengers: [PARTY SIZE] Vehicle: [VEHICLE TYPE] Your driver: [DRIVER
+NAME], [DRIVER CONTACT — if available]
+Please be ready a few minutes ahead of time. If you need to reach us, call [PHONE].
+A M P L I F I A I · M A L F R A N Z A P R O J E C T 17 / 24
+[SIGNATURE] · [FOOTER]
+EMAIL 9 — Booking Modified Subject: Your Malfranza booking has been updated — [BOOKING
+REFERENCE]
+Hi [GUEST FIRST NAME],
+Your booking has been updated. Here's what changed:
+Booking reference: [BOOKING REFERENCE] Previous: [OLD DETAILS] Updated: [NEW DETAILS] [IF
+PRICE CHANGED:] Updated total: [NEW TOTAL] ([DIFFERENCE — charged/refunded])
+You can review the full booking here: [MY BOOKINGS LINK]
+If you didn't request this change or something doesn't look right, please call us at [PHONE]
+right away.
+[SIGNATURE] · [FOOTER]
+EMAIL 10 — Booking Cancelled Subject: Your Malfranza booking has been cancelled —
+[BOOKING REFERENCE]
+Hi [GUEST FIRST NAME],
+We're confirming that your booking has been cancelled.
+Booking reference: [BOOKING REFERENCE] Cancelled booking: [APARTMENT / RIDE DETAILS],
+[DATES] [CANCELLATION FEE OUTCOME PER BOOKING POLICY] [IF REFUND DUE:] Refund: [REFUND
+AMOUNT] will be returned to your [PAYMENT METHOD] within [TIMEFRAME].
+We're sorry to see this trip go, and we'd love to host you another time. If you'd like to rebook
+or have any questions, just call [PHONE].
+[SIGNATURE] · [FOOTER]
+EMAIL 11 — Password Reset Subject: Reset your Malfranza password
+Hi [GUEST FIRST NAME],
+We received a request to reset your password. Click below to set a new one:
+[RESET PASSWORD LINK]
+This link expires in [EXPIRY, e.g. 60 minutes]. If you didn't request this, you can safely ignore this
+email — your password won't change.
+[SIGNATURE] · [FOOTER]
+A M P L I F I A I · M A L F R A N Z A P R O J E C T 18 / 24
+EMAIL 12 — Inquiry Acknowledgement Subject: We've received your message — Malfranza
+Hi [GUEST FIRST NAME],
+Thanks for reaching out to Malfranza Apartments & Taxi! We've received your message and
+will get back to you within [RESPONSE TIME, e.g. 24 hours].
+For anything urgent, feel free to call us directly at [PHONE].
+[SIGNATURE] · [FOOTER]
+GROUP 2 — TRAVEL AGENCY EMAILS
+EMAIL 13 — Agency Sign-Up Welcome Subject: Welcome to the Malfranza agency
+programme
+Hi [AGENCY CONTACT NAME],
+Welcome to the Malfranza Apartments & Taxi travel agency programme! We're glad to
+partner with [AGENCY NAME].
+Your agency account is now active. From your portal you can make bookings on behalf of
+your clients, track them, and see the commission you've earned.
+[IF VERIFICATION NEEDED:] Please verify your account using this code: [OTP CODE]
+Access your portal here: [AGENCY PORTAL LINK]
+We'll send your unique booking code in a separate email — that's what links every booking
+you make to your agency.
+[SIGNATURE] · [FOOTER]
+EMAIL 14 — Agency Booking Code Issued Subject: Your Malfranza booking code — [AGENCY
+CODE]
+Hi [AGENCY CONTACT NAME],
+Your unique Malfranza booking code is ready:
+[AGENCY CODE]
+How it works: When you or your client books on our site, enter this code at checkout. Every
+booking made with your code is automatically credited to [AGENCY NAME], and you earn 10%
+commission on it.
+A M P L I F I A I · M A L F R A N Z A P R O J E C T 19 / 24
+You can track all your bookings and commission anytime in your portal: [AGENCY PORTAL
+LINK]
+Thanks for partnering with us — we look forward to working together.
+[SIGNATURE] · [FOOTER]
+EMAIL 15 — New Booking Under Agency Code Subject: New booking under your code —
+[BOOKING REFERENCE]
+Hi [AGENCY CONTACT NAME],
+Good news — a new booking has been made using your code [AGENCY CODE].
+Booking reference: [BOOKING REFERENCE] Booking: [APARTMENT / RIDE DETAILS] Dates: [DATES]
+Booking value: [BOOKING VALUE] Your commission (10%): [COMMISSION AMOUNT]
+Your running total is available in your portal: [AGENCY PORTAL LINK]
+Keep up the great work!
+[SIGNATURE] · [FOOTER]
+EMAIL 16 — Commission Statement / Summary Subject: Your Malfranza commission
+summary — [PERIOD]
+Hi [AGENCY CONTACT NAME],
+Here's your commission summary for [PERIOD].
+Bookings made under [AGENCY CODE]: [NUMBER OF BOOKINGS] Total booking value: [TOTAL
+VALUE] Total commission (10%): [TOTAL COMMISSION] Status: [PAID / DUE]
+A full breakdown of each booking is available in your portal: [AGENCY PORTAL LINK]
+If you have any questions about your statement, just reply or call [PHONE].
+[SIGNATURE] · [FOOTER]
+EMAIL 17 — Agency Password Reset Subject: Reset your Malfranza agency password
+Hi [AGENCY CONTACT NAME],
+We received a request to reset your agency portal password. Click below to set a new one:
+[RESET PASSWORD LINK]
+This link expires in [EXPIRY]. If you didn't request this, you can safely ignore this email.
+A M P L I F I A I · M A L F R A N Z A P R O J E C T 20 / 24
+[SIGNATURE] · [FOOTER]
+GROUP 3 — DRIVER EMAILS
+EMAIL 18 — New Trip Assigned Subject: New trip assigned — [PICKUP DATE/TIME]
+Hi [DRIVER NAME],
+You've been assigned a new trip. Please review the details and keep the site open on your
+phone for any updates.
+Date & time: [PICKUP DATE/TIME] [IF AIRPORT PICKUP:] Flight number: [FLIGHT NUMBER] Pickup
+location: [PICKUP LOCATION] Drop-off location: [DROP-OFF LOCATION] Passengers: [PARTY
+SIZE] Vehicle: [VEHICLE TO USE] Guest: [GUEST NAME], [GUEST CONTACT] Special requirements:
+[SPECIAL REQUIREMENTS / NONE]
+Please confirm and be on time. Any issues, contact the office at [PHONE].
+[SIGNATURE] · [FOOTER]
+EMAIL 19 — Trip Updated Subject: Trip updated — [PICKUP DATE/TIME]
+Hi [DRIVER NAME],
+One of your assigned trips has changed. Here are the updated details:
+What changed: [SUMMARY OF CHANGE] Date & time: [PICKUP DATE/TIME] Pickup location:
+[PICKUP LOCATION] Drop-off location: [DROP-OFF LOCATION] Passengers: [PARTY SIZE]
+Vehicle: [VEHICLE] Guest: [GUEST NAME], [GUEST CONTACT]
+Please check your schedule to make sure everything still works. Questions? Call [PHONE].
+[SIGNATURE] · [FOOTER]
+EMAIL 20 — Trip Cancelled Subject: Trip cancelled — [PICKUP DATE/TIME]
+Hi [DRIVER NAME],
+A trip previously assigned to you has been cancelled and removed from your schedule.
+Cancelled trip: [PICKUP DATE/TIME], [PICKUP LOCATION] to [DROP-OFF LOCATION]
+No action is needed on your end. If you have any questions, call the office at [PHONE].
+[SIGNATURE] · [FOOTER]
+A M P L I F I A I · M A L F R A N Z A P R O J E C T 21 / 24
+EMAIL 21 — Upcoming Trip Reminder Subject: Reminder: trip tomorrow — [PICKUP DATE/TIME]
+Hi [DRIVER NAME],
+A reminder that you have a trip coming up.
+Date & time: [PICKUP DATE/TIME] Pickup location: [PICKUP LOCATION] Drop-off location:
+[DROP-OFF LOCATION] Passengers: [PARTY SIZE] Vehicle: [VEHICLE] Guest: [GUEST NAME],
+[GUEST CONTACT]
+Please plan to arrive a few minutes early. Any issues, call [PHONE].
+[SIGNATURE] · [FOOTER]
+GROUP 4 — ADMIN / OWNER (GREGORY) EMAILS
+EMAIL 22 — New Apartment Booking Received Subject: New booking — [APARTMENT NAME],
+[DATES]
+Hi [OWNER NAME],
+A new apartment booking has come in.
+Booking reference: [BOOKING REFERENCE] Apartment: [APARTMENT NAME] Check-in: [CHECKIN DATE] · Check-out: [CHECK-OUT DATE] Guests: [NUMBER OF GUESTS] Guest: [GUEST NAME],
+[GUEST CONTACT] Source: [DIRECT / AGENCY CODE: [CODE] / OTA: [CHANNEL]] Total: [TOTAL
+PAID]
+View the full booking in your admin dashboard: [ADMIN LINK]
+[SIGNATURE] · [FOOTER]
+EMAIL 23 — New Taxi / Pickup Booking Received Subject: New ride booking — [PICKUP DATE/
+TIME]
+Hi [OWNER NAME],
+A new ride booking has come in and needs a driver assigned.
+Booking reference: [BOOKING REFERENCE] Date & time: [PICKUP DATE/TIME] Pickup: [PICKUP
+LOCATION] · Drop-off: [DROP-OFF LOCATION] Passengers: [PARTY SIZE] Vehicle needed:
+[VEHICLE TYPE] Guest: [GUEST NAME], [GUEST CONTACT] Total: [TOTAL PAID]
+Action needed: Assign a driver in the admin dashboard: [ADMIN LINK]
+A M P L I F I A I · M A L F R A N Z A P R O J E C T 22 / 24
+[SIGNATURE] · [FOOTER]
+EMAIL 24 — New Agency Sign-Up Subject: New travel agency signed up — [AGENCY NAME]
+Hi [OWNER NAME],
+A new travel agency has signed up to the programme.
+Agency: [AGENCY NAME] Contact: [AGENCY CONTACT NAME], [AGENCY CONTACT EMAIL/
+PHONE] Auto-generated code: [AGENCY CODE]
+Review the agency in your admin dashboard: [ADMIN LINK]
+[SIGNATURE] · [FOOTER]
+EMAIL 25 — Booking Cancelled / Modified (Owner Copy) Subject: Booking [CANCELLED/
+UPDATED] — [BOOKING REFERENCE]
+Hi [OWNER NAME],
+A booking has been [cancelled/updated].
+Booking reference: [BOOKING REFERENCE] What changed: [SUMMARY — OLD vs NEW, or
+cancellation] [IF CANCELLED:] Cancellation fee/refund: [OUTCOME PER POLICY] Calendar:
+Availability has been updated automatically.
+View details: [ADMIN LINK]
+[SIGNATURE] · [FOOTER]
+EMAIL 26 — New Inquiry Received Subject: New inquiry from [NAME]
+Hi [OWNER NAME],
+You've received a new inquiry through the website.
+From: [GUEST NAME] Contact: [GUEST EMAIL / PHONE] Message: [INQUIRY MESSAGE]
+You can reply directly to the guest at [GUEST EMAIL] or call [GUEST PHONE].
+[SIGNATURE] · [FOOTER]
+EMAIL 27 — Payment Received Subject: Payment received — [BOOKING REFERENCE]
+Hi [OWNER NAME],
+A M P L I F I A I · M A L F R A N Z A P R O J E C T 23 / 24
+A payment has been received.
+Booking reference: [BOOKING REFERENCE] Amount: [AMOUNT] Method: [PAYMENT METHOD]
+Guest: [GUEST NAME]
+The booking is confirmed and visible in your dashboard: [ADMIN LINK]

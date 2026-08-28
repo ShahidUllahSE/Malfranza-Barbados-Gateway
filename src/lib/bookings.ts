@@ -267,7 +267,7 @@ export function guestFareFromSettings(settings: TaxiFareSettings, passengers: nu
   return vehicleFareFromSettings(settings, passengers);
 }
 
-/** Per-km rate by vehicle capacity: ≤7 → XL 7-seater, else 12-seater. */
+/** Per-km rate by vehicle capacity: ≤7 → XL 7-seater, else 14-seater. */
 export function vehicleFareFromSettings(settings: TaxiFareSettings, capacity: number): number {
   const fare5to7 = settings.fareFor5to7 ?? settings.fareFor3Guests ?? 2.4;
   const fare12 = settings.fareFor8to10 ?? settings.fareFor4PlusGuests ?? 4;

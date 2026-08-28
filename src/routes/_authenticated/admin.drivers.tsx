@@ -336,7 +336,7 @@ function DriverForm({
 
   const ratePresets = [
     { value: xlRate, label: `$${xlRate.toFixed(2)} · XL 7-seater` },
-    { value: coachRate, label: `$${coachRate.toFixed(2)} · 12-seater` },
+    { value: coachRate, label: `$${coachRate.toFixed(2)} · 14-seater` },
   ].filter((preset, index, all) => all.findIndex((p) => p.value === preset.value) === index);
 
   const parsedRate = Number(pricePerKmUsd);

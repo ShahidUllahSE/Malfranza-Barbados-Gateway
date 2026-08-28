@@ -896,8 +896,8 @@ function TaxiPage() {
                         (selectedVehicle?.passengerCapacity ?? 0) <= 7,
                     },
                     {
-                      key: "12-seater",
-                      label: "12-seater",
+                      key: "14-seater",
+                      label: "14-seater",
                       value: fareSettings.fareFor8to10 ?? fareSettings.fareFor4PlusGuests ?? 4,
                       active: (selectedVehicle?.passengerCapacity ?? 0) > 7,
                     },

@@ -1,15 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
   Wifi, Snowflake, ChefHat, Tv, Bath, Car, WashingMachine, Route as RouteIcon,
-  KeyRound, ShoppingBag, CheckCircle2, Sparkles, Zap, MapPin,
+  ShoppingBag, CheckCircle2, Sparkles, Zap, MapPin,
   Refrigerator, Microwave, Coffee, Shirt, Flame, CookingPot,
 } from "lucide-react";
 import amenitiesHero from "@/assets/AmmenitiesPage.png";
-import stay1br from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_34 PM.png";
-import stayBathroom from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_13 PM.png";
-import stayGarden from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_00 PM.png";
-import stayKitchen from "@/assets/ChatGPT Image Jul 2, 2026, 10_49_20 PM.png";
-import { StarlinkBadge } from "@/components/StarlinkBadge";
+import stayBedroom1 from "@/assets/aminitiespageimages/ChatGPT Image Aug 15, 2026, 09_03_33 PM (1).png";
+import stayBathroom from "@/assets/aminitiespageimages/ChatGPT Image Aug 15, 2026, 09_03_36 PM (6).png";
+import stayKitchen from "@/assets/aminitiespageimages/ChatGPT Image Aug 17, 2026, 02_46_46 PM (3).png";
+import stayBedroom2 from "@/assets/aminitiespageimages/ChatGPT Image Aug 17, 2026, 02_54_18 PM (10).png";
+import stayBedroom3 from "@/assets/aminitiespageimages/Book a Room.png";
 
 export const Route = createFileRoute("/amenities")({
   head: () => ({
@@ -32,15 +32,14 @@ const AMENITIES = [
   { icon: Refrigerator, title: "Fridge", body: "A full-size refrigerator so you can keep groceries, drinks, and leftovers fresh." },
   { icon: Microwave, title: "Microwave", body: "Heat up meals quickly after a day at the beach or a night out in Oistins." },
   { icon: Coffee, title: "Kettle", body: "An electric kettle for tea, instant coffee, and a quick hot drink whenever you like." },
-  { icon: Coffee, title: "Coffee Machine", body: "Start the morning with coffee in your apartment — no café run required." },
   { icon: CookingPot, title: "Toaster", body: "A toaster for easy breakfasts before you head out for the day." },
   { icon: Shirt, title: "Iron", body: "An iron so you can keep clothes fresh for dinners, events, or work days." },
+  { icon: Shirt, title: "Ironing Board", body: "A full-size ironing board is provided for quick touch-ups before you head out." },
   { icon: Flame, title: "Fire Extinguisher", body: "A fire extinguisher is provided in every apartment for your peace of mind." },
   { icon: WashingMachine, title: "Washing Machine", body: "In-unit washer in one-bedroom apartments — handy for longer stays. Two-bedroom suites do not include a washer." },
   { icon: Bath, title: "Private Bathroom", body: "Clean, modern bathrooms with hot water and essential toiletries." },
   { icon: Car, title: "Free Parking", body: "Complimentary on-site parking for a hassle-free and secure stay." },
   { icon: RouteIcon, title: "Easy Highway Access", body: "Quick access to the ABC Highway to reach any part of the island with ease." },
-  { icon: KeyRound, title: "Self Check-In", body: "Flexible self check-in with secure key access at your convenience." },
   { icon: ShoppingBag, title: "Nearby Shops", body: "Supermarkets, gas stations, restaurants, and services just minutes away." },
 ];
 
@@ -51,10 +50,11 @@ const VALUES = [
 ];
 
 const STRIP = [
-  { src: stay1br, alt: "Bedroom" },
-  { src: stayGarden, alt: "Tropical garden" },
+  { src: stayBedroom1, alt: "Bedroom" },
+  { src: stayBedroom3, alt: "Bedroom" },
   { src: stayKitchen, alt: "Kitchen and dining" },
   { src: stayBathroom, alt: "Bathroom" },
+  { src: stayBedroom2, alt: "Bedroom" },
 ];
 
 function AmenitiesPage() {
@@ -74,9 +74,6 @@ function AmenitiesPage() {
               Our apartments are thoughtfully equipped with modern amenities and essentials
               to make your stay in Barbados easy, relaxing, and enjoyable.
             </p>
-            <div className="mt-5">
-              <StarlinkBadge />
-            </div>
           </div>
           <div className="rounded-3xl overflow-hidden shadow-card">
             <img
@@ -136,9 +133,9 @@ function AmenitiesPage() {
 
       {/* PHOTO STRIP */}
       <section className="mx-auto max-w-7xl px-4 my-16 sm:px-6 sm:my-20 lg:px-8">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-          {STRIP.map((img) => (
-            <div key={img.alt} className="rounded-2xl overflow-hidden aspect-square shadow-card">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+          {STRIP.map((img, index) => (
+            <div key={index} className="rounded-2xl overflow-hidden aspect-square shadow-card">
               <img src={img.src} alt={img.alt} className="w-full h-full object-cover" />
             </div>
           ))}

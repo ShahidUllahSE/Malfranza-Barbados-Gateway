@@ -788,7 +788,7 @@ function ReportsPage() {
         <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-green/10 text-brand-green">
           <Info className="h-5 w-5" />
         </div>
-        <div>
+      <div>
           <p className="text-sm font-semibold text-brand-charcoal">At a glance</p>
           <p className="mt-1 text-sm leading-relaxed text-brand-charcoal/80">
             {loading ? "Loading your numbers…" : insight}
