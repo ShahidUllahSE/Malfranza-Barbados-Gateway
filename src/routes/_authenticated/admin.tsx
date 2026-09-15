@@ -191,10 +191,23 @@ function AdminLayout() {
       )}
 
       <main className="flex-1 min-w-0 pt-14 lg:pt-0">
-        <div className="hidden lg:flex items-center justify-end border-b border-slate-200/80 bg-white/70 px-6 py-2.5 backdrop-blur">
+        <div className="hidden lg:flex items-center justify-end gap-3 border-b border-slate-200/80 bg-white/70 px-6 py-2 backdrop-blur">
+          {email ? (
+            <span className="max-w-[16rem] truncate text-xs text-muted-foreground" title={email}>
+              {email}
+            </span>
+          ) : null}
+          <button
+            type="button"
+            onClick={signOut}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-brand-charcoal transition hover:border-brand-sage/50 hover:bg-brand-cream/60"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            Logout
+          </button>
           <AdminNotificationBell />
         </div>
-        <div className="p-4 sm:p-6 lg:p-8 max-w-[100rem] mx-auto">
+        <div className="mx-auto max-w-[100rem] p-3 sm:p-4 lg:p-5">
           <Outlet />
         </div>
       </main>

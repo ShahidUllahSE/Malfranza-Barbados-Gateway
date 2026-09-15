@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { CalendarDays, Car, Home } from "lucide-react";
 import { listApartmentBookings, listAllApartments, listTaxiBookings } from "@/lib/admin";
+import { syncBeds24OtaBookings } from "@/lib/beds24";
 import { listDrivers } from "@/lib/drivers";
 import {
   BookingsCalendar,
@@ -16,6 +17,7 @@ export const Route = createFileRoute("/_authenticated/admin/calendar")({
 });
 
 function CalendarPage() {
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState<"stays" | "taxi">("stays");
   const b = useQuery({ queryKey: ["admin", "apt-bookings"], queryFn: listApartmentBookings });
   const a = useQuery({ queryKey: ["admin", "apartments-all"], queryFn: listAllApartments });
@@ -23,11 +25,28 @@ function CalendarPage() {
   const d = useQuery({ queryKey: ["admin", "drivers"], queryFn: listDrivers });
   const staysLoading = b.isLoading || a.isLoading;
 
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        await syncBeds24OtaBookings();
+        if (!cancelled) {
+          await queryClient.invalidateQueries({ queryKey: ["admin", "apt-bookings"] });
+        }
+      } catch {
+        // Background cron still syncs; show last known local bookings.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [queryClient]);
+
   return (
     <div className="space-y-5">
       <AdminPageHeader
         title="Calendar"
-        description="Stay occupancy and taxi vehicle schedule in one place."
+        description="Stay occupancy (website + Expedia + Booking.com) and taxi vehicle schedule."
         meta={
           <div className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-xs font-semibold text-brand-green ring-1 ring-brand-sage/30 shadow-sm">
             <CalendarDays className="h-3.5 w-3.5" />

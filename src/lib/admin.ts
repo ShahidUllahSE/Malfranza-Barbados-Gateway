@@ -80,6 +80,8 @@ export async function listApartmentBookings() {
     refund_amount: booking.refundAmount ?? 0,
     refund_status: booking.refundStatus ?? "none",
     refund_payout: booking.refundPayout ?? null,
+    source: (booking.source as "direct" | "beds24" | undefined) ?? "direct",
+    external_channel: (booking.externalChannel as string | null | undefined) ?? null,
     apartments: { name: booking.apartmentName, slug: "" },
   }));
 }

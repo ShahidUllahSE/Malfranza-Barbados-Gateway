@@ -33,3 +33,18 @@ export async function fetchBeds24Bookings(channel?: Beds24ChannelId) {
   const query = channel ? `?channel=${encodeURIComponent(channel)}` : "";
   return apiRequest<unknown>(`/admin/beds24/bookings${query}`, { auth: true });
 }
+
+export type Beds24SyncCounts = {
+  seen: number;
+  synced: number;
+  skipped: number;
+  errors: number;
+};
+
+/** Pulls Expedia + Booking.com from Beds24 into local bookings (dashboard/calendar). */
+export async function syncBeds24OtaBookings() {
+  return apiRequest<{ expedia: Beds24SyncCounts; booking: Beds24SyncCounts }>("/admin/beds24/sync", {
+    method: "POST",
+    auth: true,
+  });
+}

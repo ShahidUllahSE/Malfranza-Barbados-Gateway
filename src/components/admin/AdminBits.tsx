@@ -17,6 +17,7 @@ export function StatCard({
   tone = "default",
   loading = false,
   to,
+  dense = false,
 }: {
   icon: LucideIcon;
   label: string;
@@ -25,6 +26,8 @@ export function StatCard({
   tone?: "default" | "orange" | "sage" | "amber";
   loading?: boolean;
   to?: string;
+  /** Compact KPI tile for dense dashboards. */
+  dense?: boolean;
 }) {
   const tones = {
     default: "bg-brand-sage/20 text-brand-green",
@@ -34,14 +37,18 @@ export function StatCard({
   };
 
   if (loading) {
-  return (
-      <div className="rounded-2xl border border-border/60 bg-white p-4 shadow-card sm:p-5">
-        <div className="flex items-start gap-3">
-          <Shimmer className="h-11 w-11 shrink-0 rounded-xl" />
-          <div className="min-w-0 flex-1 space-y-2 pt-0.5">
-            <Shimmer className="h-3 w-24" />
-            <Shimmer className="h-7 w-16" />
-            <Shimmer className="h-3 w-32" />
+    return (
+      <div
+        className={`rounded-xl border border-border/60 bg-white shadow-sm ${
+          dense ? "p-3" : "p-3.5 sm:p-4"
+        }`}
+      >
+        <div className="flex items-start gap-2.5">
+          <Shimmer className={`shrink-0 rounded-lg ${dense ? "h-8 w-8" : "h-9 w-9"}`} />
+          <div className="min-w-0 flex-1 space-y-1.5 pt-0.5">
+            <Shimmer className="h-2.5 w-20" />
+            <Shimmer className="h-5 w-12" />
+            <Shimmer className="h-2.5 w-24" />
           </div>
         </div>
       </div>
@@ -49,29 +56,45 @@ export function StatCard({
   }
 
   const body = (
-    <div className="flex items-start gap-3">
-      <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${tones[tone]}`}>
-        <Icon className="h-5 w-5" />
+    <div className={`flex items-start ${dense ? "gap-2.5" : "gap-3"}`}>
+      <div
+        className={`grid shrink-0 place-items-center rounded-lg ${tones[tone]} ${
+          dense ? "h-8 w-8" : "h-9 w-9"
+        }`}
+      >
+        <Icon className={dense ? "h-3.5 w-3.5" : "h-4 w-4"} />
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
-          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            {label}
+          </div>
           {to && (
-            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60 transition group-hover:translate-x-0.5 group-hover:text-brand-green" />
+            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50 transition group-hover:translate-x-0.5 group-hover:text-brand-green" />
           )}
         </div>
-        <div className="mt-1 text-2xl font-display font-bold leading-none text-brand-charcoal">{value}</div>
-        {hint && <p className="mt-2 text-xs text-muted-foreground">{hint}</p>}
+        <div
+          className={`mt-0.5 font-display font-bold leading-none text-brand-charcoal ${
+            dense ? "text-lg" : "text-xl"
+          }`}
+        >
+          {value}
+        </div>
+        {hint && <p className="mt-1 text-[11px] leading-snug text-muted-foreground">{hint}</p>}
       </div>
     </div>
   );
 
-  const className =
-    "group rounded-2xl border border-border/60 bg-white p-4 shadow-card transition-all hover:border-brand-sage/40 hover:shadow-card-hover sm:p-5";
+  const className = `group rounded-xl border border-border/60 bg-white shadow-sm transition-all hover:border-brand-sage/40 hover:shadow-card ${
+    dense ? "p-3" : "p-3.5 sm:p-4"
+  }`;
 
   if (to) {
     return (
-      <Link to={to} className={`${className} block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/30`}>
+      <Link
+        to={to}
+        className={`${className} block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/30`}
+      >
         {body}
       </Link>
     );
@@ -420,23 +443,41 @@ export function AdminPanel({
   action,
   children,
   className = "",
+  dense = false,
 }: {
   title: string;
   description?: string;
   action?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
+  dense?: boolean;
 }) {
   return (
-    <section className={`rounded-2xl border border-border/60 bg-white shadow-card ${className}`}>
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-5">
+    <section
+      className={`rounded-xl border border-border/60 bg-white shadow-sm ${className}`}
+    >
+      <div
+        className={`flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 ${
+          dense ? "px-3.5 py-2.5" : "px-4 py-3 sm:px-5"
+        }`}
+      >
         <div className="min-w-0">
-          <h2 className="font-display text-lg font-bold text-brand-charcoal">{title}</h2>
-          {description && <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>}
+          <h2
+            className={`font-display font-bold text-brand-charcoal ${
+              dense ? "text-sm" : "text-base"
+            }`}
+          >
+            {title}
+          </h2>
+          {description && (
+            <p className={`text-muted-foreground ${dense ? "mt-0 text-[11px]" : "mt-0.5 text-xs"}`}>
+              {description}
+            </p>
+          )}
         </div>
         {action}
       </div>
-      <div className="p-4 sm:p-5">{children}</div>
+      <div className={dense ? "p-3.5" : "p-4 sm:p-5"}>{children}</div>
     </section>
   );
 }
@@ -460,7 +501,17 @@ type BookingRow = {
   status: AptBookingStatus;
   guest_name: string;
   booking_reference?: string;
+  source?: "direct" | "beds24";
+  external_channel?: string | null;
 };
+
+function channelLabel(booking: BookingRow): string | null {
+  if (booking.source !== "beds24") return null;
+  const channel = String(booking.external_channel ?? "").toLowerCase();
+  if (channel === "booking" || channel.includes("booking")) return "Booking.com";
+  if (channel === "expedia" || channel.includes("expedia")) return "Expedia";
+  return booking.external_channel ? String(booking.external_channel) : "OTA";
+}
 
 const TYPE_LABEL: Record<string, string> = {
   "one-bedroom": "1-bed",
@@ -535,6 +586,7 @@ export function BookingsCalendar({
     reference?: string;
     stay?: string;
     bookingId?: string;
+    channel?: string | null;
   };
 
   function cellFor(aptId: string, day: number): CellInfo {
@@ -544,6 +596,7 @@ export function BookingsCalendar({
       if (String(b.apartment_id) !== String(aptId)) continue;
       if (!blocking.has(b.status)) continue;
       const stay = `${b.check_in} → ${b.check_out}`;
+      const channel = channelLabel(b);
       if (b.check_in === d) {
         return {
           kind: "check-in",
@@ -551,6 +604,7 @@ export function BookingsCalendar({
           reference: b.booking_reference,
           stay,
           bookingId: b.id,
+          channel,
         };
       }
       if (b.check_out === d) {
@@ -560,6 +614,7 @@ export function BookingsCalendar({
           reference: b.booking_reference,
           stay,
           bookingId: b.id,
+          channel,
         };
       }
       if (d > b.check_in && d < b.check_out) {
@@ -569,6 +624,7 @@ export function BookingsCalendar({
           reference: b.booking_reference,
           stay,
           bookingId: b.id,
+          channel,
         };
       }
     }
@@ -793,8 +849,8 @@ export function BookingsCalendar({
                       cell.kind === "available"
                         ? `${a.name} · ${isoDay(d)} · Available`
                         : `${cell.guest ?? "Guest"} · ${cell.kind.replace("-", " ")} · ${cell.stay ?? ""}${
-                            cell.reference ? ` · ${cell.reference}` : ""
-                          }`;
+                            cell.channel ? ` · ${cell.channel}` : ""
+                          }${cell.reference ? ` · ${cell.reference}` : ""}`;
                     return (
                       <button
                         key={`${a.id}-${d}`}
@@ -822,155 +878,183 @@ export function BookingsCalendar({
         </div>
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        Click any day to see who is staying. Green highlight = selected day.
+      <p className="text-[11px] text-muted-foreground">
+        Click a day on the grid to filter the list below. Selected day is highlighted in green.
       </p>
 
-      {/* Day + month overview */}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-        <section className="rounded-2xl border border-brand-sage/25 bg-gradient-to-br from-brand-green/[0.06] to-white p-4 sm:p-5">
-          <div className="flex flex-wrap items-start justify-between gap-2">
+      {/* Day + month — compact operational tables */}
+      <div className="grid gap-3 lg:grid-cols-2">
+        <section className="rounded-xl border border-border/70 bg-white shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-3.5 py-2.5">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-green">
-                Selected day overview
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Selected day
               </p>
-              <h3 className="mt-1 font-display text-xl font-bold text-brand-charcoal">
-                {selectedLabel}
-              </h3>
+              <h3 className="font-display text-sm font-bold text-brand-charcoal">{selectedLabel}</h3>
             </div>
-            <div className="flex flex-wrap gap-1.5 text-[11px] font-semibold">
-              <span className="rounded-full bg-sky-100 px-2.5 py-1 text-sky-800">
-                {dayCheckIns.length} check-in{dayCheckIns.length === 1 ? "" : "s"}
+            <div className="flex flex-wrap gap-1 text-[10px] font-semibold">
+              <span className="rounded bg-sky-50 px-1.5 py-0.5 text-sky-800 ring-1 ring-sky-100">
+                {dayCheckIns.length} in
               </span>
-              <span className="rounded-full bg-violet-100 px-2.5 py-1 text-violet-800">
-                {dayCheckOuts.length} check-out{dayCheckOuts.length === 1 ? "" : "s"}
+              <span className="rounded bg-violet-50 px-1.5 py-0.5 text-violet-800 ring-1 ring-violet-100">
+                {dayCheckOuts.length} out
               </span>
-              <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-emerald-800">
-                {dayStays.length} occupied
+              <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-emerald-800 ring-1 ring-emerald-100">
+                {dayStays.length} stay
               </span>
             </div>
           </div>
 
           {dayStays.length === 0 && dayCheckOuts.length === 0 ? (
-            <p className="mt-4 rounded-xl border border-dashed border-brand-sage/40 bg-white/70 px-4 py-6 text-center text-sm text-muted-foreground">
-              All apartments are free on {selectedLabel}.
+            <p className="px-3.5 py-6 text-center text-xs text-muted-foreground">
+              No stays on this day — all apartments free.
             </p>
           ) : (
-            <ul className="mt-4 space-y-3">
-              {dayCheckIns.map((b) => (
-                <OverviewCard
-                  key={`in-${b.id}`}
-                  tone="check-in"
-                  eyebrow="Check-in today"
-                  title={`${b.apartmentName} · ${b.nights} night${b.nights === 1 ? "" : "s"}`}
-                  body={`Booked by ${b.guest_name} from ${formatNiceDate(b.check_in)} to ${formatNiceDate(b.check_out)}.`}
-                  meta={b.booking_reference}
-                  status={b.status}
-                />
-              ))}
-              {dayStays
-                .filter((b) => b.check_in !== selectedIso)
-                .map((b) => {
-                  const nightsLeft = nightsBetween(selectedIso, b.check_out);
-                  return (
-                    <OverviewCard
-                      key={`stay-${b.id}`}
-                      tone="booked"
-                      eyebrow="Currently occupied"
-                      title={`${b.apartmentName} · ${b.nights} night stay`}
-                      body={`Booked by ${b.guest_name}. Staying ${formatNiceDate(b.check_in)} → ${formatNiceDate(b.check_out)} (${nightsLeft} night${nightsLeft === 1 ? "" : "s"} left including tonight).`}
-                      meta={b.booking_reference}
-                      status={b.status}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50/90 text-[10px] uppercase tracking-wide text-muted-foreground">
+                  <tr>
+                    <th className="px-3 py-1.5 font-semibold">Event</th>
+                    <th className="px-3 py-1.5 font-semibold">Apartment</th>
+                    <th className="px-3 py-1.5 font-semibold">Guest</th>
+                    <th className="px-3 py-1.5 font-semibold">Source</th>
+                    <th className="px-3 py-1.5 font-semibold">Dates</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {dayCheckIns.map((b) => (
+                    <StayTableRow
+                      key={`in-${b.id}`}
+                      event="Check-in"
+                      eventCls="bg-sky-100 text-sky-800"
+                      apartment={b.apartmentName}
+                      guest={b.guest_name}
+                      channel={channelLabel(b)}
+                      dates={`${b.check_in} → ${b.check_out}`}
+                      detail={`${b.nights}n · ${b.booking_reference ?? "—"}`}
                     />
-                  );
-                })}
-              {dayCheckOuts.map((b) => (
-                <OverviewCard
-                  key={`out-${b.id}`}
-                  tone="check-out"
-                  eyebrow="Check-out today"
-                  title={`${b.apartmentName} frees up`}
-                  body={`${b.guest_name} checks out today after a ${b.nights}-night stay (${formatNiceDate(b.check_in)} → ${formatNiceDate(b.check_out)}).`}
-                  meta={b.booking_reference}
-                  status={b.status}
-                />
-              ))}
-            </ul>
+                  ))}
+                  {dayStays
+                    .filter((b) => b.check_in !== selectedIso)
+                    .map((b) => {
+                      const nightsLeft = nightsBetween(selectedIso, b.check_out);
+                      return (
+                        <StayTableRow
+                          key={`stay-${b.id}`}
+                          event="In-house"
+                          eventCls="bg-emerald-100 text-emerald-800"
+                          apartment={b.apartmentName}
+                          guest={b.guest_name}
+                          channel={channelLabel(b)}
+                          dates={`${b.check_in} → ${b.check_out}`}
+                          detail={`${nightsLeft}n left · ${b.booking_reference ?? "—"}`}
+                        />
+                      );
+                    })}
+                  {dayCheckOuts.map((b) => (
+                    <StayTableRow
+                      key={`out-${b.id}`}
+                      event="Check-out"
+                      eventCls="bg-violet-100 text-violet-800"
+                      apartment={b.apartmentName}
+                      guest={b.guest_name}
+                      channel={channelLabel(b)}
+                      dates={`${b.check_in} → ${b.check_out}`}
+                      detail={`${b.nights}n · ${b.booking_reference ?? "—"}`}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
 
-          {freeApts.length > 0 && dayStays.length > 0 && (
-            <p className="mt-4 text-xs text-muted-foreground">
-              Still available: {freeApts.map((a) => a.name).join(", ")}
+          {freeApts.length > 0 && (
+            <p className="border-t border-slate-100 px-3.5 py-2 text-[11px] text-muted-foreground">
+              Free: {freeApts.map((a) => a.name).join(", ")}
             </p>
           )}
         </section>
 
-        <section className="rounded-2xl border border-border/70 bg-white p-4 shadow-sm sm:p-5">
-          <div className="flex items-end justify-between gap-2">
+        <section className="rounded-xl border border-border/70 bg-white shadow-sm">
+          <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-3.5 py-2.5">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Month stay list
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Month stays · {monthLabel}
               </p>
-              <h3 className="mt-1 font-display text-lg font-bold text-brand-charcoal">
-                Who’s booked in {monthLabel}
+              <h3 className="font-display text-sm font-bold text-brand-charcoal">
+                Grouped by booking source
               </h3>
             </div>
-            <span className="rounded-full bg-brand-cream px-2.5 py-1 text-xs font-semibold text-brand-green">
+            <span className="rounded-full bg-brand-cream px-2 py-0.5 text-[11px] font-semibold text-brand-green">
               {monthStays.length}
             </span>
           </div>
 
           {monthStays.length === 0 ? (
-            <p className="mt-4 rounded-xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+            <p className="px-3.5 py-6 text-center text-xs text-muted-foreground">
               No active bookings overlap this month.
             </p>
           ) : (
-            <ul className="mt-4 max-h-[28rem] space-y-2.5 overflow-y-auto pr-1">
-              {monthStays.map((b) => {
-                const coversSelected = b.check_in <= selectedIso && b.check_out > selectedIso;
+            <div className="max-h-[22rem] overflow-y-auto">
+              {(["Booking.com", "Expedia", "Website"] as const).map((group) => {
+                const rows = monthStays.filter((b) => {
+                  const ch = channelLabel(b);
+                  if (group === "Website") return !ch;
+                  return ch === group;
+                });
+                if (rows.length === 0) return null;
                 return (
-                  <li key={b.id}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const [y, m, d] = b.check_in.split("-").map(Number);
-                        if (y === year && m - 1 === month) setSelectedDay(d);
-                        else {
-                          // jump to check-in day if in this month window; else first overlapping day
-                          const startDay =
-                            b.check_in < monthStart ? 1 : Number(b.check_in.slice(8, 10));
-                          setSelectedDay(startDay);
-                        }
-                      }}
-                      className={`w-full rounded-xl border px-3.5 py-3 text-left transition ${
-                        coversSelected
-                          ? "border-brand-green/40 bg-brand-green/[0.06] ring-1 ring-brand-green/20"
-                          : "border-slate-200/80 bg-slate-50/40 hover:border-brand-sage/40 hover:bg-brand-cream/50"
-                      }`}
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-brand-charcoal">{b.guest_name}</p>
-                          <p className="mt-0.5 text-xs font-medium text-brand-green">
-                            {b.apartmentName}
-                          </p>
-                        </div>
-                        <StatusPill status={b.status} />
-        </div>
-                      <p className="mt-2 text-sm leading-snug text-brand-charcoal/85">
-                        {formatNiceDate(b.check_in)} → {formatNiceDate(b.check_out)} ·{" "}
-                        <span className="font-semibold">{b.nights} night{b.nights === 1 ? "" : "s"}</span>
+                  <div key={group} className="border-b border-slate-100 last:border-b-0">
+                    <div className="sticky top-0 z-[1] flex items-center justify-between bg-slate-50/95 px-3.5 py-1.5 backdrop-blur">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-brand-charcoal">
+                        {group}
                       </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {b.apartmentName} is booked for {b.nights} night{b.nights === 1 ? "" : "s"} by{" "}
-                        {b.guest_name}
-                        {b.booking_reference ? ` · ${b.booking_reference}` : ""}
-                      </p>
-                    </button>
-                  </li>
+                      <span className="text-[10px] font-semibold text-muted-foreground">
+                        {rows.length}
+                      </span>
+                    </div>
+                    <ul className="divide-y divide-slate-100">
+                      {rows.map((b) => {
+                        const coversSelected =
+                          b.check_in <= selectedIso && b.check_out > selectedIso;
+                        return (
+                          <li key={b.id}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (b.check_in >= monthStart && b.check_in <= monthEnd) {
+                                  setSelectedDay(Number(b.check_in.slice(8, 10)));
+                                } else {
+                                  setSelectedDay(b.check_in < monthStart ? 1 : Number(b.check_in.slice(8, 10)));
+                                }
+                              }}
+                              className={`flex w-full items-start justify-between gap-2 px-3.5 py-2 text-left transition hover:bg-brand-cream/50 ${
+                                coversSelected ? "bg-brand-green/[0.06]" : ""
+                              }`}
+                            >
+                              <div className="min-w-0">
+                                <p className="truncate text-xs font-semibold text-brand-charcoal">
+                                  {b.guest_name}
+                                  <span className="font-normal text-muted-foreground">
+                                    {" "}
+                                    · {b.apartmentName}
+                                  </span>
+                                </p>
+                                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                                  {b.check_in} → {b.check_out} · {b.nights}n
+                                  {b.booking_reference ? ` · ${b.booking_reference}` : ""}
+                                </p>
+                              </div>
+                              <StatusPill status={b.status} />
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
                 );
               })}
-            </ul>
+            </div>
           )}
         </section>
       </div>
@@ -1186,44 +1270,38 @@ export function TaxiScheduleCalendar({
   );
 }
 
-function OverviewCard({
-  tone,
-  eyebrow,
-  title,
-  body,
-  meta,
-  status,
+function StayTableRow({
+  event,
+  eventCls,
+  apartment,
+  guest,
+  channel,
+  dates,
+  detail,
 }: {
-  tone: "check-in" | "check-out" | "booked";
-  eyebrow: string;
-  title: string;
-  body: string;
-  meta?: string;
-  status: AptBookingStatus;
+  event: string;
+  eventCls: string;
+  apartment: string;
+  guest: string;
+  channel?: string | null;
+  dates: string;
+  detail: string;
 }) {
-  const toneCls = {
-    "check-in": "border-sky-200 bg-sky-50/70",
-    "check-out": "border-violet-200 bg-violet-50/70",
-    booked: "border-emerald-200 bg-emerald-50/70",
-  } as const;
-  const eyeCls = {
-    "check-in": "text-sky-700",
-    "check-out": "text-violet-700",
-    booked: "text-emerald-700",
-  } as const;
-
   return (
-    <li className={`rounded-xl border px-3.5 py-3 ${toneCls[tone]}`}>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <p className={`text-[11px] font-bold uppercase tracking-wide ${eyeCls[tone]}`}>{eyebrow}</p>
-          <p className="mt-0.5 text-sm font-semibold text-brand-charcoal">{title}</p>
-        </div>
-        <StatusPill status={status} />
-      </div>
-      <p className="mt-2 text-sm leading-relaxed text-brand-charcoal/85">{body}</p>
-      {meta && <p className="mt-1.5 font-mono text-[11px] text-muted-foreground">{meta}</p>}
-    </li>
+    <tr className="align-top hover:bg-brand-cream/40">
+      <td className="whitespace-nowrap px-3 py-2">
+        <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${eventCls}`}>
+          {event}
+        </span>
+      </td>
+      <td className="px-3 py-2 font-medium text-brand-charcoal">{apartment}</td>
+      <td className="px-3 py-2 text-brand-charcoal/90">{guest}</td>
+      <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">{channel ?? "Website"}</td>
+      <td className="px-3 py-2 text-muted-foreground">
+        <div>{dates}</div>
+        <div className="font-mono text-[10px]">{detail}</div>
+      </td>
+    </tr>
   );
 }
 
