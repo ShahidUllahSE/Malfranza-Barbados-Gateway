@@ -114,6 +114,8 @@ const EMPTY: Filters = { types: [], guests: [], amenities: [], stayLength: "any"
 function StaysPage() {
   const search = Route.useSearch();
   const apartments = Route.useLoaderData();
+  const navigate = useNavigate();
+  const hasDateSearch = Boolean(search.checkIn && search.checkOut);
   const initial: Filters = {
     ...EMPTY,
     types: search.type && search.type !== "any" ? [search.type] : [],
@@ -126,6 +128,7 @@ function StaysPage() {
   const [sort, setSort] = useState<"recommended" | "price-asc" | "price-desc">("recommended");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [occupancyBySlug, setOccupancyBySlug] = useState<Record<string, ApartmentOccupancy>>({});
+  const [occupancyLoading, setOccupancyLoading] = useState(hasDateSearch);
 
   // Re-apply filters when the search params change (e.g. from the home hero search)
   useEffect(() => {
@@ -142,6 +145,7 @@ function StaysPage() {
 
   useEffect(() => {
     let cancelled = false;
+    setOccupancyLoading(true);
     (async () => {
       try {
         const items = await fetchApartmentOccupancy({
@@ -154,6 +158,8 @@ function StaysPage() {
         setOccupancyBySlug(map);
       } catch {
         if (!cancelled) setOccupancyBySlug({});
+      } finally {
+        if (!cancelled) setOccupancyLoading(false);
       }
     })();
     return () => {
@@ -172,23 +178,48 @@ function StaysPage() {
   const filtered = useMemo(() => {
     const list = apartments.filter((a) => {
       if (applied.types.length && !applied.types.includes(a.type)) return false;
+      if (search.guests && a.guests < search.guests) return false;
       if (applied.guests.length) {
         const match = applied.guests.some((k) => GUEST_RANGES.find((g) => g.key === k)?.test(a.guests));
         if (!match) return false;
       }
-      if (applied.amenities.length && !applied.amenities.every((am) => apartmentHasAmenity(a.amenities, am))) return false;
+      if (applied.amenities.length && !applied.amenities.every((am) => apartmentHasAmenity(a.amenities, am))) {
+        return false;
+      }
+      // Home search with dates → only show apartments free for that range
+      if (hasDateSearch && Object.keys(occupancyBySlug).length > 0) {
+        const occ = occupancyBySlug[a.id];
+        if (!occ || occ.available !== true) return false;
+      }
       return true;
     });
     if (sort === "price-asc") list.sort((a, b) => a.pricePerNight - b.pricePerNight);
     if (sort === "price-desc") list.sort((a, b) => b.pricePerNight - a.pricePerNight);
     return list;
-  }, [apartments, applied, sort]);
+  }, [apartments, applied, sort, hasDateSearch, occupancyBySlug, search.guests]);
 
   const typeCounts = useMemo(() => {
     const c: Record<string, number> = {};
-    apartments.forEach((a) => { c[a.type] = (c[a.type] ?? 0) + 1; });
+    apartments.forEach((a) => {
+      c[a.type] = (c[a.type] ?? 0) + 1;
+    });
     return c;
   }, [apartments]);
+
+  const dateLabel =
+    hasDateSearch && search.checkIn && search.checkOut
+      ? `${fmtShortDate(search.checkIn)} → ${fmtShortDate(search.checkOut)}`
+      : null;
+
+  function clearDateSearch() {
+    navigate({
+      to: "/stays",
+      search: {
+        type: search.type && search.type !== "any" ? search.type : undefined,
+        guests: search.guests,
+      },
+    });
+  }
 
   return (
     <div>
@@ -315,35 +346,89 @@ function StaysPage() {
           {/* Results */}
           <div className="min-w-0">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="min-w-0 text-lg font-display font-bold text-brand-green">
-                {filtered.length} {filtered.length === 1 ? "apartment" : "apartments"} found
-              </p>
-              <div className="relative w-full sm:w-auto sm:shrink-0">
-                <label className="sr-only" htmlFor="sort">Sort</label>
-                <select
-                  id="sort"
-                  value={sort}
-                  onChange={(e) => setSort(e.target.value as typeof sort)}
-                  className="w-full appearance-none rounded-xl border border-border bg-white py-2.5 pl-3 pr-9 text-sm text-brand-charcoal outline-none focus:border-brand-sage sm:w-auto"
-                >
-                  <option value="recommended">Sort by: Recommended</option>
-                  <option value="price-asc">Price: Low to High</option>
-                  <option value="price-desc">Price: High to Low</option>
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-charcoal/60" />
+              <div className="min-w-0">
+                <p className="text-lg font-display font-bold text-brand-green">
+                  {hasDateSearch && occupancyLoading
+                    ? "Checking availability…"
+                    : `${filtered.length} ${filtered.length === 1 ? "apartment" : "apartments"} ${
+                        hasDateSearch ? "available" : "found"
+                      }`}
+                </p>
+                {dateLabel ? (
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    For {dateLabel}
+                    {search.guests ? ` · ${search.guests} guest${search.guests === 1 ? "" : "s"}` : ""}
+                    {search.type && search.type !== "any"
+                      ? ` · ${search.type.replace("-", " ")}`
+                      : ""}
+                  </p>
+                ) : null}
+              </div>
+              <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
+                {hasDateSearch ? (
+                  <button
+                    type="button"
+                    onClick={clearDateSearch}
+                    className="rounded-xl border border-border bg-white px-3 py-2 text-xs font-semibold text-brand-charcoal hover:border-brand-sage/50"
+                  >
+                    Show all stays
+                  </button>
+                ) : null}
+                <div className="relative w-full sm:w-auto">
+                  <label className="sr-only" htmlFor="sort">Sort</label>
+                  <select
+                    id="sort"
+                    value={sort}
+                    onChange={(e) => setSort(e.target.value as typeof sort)}
+                    className="w-full appearance-none rounded-xl border border-border bg-white py-2.5 pl-3 pr-9 text-sm text-brand-charcoal outline-none focus:border-brand-sage sm:w-auto"
+                  >
+                    <option value="recommended">Sort by: Recommended</option>
+                    <option value="price-asc">Price: Low to High</option>
+                    <option value="price-desc">Price: High to Low</option>
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-charcoal/60" />
+                </div>
               </div>
             </div>
 
-            {filtered.length === 0 ? (
+            {hasDateSearch && occupancyLoading ? (
+              <div className="mt-10 rounded-2xl border border-border bg-white p-10 text-center text-sm text-muted-foreground shadow-card">
+                Checking which apartments are free for your dates…
+              </div>
+            ) : filtered.length === 0 ? (
               <div className="mt-10 rounded-2xl border border-dashed border-border bg-brand-cream p-10 text-center">
-                <p className="font-display text-lg font-bold text-brand-green">No apartments match those filters — try clearing a few.</p>
-                <p className="mt-2 text-sm text-brand-charcoal/70">You can widen your search or start over.</p>
-                <button
-                  onClick={() => { setDraft(EMPTY); setApplied(EMPTY); }}
-                  className="mt-5 inline-flex h-11 items-center justify-center rounded-full bg-brand-orange px-6 text-sm font-semibold text-white shadow-sm hover:brightness-105"
-                >
-                  Clear Filters
-                </button>
+                <p className="font-display text-lg font-bold text-brand-green">
+                  {hasDateSearch
+                    ? "No apartments are available for those dates."
+                    : "No apartments match those filters — try clearing a few."}
+                </p>
+                <p className="mt-2 text-sm text-brand-charcoal/70">
+                  {hasDateSearch
+                    ? "Try different dates, or browse all stays and pick another range."
+                    : "You can widen your search or start over."}
+                </p>
+                <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                  {hasDateSearch ? (
+                    <button
+                      type="button"
+                      onClick={clearDateSearch}
+                      className="inline-flex h-11 items-center justify-center rounded-full bg-brand-green px-6 text-sm font-semibold text-white shadow-sm hover:brightness-110"
+                    >
+                      Show all stays
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDraft(EMPTY);
+                      setApplied(EMPTY);
+                      if (hasDateSearch) clearDateSearch();
+                    }}
+                    className="inline-flex h-11 items-center justify-center rounded-full bg-brand-orange px-6 text-sm font-semibold text-white shadow-sm hover:brightness-105"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
